@@ -1,0 +1,27 @@
+{
+  "name": "SKT Takip - Son Kullanma Tarihi Yönetimi",
+  "short_name": "SKT Takip",
+  "description": "Market reyon görevlileri için profesyonel son kullanma tarihi takip uygulaması",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#4f46e5",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities", "business"],
+  "lang": "tr",
+  "dir": "ltr"
+}
