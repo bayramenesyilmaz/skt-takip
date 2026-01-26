@@ -30,72 +30,97 @@ export default function AyarlarPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationsEnabled(Notification.permission === 'granted')
-    }
+    setIsMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (!isMounted) return
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotificationsEnabled(Notification.permission === 'granted')
+    }
+  }, [isMounted])
+
   const handleNotificationToggle = async () => {
-    if (!('Notification' in window)) {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
       alert('Tarayiciniz bildirimleri desteklemiyor.')
       return
     }
 
-    if (Notification.permission === 'granted') {
-      setNotificationsEnabled(prev => !prev)
-    } else if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission()
-      setNotificationsEnabled(permission === 'granted')
-    } else {
-      alert('Bildirim izni reddedildi. Tarayici ayarlarindan izin vermeniz gerekiyor.')
+    try {
+      if (Notification.permission === 'granted') {
+        setNotificationsEnabled(prev => !prev)
+      } else if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission()
+        setNotificationsEnabled(permission === 'granted')
+      } else {
+        alert('Bildirim izni reddedildi. Tarayici ayarlarindan izin vermeniz gerekiyor.')
+      }
+    } catch (error) {
+      console.error('Notification permission error:', error)
+      alert('Bildirim izni alinamadi.')
     }
   }
 
   const handleExport = () => {
-    const data = JSON.stringify(products, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `skt-takip-yedek-${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    
+    try {
+      const data = JSON.stringify(products, null, 2)
+      const blob = new Blob([data], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `skt-takip-yedek-${new Date().toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export error:', error)
+      alert('Disa aktarma sirasinda bir hata olustu.')
+    }
   }
 
   const handleImport = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.json'
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file) return
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    
+    try {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.json'
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0]
+        if (!file) return
 
-      try {
-        const text = await file.text()
-        const data = JSON.parse(text) as Product[]
-        
-        if (Array.isArray(data)) {
-          let imported = 0
-          for (const product of data) {
-            if (product.name && product.stockCode && product.expiryDate) {
-              addProduct({
-                name: product.name,
-                stockCode: product.stockCode,
-                barcode: product.barcode || '',
-                expiryDate: product.expiryDate,
-              })
-              imported++
+        try {
+          const text = await file.text()
+          const data = JSON.parse(text) as Product[]
+          
+          if (Array.isArray(data)) {
+            let imported = 0
+            for (const product of data) {
+              if (product.name && product.stockCode && product.expiryDate) {
+                addProduct({
+                  name: product.name,
+                  stockCode: product.stockCode,
+                  barcode: product.barcode || '',
+                  expiryDate: product.expiryDate,
+                })
+                imported++
+              }
             }
+            alert(`${imported} urun basariyla iceri aktarildi!`)
           }
-          alert(`${imported} urun basariyla iceri aktarildi!`)
+        } catch {
+          alert('Dosya okunamadi. Gecerli bir JSON dosyasi secin.')
         }
-      } catch {
-        alert('Dosya okunamadi. Gecerli bir JSON dosyasi secin.')
       }
+      input.click()
+    } catch (error) {
+      console.error('Import error:', error)
+      alert('Iceri aktarma sirasinda bir hata olustu.')
     }
-    input.click()
   }
 
   // Parse date from various formats (DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY, YYYY-MM-DD)
@@ -129,10 +154,13 @@ export default function AyarlarPage() {
   }
 
   const handleCSVImport = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.csv,.txt'
-    input.onchange = async (e) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    
+    try {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.csv,.txt'
+      input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { X, Camera, SwitchCamera } from 'lucide-react'
 
@@ -14,12 +14,24 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
+  const [isMounted, setIsMounted] = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
 
-  const startCamera = async () => {
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  const startCamera = useCallback(async () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return
+
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
+      }
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError('Kamera erişimi desteklenmiyor.')
+        return
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -41,9 +53,11 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       console.error('Camera error:', err)
       setError('Kamera erişimi sağlanamadı. Lütfen kamera izinlerini kontrol edin.')
     }
-  }
+  }, [facingMode])
 
   useEffect(() => {
+    if (!isMounted) return
+    
     startCamera()
 
     return () => {
@@ -51,11 +65,12 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
         streamRef.current.getTracks().forEach(track => track.stop())
       }
     }
-  }, [facingMode])
+  }, [isMounted, facingMode, startCamera])
 
   // BarcodeDetector API for scanning
   useEffect(() => {
-    if (!videoRef.current || error) return
+    if (!isMounted || !videoRef.current || error) return
+    if (typeof window === 'undefined') return
 
     let animationId: number
     let isScanning = true
@@ -77,10 +92,10 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       ctx.drawImage(video, 0, 0)
 
       // Check if BarcodeDetector is available
-      if ('BarcodeDetector' in window) {
+      if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
         try {
           // @ts-ignore - BarcodeDetector is experimental
-          const barcodeDetector = new window.BarcodeDetector({
+          const barcodeDetector = new (window as unknown as { BarcodeDetector: new (options: { formats: string[] }) => { detect: (source: HTMLCanvasElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector({
             formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e']
           })
           const barcodes = await barcodeDetector.detect(canvas)
@@ -105,7 +120,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       cancelAnimationFrame(animationId)
       clearTimeout(timeoutId)
     }
-  }, [error, onScan])
+  }, [isMounted, error, onScan])
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')
@@ -176,7 +191,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
 
         <div className="p-4 bg-card border-t border-border">
           <p className="text-xs text-muted-foreground text-center">
-            {'BarcodeDetector' in window 
+            {isMounted && typeof window !== 'undefined' && 'BarcodeDetector' in window 
               ? 'Otomatik barkod algılama aktif'
               : 'Tarayıcınız barkod algılamayı desteklemiyor. Manuel giriş yapabilirsiniz.'}
           </p>
