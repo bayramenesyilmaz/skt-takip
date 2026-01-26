@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Product, ExpiryInfo, ExpiryStatus } from '@/lib/types'
+import type { Product, ExpiryInfo, ExpiryStatus, ParsedProduct } from '@/lib/types'
 
 const STORAGE_KEY = 'skt-takip-products'
 
@@ -17,25 +17,81 @@ export function getExpiryInfo(expiryDate: string): ExpiryInfo {
   
   let status: ExpiryStatus
   let label: string
+  let actionRequired: string
   
   if (daysLeft < 0) {
     status = 'expired'
     label = `${Math.abs(daysLeft)} gün geçmiş`
+    actionRequired = 'HEMEN RAFTAN KALDIR!'
   } else if (daysLeft === 0) {
     status = 'expired'
     label = 'Bugün son gün!'
-  } else if (daysLeft <= 7) {
+    actionRequired = 'HEMEN RAFTAN KALDIR!'
+  } else if (daysLeft <= 3) {
     status = 'critical'
     label = `${daysLeft} gün kaldı`
-  } else if (daysLeft <= 30) {
-    status = 'warning'
+    actionRequired = 'ACİL: Raftan kaldır!'
+  } else if (daysLeft <= 14) {
+    status = 'remove'
     label = `${daysLeft} gün kaldı`
+    actionRequired = 'Raftan kaldırılabilir'
+  } else if (daysLeft <= 90) {
+    status = 'campaign'
+    label = `${daysLeft} gün kaldı`
+    actionRequired = 'Yetkiliye bildir - Kampanya önerisi'
   } else {
     status = 'safe'
     label = `${daysLeft} gün kaldı`
+    actionRequired = 'Güvenli'
   }
   
-  return { status, daysLeft, label }
+  return { status, daysLeft, label, actionRequired }
+}
+
+// WhatsApp formatından ürünleri ayrıştır
+// Format: "Ürün adı - GG/AA/YYYY" veya "Ürün adı - GG/AA/YYYY\n"
+export function parseProductsFromText(text: string): ParsedProduct[] {
+  const products: ParsedProduct[] = []
+  
+  // Tarih formatı: DD/MM/YYYY
+  const datePattern = /(\d{2})\/(\d{2})\/(\d{4})/g
+  
+  // Metni satırlara böl veya tarih paternine göre ayır
+  const lines = text.split(/\n/).filter(line => line.trim())
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim()
+    if (!trimmedLine) continue
+    
+    // Tarih formatını bul
+    const dateMatch = trimmedLine.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+    
+    if (dateMatch) {
+      const [fullMatch, day, month, year] = dateMatch
+      
+      // Ürün adını al (tarihten önceki kısım, " - " ile ayrılmış)
+      const namePart = trimmedLine.substring(0, trimmedLine.indexOf(fullMatch))
+      const name = namePart.replace(/\s*-\s*$/, '').trim()
+      
+      if (name) {
+        // Tarihi ISO formatına çevir (YYYY-MM-DD)
+        const expiryDate = `${year}-${month}-${day}`
+        
+        // Tarihin geçerli olup olmadığını kontrol et
+        const dateObj = new Date(expiryDate)
+        const isValidDate = !isNaN(dateObj.getTime())
+        
+        products.push({
+          name,
+          expiryDate,
+          isValid: isValidDate,
+          error: isValidDate ? undefined : 'Geçersiz tarih'
+        })
+      }
+    }
+  }
+  
+  return products
 }
 
 export function useProductStore() {
@@ -77,6 +133,24 @@ export function useProductStore() {
     return newProduct
   }, [products, saveProducts])
   
+  // Toplu ürün ekleme fonksiyonu
+  const addBulkProducts = useCallback((parsedProducts: ParsedProduct[]) => {
+    const validProducts = parsedProducts.filter(p => p.isValid)
+    const newProducts: Product[] = validProducts.map(p => ({
+      id: crypto.randomUUID(),
+      name: p.name,
+      stockCode: '', // Otomatik stok kodu atanacak
+      barcode: '',
+      expiryDate: p.expiryDate,
+      category: 'general' as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }))
+    
+    saveProducts([...products, ...newProducts])
+    return newProducts
+  }, [products, saveProducts])
+  
   const updateProduct = useCallback((id: string, updates: Partial<Omit<Product, 'id' | 'createdAt'>>) => {
     const updated = products.map(p => 
       p.id === id 
@@ -115,6 +189,7 @@ export function useProductStore() {
     products,
     isLoading,
     addProduct,
+    addBulkProducts,
     updateProduct,
     deleteProduct,
     getProductsByStatus,

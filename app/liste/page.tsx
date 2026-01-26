@@ -152,10 +152,13 @@ export default function ListePage() {
                   Gecmis ({getStatusCount('expired')})
                 </SelectItem>
                 <SelectItem value="critical">
-                  Kritik ({getStatusCount('critical')})
+                  Kritik 0-3 gun ({getStatusCount('critical')})
                 </SelectItem>
-                <SelectItem value="warning">
-                  Yakin ({getStatusCount('warning')})
+                <SelectItem value="remove">
+                  Kaldir 4-14 gun ({getStatusCount('remove')})
+                </SelectItem>
+                <SelectItem value="campaign">
+                  Kampanya 15-90 gun ({getStatusCount('campaign')})
                 </SelectItem>
                 <SelectItem value="safe">
                   Guvenli ({getStatusCount('safe')})
@@ -184,11 +187,18 @@ export default function ListePage() {
             Kritik: {getStatusCount('critical')}
           </Badge>
           <Badge 
-            variant={statusFilter === 'warning' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20"
-            onClick={() => setStatusFilter(statusFilter === 'warning' ? 'all' : 'warning')}
+            variant={statusFilter === 'remove' ? 'default' : 'outline'}
+            className="shrink-0 cursor-pointer bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/20"
+            onClick={() => setStatusFilter(statusFilter === 'remove' ? 'all' : 'remove')}
           >
-            Yakin: {getStatusCount('warning')}
+            Kaldir: {getStatusCount('remove')}
+          </Badge>
+          <Badge 
+            variant={statusFilter === 'campaign' ? 'default' : 'outline'}
+            className="shrink-0 cursor-pointer bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20"
+            onClick={() => setStatusFilter(statusFilter === 'campaign' ? 'all' : 'campaign')}
+          >
+            Kampanya: {getStatusCount('campaign')}
           </Badge>
           <Badge 
             variant={statusFilter === 'safe' ? 'default' : 'outline'}

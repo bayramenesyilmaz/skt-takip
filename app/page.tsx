@@ -12,14 +12,16 @@ import { EmptyState } from '@/components/empty-state'
 import { InstallPrompt } from '@/components/install-prompt'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
+import { BulkProductAdd } from '@/components/bulk-product-add'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { Package, Bell, BellOff, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Package, Bell, BellOff, ChevronRight, AlertTriangle, ClipboardPaste } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 export default function Home() {
-  const { products, isLoading, addProduct, updateProduct, deleteProduct } = useProductStore()
+  const { products, isLoading, addProduct, addBulkProducts, updateProduct, deleteProduct } = useProductStore()
   
   const [showForm, setShowForm] = useState(false)
+  const [showBulkAdd, setShowBulkAdd] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
@@ -37,7 +39,7 @@ export default function Home() {
 
     const checkExpiry = () => {
       const criticalProducts = products.filter(
-        p => ['expired', 'critical'].includes(getExpiryInfo(p.expiryDate).status)
+        p => ['expired', 'critical', 'remove'].includes(getExpiryInfo(p.expiryDate).status)
       )
 
       if (criticalProducts.length > 0) {
@@ -79,12 +81,12 @@ export default function Home() {
     }
   }
 
-  // Get urgent products (expired + critical) - only show top 5
+  // Get urgent products (expired + critical + remove) - only show top 5
   const urgentProducts = useMemo(() => {
     return products
       .filter(p => {
         const info = getExpiryInfo(p.expiryDate)
-        return info.status === 'expired' || info.status === 'critical'
+        return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
       })
       .sort((a, b) => {
         const aInfo = getExpiryInfo(a.expiryDate)
@@ -94,10 +96,10 @@ export default function Home() {
       .slice(0, 5)
   }, [products])
 
-  // Get warning products - only show top 3
-  const warningProducts = useMemo(() => {
+  // Get campaign products - only show top 3
+  const campaignProducts = useMemo(() => {
     return products
-      .filter(p => getExpiryInfo(p.expiryDate).status === 'warning')
+      .filter(p => getExpiryInfo(p.expiryDate).status === 'campaign')
       .sort((a, b) => {
         const aInfo = getExpiryInfo(a.expiryDate)
         const bInfo = getExpiryInfo(b.expiryDate)
@@ -109,6 +111,11 @@ export default function Home() {
   const handleAddProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     addProduct(product)
     setShowForm(false)
+  }
+
+  const handleBulkAdd = (parsedProducts: import('@/lib/types').ParsedProduct[]) => {
+    addBulkProducts(parsedProducts)
+    setShowBulkAdd(false)
   }
 
   const handleUpdateProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -153,6 +160,19 @@ export default function Home() {
     )
   }
 
+  if (showBulkAdd) {
+    return (
+      <main className="min-h-screen bg-background">
+        <div className="max-w-lg mx-auto p-4">
+          <BulkProductAdd
+            onAdd={handleBulkAdd}
+            onCancel={() => setShowBulkAdd(false)}
+          />
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-background pb-28">
       {/* Header */}
@@ -168,14 +188,25 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground">Son Kullanma Tarihi Yonetimi</p>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleNotificationToggle}
-              className={notificationsEnabled ? 'text-primary' : 'text-muted-foreground'}
-            >
-              {notificationsEnabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setShowBulkAdd(true)}
+                className="text-muted-foreground hover:text-primary"
+                title="Toplu Urun Ekle"
+              >
+                <ClipboardPaste className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleNotificationToggle}
+                className={notificationsEnabled ? 'text-primary' : 'text-muted-foreground'}
+              >
+                {notificationsEnabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -200,7 +231,7 @@ export default function Home() {
                   <Badge variant="destructive" className="text-xs">
                     {products.filter(p => {
                       const info = getExpiryInfo(p.expiryDate)
-                      return info.status === 'expired' || info.status === 'critical'
+                      return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
                     }).length} urun
                   </Badge>
                 </div>
@@ -220,17 +251,20 @@ export default function Home() {
               </section>
             )}
 
-            {/* Warning Products Section */}
-            {warningProducts.length > 0 && (
+            {/* Campaign Products Section */}
+            {campaignProducts.length > 0 && (
               <section>
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-foreground">Yaklasan SKT</h2>
+                  <h2 className="font-semibold text-foreground">Kampanya Onerisi</h2>
                   <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
-                    {products.filter(p => getExpiryInfo(p.expiryDate).status === 'warning').length} urun
+                    {products.filter(p => getExpiryInfo(p.expiryDate).status === 'campaign').length} urun
                   </Badge>
                 </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Bu urunler icin yetkiliye bilgi verin - kampanya yapilabilir
+                </p>
                 <div className="space-y-3">
-                  {warningProducts.map(product => (
+                  {campaignProducts.map(product => (
                     <ProductCard
                       key={product.id}
                       product={product}
