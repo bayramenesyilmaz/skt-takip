@@ -25,29 +25,41 @@ export default function Home() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Mark as mounted (client-side only)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Request notification permission
   useEffect(() => {
-    if ('Notification' in window) {
+    if (!isMounted) return
+    if (typeof window !== 'undefined' && 'Notification' in window) {
       setNotificationsEnabled(Notification.permission === 'granted')
     }
-  }, [])
+  }, [isMounted])
 
   // Check for expiring products and send notifications
   useEffect(() => {
-    if (!notificationsEnabled || products.length === 0) return
+    if (!isMounted || !notificationsEnabled || products.length === 0) return
+    if (typeof window === 'undefined') return
 
     const checkExpiry = () => {
       const criticalProducts = products.filter(
         p => ['expired', 'critical', 'remove'].includes(getExpiryInfo(p.expiryDate).status)
       )
 
-      if (criticalProducts.length > 0) {
-        new Notification('SKT Takip - Dikkat!', {
-          body: `${criticalProducts.length} urunun son kullanma tarihi yaklasiyor veya gecmis!`,
-          icon: '/icon-192.png',
-          tag: 'expiry-alert',
-        })
+      if (criticalProducts.length > 0 && 'Notification' in window) {
+        try {
+          new Notification('SKT Takip - Dikkat!', {
+            body: `${criticalProducts.length} urunun son kullanma tarihi yaklasiyor veya gecmis!`,
+            icon: '/icon-192.png',
+            tag: 'expiry-alert',
+          })
+        } catch (error) {
+          console.error('Notification error:', error)
+        }
       }
     }
 
@@ -63,21 +75,26 @@ export default function Home() {
     checkExpiry()
 
     return () => clearTimeout(timeout)
-  }, [notificationsEnabled, products])
+  }, [isMounted, notificationsEnabled, products])
 
   const handleNotificationToggle = async () => {
-    if (!('Notification' in window)) {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
       alert('Tarayiciniz bildirimleri desteklemiyor.')
       return
     }
 
-    if (Notification.permission === 'granted') {
-      setNotificationsEnabled(prev => !prev)
-    } else if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission()
-      setNotificationsEnabled(permission === 'granted')
-    } else {
-      alert('Bildirim izni reddedildi. Tarayici ayarlarindan izin vermeniz gerekiyor.')
+    try {
+      if (Notification.permission === 'granted') {
+        setNotificationsEnabled(prev => !prev)
+      } else if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission()
+        setNotificationsEnabled(permission === 'granted')
+      } else {
+        alert('Bildirim izni reddedildi. Tarayici ayarlarindan izin vermeniz gerekiyor.')
+      }
+    } catch (error) {
+      console.error('Notification permission error:', error)
+      alert('Bildirim izni alinamadi.')
     }
   }
 

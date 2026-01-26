@@ -14,22 +14,37 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isMounted || typeof window === 'undefined') return
+
     // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
-      return
+    try {
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        setIsInstalled(true)
+        return
+      }
+    } catch {
+      // matchMedia not supported
     }
 
     // Check if dismissed recently
-    const dismissed = localStorage.getItem('pwa-install-dismissed')
-    if (dismissed) {
-      const dismissedTime = parseInt(dismissed, 10)
-      // Show again after 7 days
-      if (Date.now() - dismissedTime < 7 * 24 * 60 * 60 * 1000) {
-        return
+    try {
+      const dismissed = localStorage.getItem('pwa-install-dismissed')
+      if (dismissed) {
+        const dismissedTime = parseInt(dismissed, 10)
+        // Show again after 7 days
+        if (Date.now() - dismissedTime < 7 * 24 * 60 * 60 * 1000) {
+          return
+        }
       }
+    } catch {
+      // localStorage not available
     }
 
     const handleBeforeInstall = (e: Event) => {
@@ -41,15 +56,19 @@ export function InstallPrompt() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstall)
 
     // For iOS - show custom prompt
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-    if (isIOS && !isInstalled) {
-      setTimeout(() => setShowPrompt(true), 3000)
+    try {
+      const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+      if (isIOS && !isInstalled) {
+        setTimeout(() => setShowPrompt(true), 3000)
+      }
+    } catch {
+      // navigator not available
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
     }
-  }, [isInstalled])
+  }, [isMounted, isInstalled])
 
   const handleInstall = async () => {
     if (deferredPrompt) {
@@ -64,12 +83,18 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    localStorage.setItem('pwa-install-dismissed', Date.now().toString())
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pwa-install-dismissed', Date.now().toString())
+      }
+    } catch {
+      // localStorage not available
+    }
   }
 
-  if (!showPrompt || isInstalled) return null
+  if (!showPrompt || isInstalled || !isMounted) return null
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-40 animate-in slide-in-from-bottom-4">

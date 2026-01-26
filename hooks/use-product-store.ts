@@ -5,6 +5,25 @@ import type { Product, ExpiryInfo, ExpiryStatus, ParsedProduct } from '@/lib/typ
 
 const STORAGE_KEY = 'skt-takip-products'
 
+// SSR-safe localStorage helpers
+function getStorageItem(key: string): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function setStorageItem(key: string, value: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(key, value)
+  } catch (error) {
+    console.error('Failed to save to localStorage:', error)
+  }
+}
+
 export function getExpiryInfo(expiryDate: string): ExpiryInfo {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -97,29 +116,36 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
 export function useProductStore() {
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isMounted, setIsMounted] = useState(false)
+  
+  // Mark as mounted (client-side only)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
   
   // Load products from localStorage
   useEffect(() => {
+    if (!isMounted) return
+    
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored = getStorageItem(STORAGE_KEY)
       if (stored) {
-        setProducts(JSON.parse(stored))
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) {
+          setProducts(parsed)
+        }
       }
     } catch (error) {
       console.error('Failed to load products:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [isMounted])
   
   // Save products to localStorage
   const saveProducts = useCallback((newProducts: Product[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newProducts))
-      setProducts(newProducts)
-    } catch (error) {
-      console.error('Failed to save products:', error)
-    }
+    setStorageItem(STORAGE_KEY, JSON.stringify(newProducts))
+    setProducts(newProducts)
   }, [])
   
   const addProduct = useCallback((product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -164,6 +190,10 @@ export function useProductStore() {
     saveProducts(products.filter(p => p.id !== id))
   }, [products, saveProducts])
   
+  const clearAll = useCallback(() => {
+    saveProducts([])
+  }, [saveProducts])
+  
   const getProductsByStatus = useCallback((status: ExpiryStatus) => {
     return products.filter(p => getExpiryInfo(p.expiryDate).status === status)
   }, [products])
@@ -192,6 +222,7 @@ export function useProductStore() {
     addBulkProducts,
     updateProduct,
     deleteProduct,
+    clearAll,
     getProductsByStatus,
     getSortedProducts,
     searchProducts,
