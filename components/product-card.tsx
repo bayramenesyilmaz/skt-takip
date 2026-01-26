@@ -18,30 +18,42 @@ const statusConfig: Record<ExpiryStatus, {
   text: string
   border: string
   badge: string
+  actionBg: string
 }> = {
   expired: {
     bg: 'bg-destructive/10',
     text: 'text-destructive',
     border: 'border-destructive/30',
     badge: 'bg-destructive text-destructive-foreground',
+    actionBg: 'bg-destructive/20',
   },
   critical: {
     bg: 'bg-destructive/5',
     text: 'text-destructive',
     border: 'border-destructive/20',
     badge: 'bg-destructive/90 text-destructive-foreground',
+    actionBg: 'bg-destructive/15',
   },
-  warning: {
+  remove: {
+    bg: 'bg-orange-500/10',
+    text: 'text-orange-600 dark:text-orange-500',
+    border: 'border-orange-500/30',
+    badge: 'bg-orange-500 text-orange-950',
+    actionBg: 'bg-orange-500/20',
+  },
+  campaign: {
     bg: 'bg-amber-500/10',
     text: 'text-amber-600 dark:text-amber-500',
     border: 'border-amber-500/30',
     badge: 'bg-amber-500 text-amber-950',
+    actionBg: 'bg-amber-500/20',
   },
   safe: {
     bg: 'bg-emerald-500/10',
     text: 'text-emerald-600 dark:text-emerald-500',
     border: 'border-emerald-500/30',
     badge: 'bg-emerald-500 text-emerald-950',
+    actionBg: 'bg-emerald-500/20',
   },
 }
 
@@ -79,7 +91,7 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge className={`${config.badge} text-xs`}>
                 <Clock className="w-3 h-3 mr-1" />
                 {expiryInfo.label}
@@ -88,6 +100,13 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
                 SKT: {formatDate(product.expiryDate)}
               </span>
             </div>
+            
+            {/* Aksiyon Bilgisi */}
+            {expiryInfo.status !== 'safe' && (
+              <div className={`mt-2 px-2 py-1 rounded-md text-xs font-medium ${config.actionBg} ${config.text}`}>
+                {expiryInfo.actionRequired}
+              </div>
+            )}
           </div>
           
           <div className="flex flex-col gap-1">
