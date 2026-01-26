@@ -243,6 +243,10 @@ export default function AyarlarPage() {
       }
     }
     input.click()
+    } catch (error) {
+      console.error('CSV Import error:', error)
+      alert('CSV iceri aktarma sirasinda bir hata olustu.')
+    }
   }
 
   const handleClearAll = () => {
