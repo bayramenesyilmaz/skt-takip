@@ -6,15 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select'
 import { BottomNav } from '@/components/bottom-nav'
-import { ProductForm } from '@/components/product-form'
 import { ProductCard } from '@/components/product-card'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
@@ -25,17 +17,11 @@ import {
   ChevronRight, 
   ChevronDown,
   Package,
-  X
+  X,
+  Layers,
+  ArrowLeft
 } from 'lucide-react'
 import type { Product, Location } from '@/lib/types'
-
-const locationTypes = [
-  { value: 'reyon', label: 'Reyon' },
-  { value: 'palet', label: 'Palet' },
-  { value: 'depo', label: 'Depo' },
-  { value: 'dolap', label: 'Dolap' },
-  { value: 'raf', label: 'Raf' },
-] as const
 
 export default function LokasyonlarPage() {
   const { 
@@ -51,44 +37,75 @@ export default function LokasyonlarPage() {
   } = useProductStore()
   
   const [showAddForm, setShowAddForm] = useState(false)
-  const [showProductForm, setShowProductForm] = useState(false)
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [showAddPaletForm, setShowAddPaletForm] = useState<string | null>(null) // parent location id
+  const [showAddProductForm, setShowAddProductForm] = useState<string | null>(null) // palet id
+  const [expandedLocationId, setExpandedLocationId] = useState<string | null>(null)
+  const [expandedPaletId, setExpandedPaletId] = useState<string | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [deleteLocationTarget, setDeleteLocationTarget] = useState<Location | null>(null)
   
-  const [newLocation, setNewLocation] = useState({
-    name: '',
-    type: 'reyon' as Location['type']
-  })
+  const [newLocationName, setNewLocationName] = useState('')
+  const [newPaletName, setNewPaletName] = useState('')
+  const [newProductName, setNewProductName] = useState('')
+  const [newProductDate, setNewProductDate] = useState('')
+
+  // Ana lokasyonlar (parentId olmayan)
+  const mainLocations = locations.filter(l => !l.parentId)
+  
+  // Bir lokasyonun paletleri
+  const getPalets = (locationId: string) => locations.filter(l => l.parentId === locationId)
 
   const handleAddLocation = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newLocation.name.trim()) return
+    if (!newLocationName.trim()) return
     
     addLocation({
-      name: newLocation.name.trim(),
-      type: newLocation.type
+      name: newLocationName.trim(),
+      type: 'reyon'
     })
     
-    setNewLocation({ name: '', type: 'reyon' })
+    setNewLocationName('')
     setShowAddForm(false)
   }
 
-  const handleAddProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (selectedLocation) {
-      addProduct({ ...product, locationId: selectedLocation.id })
-    } else {
-      addProduct(product)
-    }
-    setShowProductForm(false)
-    setSelectedLocation(null)
+  const handleAddPalet = (e: React.FormEvent, parentId: string) => {
+    e.preventDefault()
+    if (!newPaletName.trim()) return
+    
+    addLocation({
+      name: newPaletName.trim(),
+      type: 'palet',
+      parentId
+    })
+    
+    setNewPaletName('')
+    setShowAddPaletForm(null)
   }
 
-  const handleUpdateProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleAddProduct = (e: React.FormEvent, paletId: string) => {
+    e.preventDefault()
+    if (!newProductName.trim() || !newProductDate) return
+    
+    addProduct({
+      name: newProductName.trim(),
+      expiryDate: newProductDate,
+      locationId: paletId
+    })
+    
+    setNewProductName('')
+    setNewProductDate('')
+    setShowAddProductForm(null)
+  }
+
+  const handleUpdateProduct = (product: Product) => {
     if (editingProduct) {
-      updateProduct(editingProduct.id, product)
+      updateProduct(editingProduct.id, {
+        name: product.name,
+        expiryDate: product.expiryDate,
+        stockCode: product.stockCode,
+        barcode: product.barcode
+      })
       setEditingProduct(null)
     }
   }
@@ -102,18 +119,39 @@ export default function LokasyonlarPage() {
 
   const handleDeleteLocation = () => {
     if (deleteLocationTarget) {
+      // Eger ana lokasyonsa, altindaki paletleri de sil
+      const palets = getPalets(deleteLocationTarget.id)
+      palets.forEach(palet => deleteLocation(palet.id))
       deleteLocation(deleteLocationTarget.id)
       setDeleteLocationTarget(null)
     }
   }
 
   const getLocationStats = (locationId: string) => {
-    const locationProducts = getProductsByLocation(locationId)
+    // Direkt bu lokasyondaki urunler
+    let locationProducts = getProductsByLocation(locationId)
+    
+    // Eger ana lokasyonsa, paletlerdeki urunleri de say
+    const palets = getPalets(locationId)
+    palets.forEach(palet => {
+      locationProducts = [...locationProducts, ...getProductsByLocation(palet.id)]
+    })
+    
     const urgent = locationProducts.filter(p => {
       const info = getExpiryInfo(p.expiryDate)
       return info.status === 'expired' || info.status === 'critical'
     }).length
+    
     return { total: locationProducts.length, urgent }
+  }
+
+  const getPaletStats = (paletId: string) => {
+    const paletProducts = getProductsByLocation(paletId)
+    const urgent = paletProducts.filter(p => {
+      const info = getExpiryInfo(p.expiryDate)
+      return info.status === 'expired' || info.status === 'critical'
+    }).length
+    return { total: paletProducts.length, urgent }
   }
 
   if (isLoading) {
@@ -124,25 +162,6 @@ export default function LokasyonlarPage() {
           <p className="text-muted-foreground">Yukleniyor...</p>
         </div>
       </div>
-    )
-  }
-
-  if (showProductForm || editingProduct) {
-    return (
-      <main className="min-h-screen bg-background">
-        <div className="max-w-lg mx-auto p-4">
-          <ProductForm
-            onSubmit={editingProduct ? handleUpdateProduct : handleAddProduct}
-            onCancel={() => {
-              setShowProductForm(false)
-              setSelectedLocation(null)
-              setEditingProduct(null)
-            }}
-            initialData={editingProduct || undefined}
-            locations={locations}
-          />
-        </div>
-      </main>
     )
   }
 
@@ -158,7 +177,7 @@ export default function LokasyonlarPage() {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-foreground">Lokasyonlar</h1>
-                <p className="text-xs text-muted-foreground">Reyon, Palet, Depo</p>
+                <p className="text-xs text-muted-foreground">Reyon ve Paletler</p>
               </div>
             </div>
             <Button 
@@ -167,7 +186,7 @@ export default function LokasyonlarPage() {
               className="h-9"
             >
               <Plus className="w-4 h-4 mr-1" />
-              Ekle
+              Yeni Alan
             </Button>
           </div>
         </div>
@@ -180,7 +199,7 @@ export default function LokasyonlarPage() {
             <CardContent className="p-4">
               <form onSubmit={handleAddLocation} className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-sm">Yeni Lokasyon</h3>
+                  <h3 className="font-medium text-sm">Yeni Lokasyon Olustur</h3>
                   <Button 
                     type="button" 
                     variant="ghost" 
@@ -192,38 +211,19 @@ export default function LokasyonlarPage() {
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Lokasyon Adi</Label>
-                    <Input
-                      value={newLocation.name}
-                      onChange={(e) => setNewLocation(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="orn: Yag Reyonu"
-                      className="h-10"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Tip</Label>
-                    <Select 
-                      value={newLocation.type}
-                      onValueChange={(v) => setNewLocation(prev => ({ ...prev, type: v as Location['type'] }))}
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locationTypes.map(type => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Alan Adi</Label>
+                  <Input
+                    value={newLocationName}
+                    onChange={(e) => setNewLocationName(e.target.value)}
+                    placeholder="orn: Yag Reyonu, Kahvalti Dolabi, Soguk Depo"
+                    className="h-10"
+                    autoFocus
+                  />
                 </div>
                 
-                <Button type="submit" className="w-full h-10" disabled={!newLocation.name.trim()}>
-                  Lokasyon Ekle
+                <Button type="submit" className="w-full h-10" disabled={!newLocationName.trim()}>
+                  Olustur
                 </Button>
               </form>
             </CardContent>
@@ -231,24 +231,24 @@ export default function LokasyonlarPage() {
         )}
 
         {/* Locations List */}
-        {locations.length === 0 ? (
+        {mainLocations.length === 0 ? (
           <div className="text-center py-12">
             <MapPin className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-            <h3 className="font-semibold text-foreground mb-1">Lokasyon Yok</h3>
+            <h3 className="font-semibold text-foreground mb-1">Henuz Alan Yok</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Reyon, palet veya depo ekleyerek baslayin
+              Reyon, dolap veya depo olusturarak baslayabilirsiniz
             </p>
             <Button onClick={() => setShowAddForm(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Lokasyon Ekle
+              Yeni Alan Olustur
             </Button>
           </div>
         ) : (
           <div className="space-y-2">
-            {locations.map((location) => {
+            {mainLocations.map((location) => {
               const stats = getLocationStats(location.id)
-              const isExpanded = expandedId === location.id
-              const locationProducts = getProductsByLocation(location.id)
+              const isExpanded = expandedLocationId === location.id
+              const palets = getPalets(location.id)
               
               return (
                 <Card key={location.id} className="overflow-hidden">
@@ -256,7 +256,7 @@ export default function LokasyonlarPage() {
                     {/* Location Header */}
                     <div 
                       className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50"
-                      onClick={() => setExpandedId(isExpanded ? null : location.id)}
+                      onClick={() => setExpandedLocationId(isExpanded ? null : location.id)}
                     >
                       <div className="flex items-center gap-3">
                         {isExpanded ? (
@@ -265,15 +265,10 @@ export default function LokasyonlarPage() {
                           <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         )}
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">{location.name}</span>
-                            <Badge variant="outline" className="text-xs px-1.5 py-0">
-                              {locationTypes.find(t => t.value === location.type)?.label}
-                            </Badge>
-                          </div>
+                          <span className="font-medium text-sm">{location.name}</span>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-xs text-muted-foreground">
-                              {stats.total} urun
+                              {palets.length} palet, {stats.total} urun
                             </span>
                             {stats.urgent > 0 && (
                               <Badge variant="destructive" className="text-xs px-1.5 py-0">
@@ -291,11 +286,12 @@ export default function LokasyonlarPage() {
                           className="h-8 w-8"
                           onClick={(e) => {
                             e.stopPropagation()
-                            setSelectedLocation(location)
-                            setShowProductForm(true)
+                            setShowAddPaletForm(location.id)
+                            setExpandedLocationId(location.id)
                           }}
+                          title="Palet Ekle"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Layers className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -311,41 +307,217 @@ export default function LokasyonlarPage() {
                       </div>
                     </div>
                     
-                    {/* Expanded Products */}
+                    {/* Expanded Palets */}
                     {isExpanded && (
                       <div className="border-t border-border bg-muted/30 p-3 space-y-2">
-                        {locationProducts.length === 0 ? (
+                        {/* Add Palet Form */}
+                        {showAddPaletForm === location.id && (
+                          <Card className="border-dashed">
+                            <CardContent className="p-3">
+                              <form onSubmit={(e) => handleAddPalet(e, location.id)} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium">Yeni Palet</span>
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6"
+                                    onClick={() => setShowAddPaletForm(null)}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={newPaletName}
+                                    onChange={(e) => setNewPaletName(e.target.value)}
+                                    placeholder="orn: P1, Soldaki Raf"
+                                    className="h-9 flex-1"
+                                    autoFocus
+                                  />
+                                  <Button type="submit" size="sm" className="h-9" disabled={!newPaletName.trim()}>
+                                    Ekle
+                                  </Button>
+                                </div>
+                              </form>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {palets.length === 0 && showAddPaletForm !== location.id ? (
                           <div className="text-center py-4">
-                            <Package className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-                            <p className="text-xs text-muted-foreground">Bu lokasyonda urun yok</p>
+                            <Layers className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+                            <p className="text-xs text-muted-foreground">Bu alanda palet yok</p>
                             <Button 
                               variant="outline" 
                               size="sm" 
                               className="mt-2 h-8"
-                              onClick={() => {
-                                setSelectedLocation(location)
-                                setShowProductForm(true)
-                              }}
+                              onClick={() => setShowAddPaletForm(location.id)}
                             >
                               <Plus className="w-3 h-3 mr-1" />
-                              Urun Ekle
+                              Palet Ekle
                             </Button>
                           </div>
                         ) : (
-                          locationProducts
-                            .sort((a, b) => getExpiryInfo(a.expiryDate).daysLeft - getExpiryInfo(b.expiryDate).daysLeft)
-                            .map(product => (
-                              <ProductCard
-                                key={product.id}
-                                product={product}
-                                onEdit={setEditingProduct}
-                                onDelete={(id) => {
-                                  const p = products.find(p => p.id === id)
-                                  if (p) setDeleteTarget(p)
-                                }}
-                                compact
-                              />
-                            ))
+                          palets.map(palet => {
+                            const paletStats = getPaletStats(palet.id)
+                            const isPaletExpanded = expandedPaletId === palet.id
+                            const paletProducts = getProductsByLocation(palet.id)
+                            
+                            return (
+                              <Card key={palet.id} className="bg-background">
+                                <CardContent className="p-0">
+                                  {/* Palet Header */}
+                                  <div 
+                                    className="flex items-center justify-between p-2.5 cursor-pointer hover:bg-muted/50"
+                                    onClick={() => setExpandedPaletId(isPaletExpanded ? null : palet.id)}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {isPaletExpanded ? (
+                                        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                                      ) : (
+                                        <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                                      )}
+                                      <Layers className="w-4 h-4 text-primary/70" />
+                                      <div>
+                                        <span className="text-sm font-medium">{palet.name}</span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-muted-foreground">
+                                            {paletStats.total} urun
+                                          </span>
+                                          {paletStats.urgent > 0 && (
+                                            <Badge variant="destructive" className="text-xs px-1 py-0 h-4">
+                                              {paletStats.urgent}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setShowAddProductForm(palet.id)
+                                          setExpandedPaletId(palet.id)
+                                        }}
+                                        title="Urun Ekle"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setDeleteLocationTarget(palet)
+                                        }}
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Palet Products */}
+                                  {isPaletExpanded && (
+                                    <div className="border-t border-border bg-muted/20 p-2.5 space-y-2">
+                                      {/* Add Product Form */}
+                                      {showAddProductForm === palet.id && (
+                                        <Card className="border-dashed">
+                                          <CardContent className="p-2.5">
+                                            <form onSubmit={(e) => handleAddProduct(e, palet.id)} className="space-y-2">
+                                              <div className="flex items-center justify-between">
+                                                <span className="text-xs font-medium">Hizli Urun Ekle</span>
+                                                <Button 
+                                                  type="button" 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  className="h-6 w-6"
+                                                  onClick={() => setShowAddProductForm(null)}
+                                                >
+                                                  <X className="w-3 h-3" />
+                                                </Button>
+                                              </div>
+                                              <Input
+                                                value={newProductName}
+                                                onChange={(e) => setNewProductName(e.target.value)}
+                                                placeholder="Urun adi"
+                                                className="h-9"
+                                                autoFocus
+                                              />
+                                              <div className="flex gap-2">
+                                                <Input
+                                                  type="date"
+                                                  value={newProductDate}
+                                                  onChange={(e) => setNewProductDate(e.target.value)}
+                                                  className="h-9 flex-1"
+                                                />
+                                                <Button 
+                                                  type="submit" 
+                                                  size="sm" 
+                                                  className="h-9"
+                                                  disabled={!newProductName.trim() || !newProductDate}
+                                                >
+                                                  Ekle
+                                                </Button>
+                                              </div>
+                                            </form>
+                                          </CardContent>
+                                        </Card>
+                                      )}
+
+                                      {paletProducts.length === 0 && showAddProductForm !== palet.id ? (
+                                        <div className="text-center py-3">
+                                          <Package className="w-6 h-6 text-muted-foreground/50 mx-auto mb-1" />
+                                          <p className="text-xs text-muted-foreground">Urun yok</p>
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="mt-2 h-7 text-xs"
+                                            onClick={() => setShowAddProductForm(palet.id)}
+                                          >
+                                            <Plus className="w-3 h-3 mr-1" />
+                                            Urun Ekle
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        paletProducts
+                                          .sort((a, b) => getExpiryInfo(a.expiryDate).daysLeft - getExpiryInfo(b.expiryDate).daysLeft)
+                                          .map(product => (
+                                            <ProductCard
+                                              key={product.id}
+                                              product={product}
+                                              onEdit={setEditingProduct}
+                                              onDelete={(id) => {
+                                                const p = products.find(p => p.id === id)
+                                                if (p) setDeleteTarget(p)
+                                              }}
+                                              compact
+                                            />
+                                          ))
+                                      )}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )
+                          })
+                        )}
+                        
+                        {palets.length > 0 && showAddPaletForm !== location.id && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full h-8 text-xs"
+                            onClick={() => setShowAddPaletForm(location.id)}
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Palet Ekle
+                          </Button>
                         )}
                       </div>
                     )}
@@ -357,7 +529,7 @@ export default function LokasyonlarPage() {
         )}
       </div>
 
-      <BottomNav onAddClick={() => setShowProductForm(true)} />
+      <BottomNav />
 
       {/* Delete Product Dialog */}
       <DeleteDialog
@@ -372,7 +544,7 @@ export default function LokasyonlarPage() {
         open={!!deleteLocationTarget}
         onOpenChange={(open) => !open && setDeleteLocationTarget(null)}
         onConfirm={handleDeleteLocation}
-        productName={`${deleteLocationTarget?.name || ''} lokasyonu`}
+        productName={`${deleteLocationTarget?.name || ''}`}
       />
     </main>
   )

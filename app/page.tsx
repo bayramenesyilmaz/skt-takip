@@ -184,7 +184,12 @@ export default function Home() {
                         const product = products.find(p => p.id === id)
                         if (product) setDeleteTarget(product)
                       }}
-                      locationName={locations.find(l => l.id === product.locationId)?.name}
+                      locationName={(() => {
+                        const loc = locations.find(l => l.id === product.locationId)
+                        if (!loc) return undefined
+                        const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : undefined
+                        return parent ? `${parent.name} / ${loc.name}` : loc.name
+                      })()}
                     />
                   ))}
                 </div>
@@ -213,7 +218,12 @@ export default function Home() {
                         const product = products.find(p => p.id === id)
                         if (product) setDeleteTarget(product)
                       }}
-                      locationName={locations.find(l => l.id === product.locationId)?.name}
+                      locationName={(() => {
+                        const loc = locations.find(l => l.id === product.locationId)
+                        if (!loc) return undefined
+                        const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : undefined
+                        return parent ? `${parent.name} / ${loc.name}` : loc.name
+                      })()}
                     />
                   ))}
                 </div>

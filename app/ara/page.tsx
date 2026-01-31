@@ -42,13 +42,22 @@ export default function AraPage() {
         (p.stockCode && p.stockCode.toLowerCase().includes(query)) ||
         (p.barcode && p.barcode.includes(query))
       )
-      .map(product => ({
-        product,
-        location: product.locationId 
+      .map(product => {
+        const location = product.locationId 
           ? locations.find(l => l.id === product.locationId) 
-          : undefined,
-        expiryInfo: getExpiryInfo(product.expiryDate)
-      }))
+          : undefined
+        // Parent lokasyonu bul (palet bir lokasyonun altindaysa)
+        const parentLocation = location?.parentId 
+          ? locations.find(l => l.id === location.parentId)
+          : undefined
+        
+        return {
+          product,
+          location,
+          parentLocation,
+          expiryInfo: getExpiryInfo(product.expiryDate)
+        }
+      })
       .sort((a, b) => a.expiryInfo.daysLeft - b.expiryInfo.daysLeft)
   }, [searchQuery, products, locations])
 
@@ -161,7 +170,7 @@ export default function AraPage() {
               {searchResults.length} sonuc bulundu
             </p>
             
-            {searchResults.map(({ product, location, expiryInfo }) => {
+            {searchResults.map(({ product, location, parentLocation, expiryInfo }) => {
               const config = statusConfig[expiryInfo.status]
               
               return (
@@ -192,11 +201,14 @@ export default function AraPage() {
                       <div className={`flex items-center gap-2 p-2 rounded-lg ${location ? 'bg-background/80' : 'bg-muted/50'}`}>
                         <MapPin className={`w-4 h-4 ${location ? 'text-primary' : 'text-muted-foreground'}`} />
                         {location ? (
-                          <div>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {parentLocation && (
+                              <>
+                                <span className="font-medium text-sm">{parentLocation.name}</span>
+                                <span className="text-muted-foreground">/</span>
+                              </>
+                            )}
                             <span className="font-medium text-sm">{location.name}</span>
-                            <span className="text-xs text-muted-foreground ml-2">
-                              ({location.type})
-                            </span>
                           </div>
                         ) : (
                           <span className="text-sm text-muted-foreground">

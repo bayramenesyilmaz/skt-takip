@@ -118,14 +118,14 @@ export function ProductForm({ onSubmit, onCancel, initialData, locations = [] }:
                 Lokasyon
               </Label>
               <Select 
-                value={formData.locationId} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, locationId: value }))}
+                value={formData.locationId || "none"} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, locationId: value === "none" ? "" : value }))}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Lokasyon sec (opsiyonel)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Lokasyon yok</SelectItem>
+                  <SelectItem value="none">Lokasyon yok</SelectItem>
                   {locations.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id}>
                       {loc.name}
