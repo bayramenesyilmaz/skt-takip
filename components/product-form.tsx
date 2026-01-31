@@ -1,37 +1,44 @@
 "use client"
 
-import React from "react"
-
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BarcodeScanner } from '@/components/barcode-scanner'
-import { Camera, Package, Hash, Barcode, Calendar, X } from 'lucide-react'
-import type { Product } from '@/lib/types'
+import { Camera, Package, Hash, Barcode, Calendar, X, MapPin } from 'lucide-react'
+import type { Product, Location } from '@/lib/types'
 
 interface ProductFormProps {
   onSubmit: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void
   onCancel: () => void
   initialData?: Product
+  locations?: Location[]
 }
 
-export function ProductForm({ onSubmit, onCancel, initialData }: ProductFormProps) {
+export function ProductForm({ onSubmit, onCancel, initialData, locations = [] }: ProductFormProps) {
   const [showScanner, setShowScanner] = useState(false)
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     stockCode: initialData?.stockCode || '',
     barcode: initialData?.barcode || '',
     expiryDate: initialData?.expiryDate || '',
+    locationId: initialData?.locationId || '',
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name || !formData.stockCode || !formData.expiryDate) {
+    if (!formData.name || !formData.expiryDate) {
       return
     }
-    onSubmit(formData)
+    onSubmit({
+      name: formData.name,
+      stockCode: formData.stockCode || undefined,
+      barcode: formData.barcode || undefined,
+      expiryDate: formData.expiryDate,
+      locationId: formData.locationId || undefined,
+    })
   }
 
   const handleScan = (barcode: string) => {
@@ -44,12 +51,10 @@ export function ProductForm({ onSubmit, onCancel, initialData }: ProductFormProp
   ) => {
     let value = e.target.value
     
-    // Stock code: only 6 digits
     if (field === 'stockCode') {
       value = value.replace(/\D/g, '').slice(0, 6)
     }
     
-    // Barcode: only digits
     if (field === 'barcode') {
       value = value.replace(/\D/g, '')
     }
@@ -67,7 +72,7 @@ export function ProductForm({ onSubmit, onCancel, initialData }: ProductFormProp
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold flex items-center gap-2">
             <Package className="w-5 h-5 text-primary" />
-            {initialData ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle'}
+            {initialData ? 'Urunu Duzenle' : 'Yeni Urun Ekle'}
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onCancel}>
             <X className="w-5 h-5" />
@@ -75,95 +80,117 @@ export function ProductForm({ onSubmit, onCancel, initialData }: ProductFormProp
         </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium flex items-center gap-2">
               <Package className="w-4 h-4 text-muted-foreground" />
-              Ürün Adı
+              Urun Adi *
             </Label>
             <Input
               id="name"
               value={formData.name}
               onChange={handleChange('name')}
-              placeholder="örn: Lezita Döner Piliç 300gr"
-              className="h-12"
+              placeholder="orn: Lezita Doner Pilic 300gr"
+              className="h-11"
               required
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="stockCode" className="text-sm font-medium flex items-center gap-2">
-              <Hash className="w-4 h-4 text-muted-foreground" />
-              Stok Kodu (6 Haneli)
-            </Label>
-            <Input
-              id="stockCode"
-              value={formData.stockCode}
-              onChange={handleChange('stockCode')}
-              placeholder="örn: 123456"
-              className="h-12"
-              maxLength={6}
-              pattern="\d{6}"
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              {formData.stockCode.length}/6 karakter
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="barcode" className="text-sm font-medium flex items-center gap-2">
-              <Barcode className="w-4 h-4 text-muted-foreground" />
-              Barkod
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="barcode"
-                value={formData.barcode}
-                onChange={handleChange('barcode')}
-                placeholder="örn: 8690000000000"
-                className="h-12 flex-1"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-12 px-4"
-                onClick={() => setShowScanner(true)}
-              >
-                <Camera className="w-5 h-5" />
-              </Button>
-            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="expiryDate" className="text-sm font-medium flex items-center gap-2">
               <Calendar className="w-4 h-4 text-muted-foreground" />
-              Son Kullanma Tarihi
+              Son Kullanma Tarihi *
             </Label>
             <Input
               id="expiryDate"
               type="date"
               value={formData.expiryDate}
               onChange={handleChange('expiryDate')}
-              className="h-12"
+              className="h-11"
               required
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
+          {locations.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-muted-foreground" />
+                Lokasyon
+              </Label>
+              <Select 
+                value={formData.locationId || "none"} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, locationId: value === "none" ? "" : value }))}
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Lokasyon sec (opsiyonel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Lokasyon yok</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="stockCode" className="text-sm font-medium flex items-center gap-2">
+                <Hash className="w-4 h-4 text-muted-foreground" />
+                Stok Kodu
+              </Label>
+              <Input
+                id="stockCode"
+                value={formData.stockCode}
+                onChange={handleChange('stockCode')}
+                placeholder="123456"
+                className="h-11"
+                maxLength={6}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="barcode" className="text-sm font-medium flex items-center gap-2">
+                <Barcode className="w-4 h-4 text-muted-foreground" />
+                Barkod
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="barcode"
+                  value={formData.barcode}
+                  onChange={handleChange('barcode')}
+                  placeholder="8690..."
+                  className="h-11 flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-11 px-3"
+                  onClick={() => setShowScanner(true)}
+                >
+                  <Camera className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
-              className="flex-1 h-12 bg-transparent"
+              className="flex-1 h-11"
               onClick={onCancel}
             >
-              İptal
+              Iptal
             </Button>
             <Button
               type="submit"
-              className="flex-1 h-12"
+              className="flex-1 h-11"
             >
-              {initialData ? 'Güncelle' : 'Ekle'}
+              {initialData ? 'Guncelle' : 'Ekle'}
             </Button>
           </div>
         </form>

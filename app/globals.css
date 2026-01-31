@@ -149,3 +149,31 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 640px) {
+  button, a {
+    min-height: 44px;
+  }
+  
+  input, select {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+}
+
+/* Fix flexbox alignment issues on mobile */
+.flex {
+  min-width: 0;
+}
+
+/* Ensure cards don't overflow */
+.card, [data-slot="card"] {
+  max-width: 100%;
+  overflow: hidden;
+}

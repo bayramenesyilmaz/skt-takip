@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProductForm } from '@/components/product-form'
@@ -14,91 +13,26 @@ import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
 import { BulkProductAdd } from '@/components/bulk-product-add'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { Package, Bell, BellOff, ChevronRight, AlertTriangle, ClipboardPaste } from 'lucide-react'
+import { Package, ChevronRight, AlertTriangle, ClipboardPaste } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 export default function Home() {
-  const { products, isLoading, addProduct, addBulkProducts, updateProduct, deleteProduct } = useProductStore()
+  const { 
+    products, 
+    locations,
+    isLoading, 
+    addProduct, 
+    addBulkProducts, 
+    updateProduct, 
+    deleteProduct 
+  } = useProductStore()
   
   const [showForm, setShowForm] = useState(false)
   const [showBulkAdd, setShowBulkAdd] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
 
-  // Mark as mounted (client-side only)
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  // Request notification permission
-  useEffect(() => {
-    if (!isMounted) return
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setNotificationsEnabled(Notification.permission === 'granted')
-    }
-  }, [isMounted])
-
-  // Check for expiring products and send notifications
-  useEffect(() => {
-    if (!isMounted || !notificationsEnabled || products.length === 0) return
-    if (typeof window === 'undefined') return
-
-    const checkExpiry = () => {
-      const criticalProducts = products.filter(
-        p => ['expired', 'critical', 'remove'].includes(getExpiryInfo(p.expiryDate).status)
-      )
-
-      if (criticalProducts.length > 0 && 'Notification' in window) {
-        try {
-          new Notification('SKT Takip - Dikkat!', {
-            body: `${criticalProducts.length} urunun son kullanma tarihi yaklasiyor veya gecmis!`,
-            icon: '/icon-192.png',
-            tag: 'expiry-alert',
-          })
-        } catch (error) {
-          console.error('Notification error:', error)
-        }
-      }
-    }
-
-    const now = new Date()
-    const scheduledTime = new Date(now)
-    scheduledTime.setHours(9, 0, 0, 0)
-    
-    if (now > scheduledTime) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1)
-    }
-
-    const timeout = setTimeout(checkExpiry, scheduledTime.getTime() - now.getTime())
-    checkExpiry()
-
-    return () => clearTimeout(timeout)
-  }, [isMounted, notificationsEnabled, products])
-
-  const handleNotificationToggle = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      alert('Tarayiciniz bildirimleri desteklemiyor.')
-      return
-    }
-
-    try {
-      if (Notification.permission === 'granted') {
-        setNotificationsEnabled(prev => !prev)
-      } else if (Notification.permission !== 'denied') {
-        const permission = await Notification.requestPermission()
-        setNotificationsEnabled(permission === 'granted')
-      } else {
-        alert('Bildirim izni reddedildi. Tarayici ayarlarindan izin vermeniz gerekiyor.')
-      }
-    } catch (error) {
-      console.error('Notification permission error:', error)
-      alert('Bildirim izni alinamadi.')
-    }
-  }
-
-  // Get urgent products (expired + critical + remove) - only show top 5
+  // Acil urunler (expired + critical + remove) - ilk 5
   const urgentProducts = useMemo(() => {
     return products
       .filter(p => {
@@ -113,7 +47,7 @@ export default function Home() {
       .slice(0, 5)
   }, [products])
 
-  // Get campaign products - only show top 3
+  // Kampanya urunleri - ilk 3
   const campaignProducts = useMemo(() => {
     return products
       .filter(p => getExpiryInfo(p.expiryDate).status === 'campaign')
@@ -171,6 +105,7 @@ export default function Home() {
               setEditingProduct(null)
             }}
             initialData={editingProduct || undefined}
+            locations={locations}
           />
         </div>
       </main>
@@ -191,68 +126,55 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-28">
+    <main className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-4">
+        <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10">
-                <Package className="w-7 h-7 text-primary" />
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Package className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">SKT Takip</h1>
-                <p className="text-xs text-muted-foreground">Son Kullanma Tarihi Yonetimi</p>
+                <h1 className="text-lg font-bold text-foreground">SKT Takip</h1>
+                <p className="text-xs text-muted-foreground">Son Kullanma Tarihi</p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setShowBulkAdd(true)}
-                className="text-muted-foreground hover:text-primary"
-                title="Toplu Urun Ekle"
-              >
-                <ClipboardPaste className="w-5 h-5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={handleNotificationToggle}
-                className={notificationsEnabled ? 'text-primary' : 'text-muted-foreground'}
-              >
-                {notificationsEnabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
-              </Button>
-            </div>
+            <button
+              onClick={() => setShowBulkAdd(true)}
+              className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
+              title="Toplu Urun Ekle"
+            >
+              <ClipboardPaste className="w-5 h-5 text-muted-foreground" />
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Welcome Message for Empty State */}
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {products.length === 0 ? (
           <EmptyState onAddProduct={() => setShowForm(true)} />
         ) : (
           <>
-            {/* Stats Overview */}
+            {/* Stats */}
             <StatsCards products={products} />
 
-            {/* Urgent Products Section */}
+            {/* Acil Dikkat Gereken */}
             {urgentProducts.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-3">
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-destructive" />
-                    <h2 className="font-semibold text-foreground">Acil Dikkat Gereken</h2>
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                    <h2 className="font-semibold text-foreground text-sm">Acil Dikkat</h2>
                   </div>
-                  <Badge variant="destructive" className="text-xs">
+                  <Badge variant="destructive" className="text-xs px-2 py-0.5">
                     {products.filter(p => {
                       const info = getExpiryInfo(p.expiryDate)
                       return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
-                    }).length} urun
+                    }).length}
                   </Badge>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {urgentProducts.map(product => (
                     <ProductCard
                       key={product.id}
@@ -262,25 +184,31 @@ export default function Home() {
                         const product = products.find(p => p.id === id)
                         if (product) setDeleteTarget(product)
                       }}
+                      locationName={(() => {
+                        const loc = locations.find(l => l.id === product.locationId)
+                        if (!loc) return undefined
+                        const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : undefined
+                        return parent ? `${parent.name} / ${loc.name}` : loc.name
+                      })()}
                     />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* Campaign Products Section */}
+            {/* Kampanya Onerisi */}
             {campaignProducts.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-foreground">Kampanya Onerisi</h2>
-                  <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
-                    {products.filter(p => getExpiryInfo(p.expiryDate).status === 'campaign').length} urun
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-foreground text-sm">Kampanya Onerisi</h2>
+                  <Badge className="text-xs px-2 py-0.5 bg-amber-500/10 text-amber-600 border-amber-500/30">
+                    {products.filter(p => getExpiryInfo(p.expiryDate).status === 'campaign').length}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Bu urunler icin yetkiliye bilgi verin - kampanya yapilabilir
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Yetkiliye bilgi verin - kampanya yapilabilir
                 </p>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {campaignProducts.map(product => (
                     <ProductCard
                       key={product.id}
@@ -290,20 +218,26 @@ export default function Home() {
                         const product = products.find(p => p.id === id)
                         if (product) setDeleteTarget(product)
                       }}
+                      locationName={(() => {
+                        const loc = locations.find(l => l.id === product.locationId)
+                        if (!loc) return undefined
+                        const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : undefined
+                        return parent ? `${parent.name} / ${loc.name}` : loc.name
+                      })()}
                     />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* Quick Link to Full List */}
+            {/* Tum Urunleri Gor */}
             <Link href="/liste">
-              <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <Card className="cursor-pointer hover:bg-muted/50 transition-colors border-dashed">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-foreground">Tum Urunleri Gor</p>
-                    <p className="text-sm text-muted-foreground">
-                      {products.length} urun SKT sirasina gore listelendi
+                    <p className="font-medium text-foreground text-sm">Tum Urunleri Gor</p>
+                    <p className="text-xs text-muted-foreground">
+                      {products.length} urun listelendi
                     </p>
                   </div>
                   <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -314,13 +248,9 @@ export default function Home() {
         )}
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNav onAddClick={() => setShowForm(true)} />
-
-      {/* Install Prompt */}
       <InstallPrompt />
-
-      {/* Delete Confirmation */}
+      
       <DeleteDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

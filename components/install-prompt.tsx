@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Download, X, Smartphone } from 'lucide-react'
+import { Download, X, WifiOff } from 'lucide-react'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -13,38 +13,37 @@ interface BeforeInstallPromptEvent extends Event {
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(false)
+  const [isOffline, setIsOffline] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isMounted || typeof window === 'undefined') return
+    
+    // Register service worker for offline support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => console.log('[SW] Registered:', reg.scope))
+        .catch((err) => console.log('[SW] Failed:', err))
+    }
+    
+    // Check initial online status
+    setIsOffline(!navigator.onLine)
+    
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
 
     // Check if already installed
-    try {
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-        setIsInstalled(true)
-        return
-      }
-    } catch {
-      // matchMedia not supported
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      return
     }
 
     // Check if dismissed recently
-    try {
-      const dismissed = localStorage.getItem('pwa-install-dismissed')
-      if (dismissed) {
-        const dismissedTime = parseInt(dismissed, 10)
-        // Show again after 7 days
-        if (Date.now() - dismissedTime < 7 * 24 * 60 * 60 * 1000) {
-          return
-        }
-      }
-    } catch {
-      // localStorage not available
+    const dismissed = localStorage.getItem('pwa-dismissed')
+    if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) {
+      return
     }
 
     const handleBeforeInstall = (e: Event) => {
@@ -55,86 +54,74 @@ export function InstallPrompt() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall)
 
-    // For iOS - show custom prompt
-    try {
-      const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
-      if (isIOS && !isInstalled) {
-        setTimeout(() => setShowPrompt(true), 3000)
-      }
-    } catch {
-      // navigator not available
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     }
-  }, [isMounted, isInstalled])
+  }, [])
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      await deferredPrompt.prompt()
-      const result = await deferredPrompt.userChoice
-      if (result.outcome === 'accepted') {
-        setShowPrompt(false)
-        setIsInstalled(true)
-      }
+    if (!deferredPrompt) return
+    await deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      setShowPrompt(false)
     }
+    setDeferredPrompt(null)
   }
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pwa-install-dismissed', Date.now().toString())
-      }
-    } catch {
-      // localStorage not available
-    }
+    localStorage.setItem('pwa-dismissed', Date.now().toString())
   }
 
-  if (!showPrompt || isInstalled || !isMounted) return null
-
-  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+  if (!isMounted) return null
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-40 animate-in slide-in-from-bottom-4">
-      <Card className="border-primary/20 shadow-lg">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-4">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Smartphone className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-foreground mb-1">
-                Uygulamayı Yükle
-              </h4>
-              {isIOS ? (
-                <p className="text-sm text-muted-foreground mb-3">
-                  Safari menüsünden <span className="font-medium">{"\"Ana Ekrana Ekle\""}</span> seçeneğine tıklayın.
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground mb-3">
-                  Ana ekrana ekleyerek hızlı erişim sağlayın.
-                </p>
-              )}
-              <div className="flex gap-2">
-                {!isIOS && (
-                  <Button size="sm" onClick={handleInstall} className="gap-1">
-                    <Download className="w-4 h-4" />
-                    Yükle
-                  </Button>
-                )}
-                <Button size="sm" variant="ghost" onClick={handleDismiss}>
-                  {isIOS ? 'Anladım' : 'Şimdi Değil'}
+    <>
+      {/* Offline Banner */}
+      {isOffline && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-center py-2 text-xs font-medium flex items-center justify-center gap-2">
+          <WifiOff className="w-3.5 h-3.5" />
+          Cevrimdisi mod - Verileriniz kayitli
+        </div>
+      )}
+      
+      {/* Install Prompt */}
+      {showPrompt && (
+        <div className="fixed bottom-24 left-4 right-4 z-40 max-w-lg mx-auto animate-in slide-in-from-bottom-4">
+          <Card className="border-primary/20 shadow-xl">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Download className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-foreground text-sm">
+                    Uygulamayi Yukle
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Ana ekrana ekle, offline kullan
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <Button size="sm" className="h-8" onClick={handleInstall}>
+                      <Download className="w-3.5 h-3.5 mr-1" />
+                      Yukle
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8" onClick={handleDismiss}>
+                      Sonra
+                    </Button>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleDismiss}>
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDismiss}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
   )
 }

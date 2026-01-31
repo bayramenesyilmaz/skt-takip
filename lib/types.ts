@@ -1,23 +1,30 @@
 export interface Product {
   id: string
   name: string
-  stockCode: string
-  barcode: string
+  stockCode?: string
+  barcode?: string
   expiryDate: string
-  category?: ProductCategory
+  locationId?: string
   createdAt: string
   updatedAt: string
 }
 
-export type ProductCategory = 'dairy' | 'general' | 'frozen' | 'bakery'
+// Lokasyon sistemi - Reyon, Palet, Depo vb.
+export interface Location {
+  id: string
+  name: string
+  type: 'reyon' | 'palet' | 'depo' | 'dolap' | 'raf'
+  parentId?: string // Alt lokasyonlar icin
+  createdAt: string
+}
 
-// Yeni gelişmiş durum sistemi
+// Yeni gelismiş durum sistemi
 export type ExpiryStatus = 
-  | 'expired'      // Süresi geçmiş
-  | 'critical'     // 0-3 gün (ACİL - raftan kaldır)
-  | 'remove'       // 4-14 gün (Raftan kaldırılabilir)
-  | 'campaign'     // 15-90 gün (Kampanya önerisi)
-  | 'safe'         // 90+ gün (Güvenli)
+  | 'expired'      // Suresi gecmis
+  | 'critical'     // 0-3 gun (ACIL - raftan kaldir)
+  | 'remove'       // 4-14 gun (Raftan kaldirilabilir)
+  | 'campaign'     // 15-90 gun (Kampanya onerisi)
+  | 'safe'         // 90+ gun (Guvenli)
 
 export interface ExpiryInfo {
   status: ExpiryStatus
