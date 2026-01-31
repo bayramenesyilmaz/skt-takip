@@ -1,16 +1,17 @@
 "use client"
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ProductForm } from '@/components/product-form'
 import { BulkProductAdd } from '@/components/bulk-product-add'
 import { useProductStore } from '@/hooks/use-product-store'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ArrowLeft, Package, FileText } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 export default function EklePage() {
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single')
   const { addProduct, addBulkProducts, locations } = useProductStore()
 
   const handleAddProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -44,33 +45,45 @@ export default function EklePage() {
         </header>
 
         <div className="p-4">
-          <Tabs defaultValue="single" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="single" className="flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Tekli
-              </TabsTrigger>
-              <TabsTrigger value="bulk" className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Toplu
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="single">
-              <ProductForm
-                onSubmit={handleAddProduct}
-                onCancel={() => router.back()}
-                locations={locations}
-              />
-            </TabsContent>
-            
-            <TabsContent value="bulk">
-              <BulkProductAdd
-                onAdd={handleBulkAdd}
-                onCancel={() => router.back()}
-              />
-            </TabsContent>
-          </Tabs>
+          {/* Custom Tab Buttons */}
+          <div className="grid grid-cols-2 gap-2 mb-4 p-1 bg-muted rounded-lg">
+            <button
+              onClick={() => setActiveTab('single')}
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'single'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Tekli
+            </button>
+            <button
+              onClick={() => setActiveTab('bulk')}
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'bulk'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Toplu
+            </button>
+          </div>
+          
+          {/* Tab Content */}
+          {activeTab === 'single' ? (
+            <ProductForm
+              onSubmit={handleAddProduct}
+              onCancel={() => router.back()}
+              locations={locations}
+            />
+          ) : (
+            <BulkProductAdd
+              onAdd={handleBulkAdd}
+              onCancel={() => router.back()}
+            />
+          )}
         </div>
       </div>
     </main>
