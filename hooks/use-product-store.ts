@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Product, ExpiryInfo, ExpiryStatus, ParsedProduct } from '@/lib/types'
+import type { Product, Location, ExpiryInfo, ExpiryStatus, ParsedProduct } from '@/lib/types'
 
-const STORAGE_KEY = 'skt-takip-products'
+const PRODUCTS_KEY = 'skt-takip-products'
+const LOCATIONS_KEY = 'skt-takip-locations'
 
 // SSR-safe localStorage helpers
 function getStorageItem(key: string): string | null {
@@ -40,63 +41,52 @@ export function getExpiryInfo(expiryDate: string): ExpiryInfo {
   
   if (daysLeft < 0) {
     status = 'expired'
-    label = `${Math.abs(daysLeft)} gün geçmiş`
+    label = `${Math.abs(daysLeft)} gun gecmis`
     actionRequired = 'HEMEN RAFTAN KALDIR!'
   } else if (daysLeft === 0) {
     status = 'expired'
-    label = 'Bugün son gün!'
+    label = 'Bugun son gun!'
     actionRequired = 'HEMEN RAFTAN KALDIR!'
   } else if (daysLeft <= 3) {
     status = 'critical'
-    label = `${daysLeft} gün kaldı`
-    actionRequired = 'ACİL: Raftan kaldır!'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = 'ACIL: Raftan kaldir!'
   } else if (daysLeft <= 14) {
     status = 'remove'
-    label = `${daysLeft} gün kaldı`
-    actionRequired = 'Raftan kaldırılabilir'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = 'Raftan kaldirmalisin'
   } else if (daysLeft <= 90) {
     status = 'campaign'
-    label = `${daysLeft} gün kaldı`
-    actionRequired = 'Yetkiliye bildir - Kampanya önerisi'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = 'Yetkiliye bildir - Kampanya onerisi'
   } else {
     status = 'safe'
-    label = `${daysLeft} gün kaldı`
-    actionRequired = 'Güvenli'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = 'Guvenli'
   }
   
   return { status, daysLeft, label, actionRequired }
 }
 
-// WhatsApp formatından ürünleri ayrıştır
-// Format: "Ürün adı - GG/AA/YYYY" veya "Ürün adı - GG/AA/YYYY\n"
+// WhatsApp formatindan urunleri ayristir
 export function parseProductsFromText(text: string): ParsedProduct[] {
   const products: ParsedProduct[] = []
-  
-  // Tarih formatı: DD/MM/YYYY
-  const datePattern = /(\d{2})\/(\d{2})\/(\d{4})/g
-  
-  // Metni satırlara böl veya tarih paternine göre ayır
   const lines = text.split(/\n/).filter(line => line.trim())
   
   for (const line of lines) {
     const trimmedLine = line.trim()
     if (!trimmedLine) continue
     
-    // Tarih formatını bul
+    // Tarih formatini bul: DD/MM/YYYY
     const dateMatch = trimmedLine.match(/(\d{2})\/(\d{2})\/(\d{4})/)
     
     if (dateMatch) {
       const [fullMatch, day, month, year] = dateMatch
-      
-      // Ürün adını al (tarihten önceki kısım, " - " ile ayrılmış)
       const namePart = trimmedLine.substring(0, trimmedLine.indexOf(fullMatch))
       const name = namePart.replace(/\s*-\s*$/, '').trim()
       
       if (name) {
-        // Tarihi ISO formatına çevir (YYYY-MM-DD)
         const expiryDate = `${year}-${month}-${day}`
-        
-        // Tarihin geçerli olup olmadığını kontrol et
         const dateObj = new Date(expiryDate)
         const isValidDate = !isNaN(dateObj.getTime())
         
@@ -104,7 +94,7 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
           name,
           expiryDate,
           isValid: isValidDate,
-          error: isValidDate ? undefined : 'Geçersiz tarih'
+          error: isValidDate ? undefined : 'Gecersiz tarih'
         })
       }
     }
@@ -115,39 +105,54 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
 
 export function useProductStore() {
   const [products, setProducts] = useState<Product[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
   
-  // Mark as mounted (client-side only)
   useEffect(() => {
     setIsMounted(true)
   }, [])
   
-  // Load products from localStorage
+  // Load data from localStorage
   useEffect(() => {
     if (!isMounted) return
     
     try {
-      const stored = getStorageItem(STORAGE_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored)
+      const storedProducts = getStorageItem(PRODUCTS_KEY)
+      if (storedProducts) {
+        const parsed = JSON.parse(storedProducts)
         if (Array.isArray(parsed)) {
           setProducts(parsed)
         }
       }
+      
+      const storedLocations = getStorageItem(LOCATIONS_KEY)
+      if (storedLocations) {
+        const parsed = JSON.parse(storedLocations)
+        if (Array.isArray(parsed)) {
+          setLocations(parsed)
+        }
+      }
     } catch (error) {
-      console.error('Failed to load products:', error)
+      console.error('Failed to load data:', error)
     } finally {
       setIsLoading(false)
     }
   }, [isMounted])
   
-  // Save products to localStorage
+  // Save products
   const saveProducts = useCallback((newProducts: Product[]) => {
-    setStorageItem(STORAGE_KEY, JSON.stringify(newProducts))
+    setStorageItem(PRODUCTS_KEY, JSON.stringify(newProducts))
     setProducts(newProducts)
   }, [])
   
+  // Save locations
+  const saveLocations = useCallback((newLocations: Location[]) => {
+    setStorageItem(LOCATIONS_KEY, JSON.stringify(newLocations))
+    setLocations(newLocations)
+  }, [])
+  
+  // Product operations
   const addProduct = useCallback((product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newProduct: Product = {
       ...product,
@@ -159,16 +164,13 @@ export function useProductStore() {
     return newProduct
   }, [products, saveProducts])
   
-  // Toplu ürün ekleme fonksiyonu
-  const addBulkProducts = useCallback((parsedProducts: ParsedProduct[]) => {
+  const addBulkProducts = useCallback((parsedProducts: ParsedProduct[], locationId?: string) => {
     const validProducts = parsedProducts.filter(p => p.isValid)
     const newProducts: Product[] = validProducts.map(p => ({
       id: crypto.randomUUID(),
       name: p.name,
-      stockCode: '', // Otomatik stok kodu atanacak
-      barcode: '',
       expiryDate: p.expiryDate,
-      category: 'general' as const,
+      locationId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }))
@@ -190,10 +192,38 @@ export function useProductStore() {
     saveProducts(products.filter(p => p.id !== id))
   }, [products, saveProducts])
   
-  const clearAll = useCallback(() => {
+  const clearAllProducts = useCallback(() => {
     saveProducts([])
   }, [saveProducts])
   
+  // Location operations
+  const addLocation = useCallback((location: Omit<Location, 'id' | 'createdAt'>) => {
+    const newLocation: Location = {
+      ...location,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    }
+    saveLocations([...locations, newLocation])
+    return newLocation
+  }, [locations, saveLocations])
+  
+  const updateLocation = useCallback((id: string, updates: Partial<Omit<Location, 'id' | 'createdAt'>>) => {
+    const updated = locations.map(l => 
+      l.id === id ? { ...l, ...updates } : l
+    )
+    saveLocations(updated)
+  }, [locations, saveLocations])
+  
+  const deleteLocation = useCallback((id: string) => {
+    // Lokasyon silinince urunlerin locationId'sini temizle
+    const updatedProducts = products.map(p => 
+      p.locationId === id ? { ...p, locationId: undefined } : p
+    )
+    saveProducts(updatedProducts)
+    saveLocations(locations.filter(l => l.id !== id))
+  }, [locations, products, saveLocations, saveProducts])
+  
+  // Helper functions
   const getProductsByStatus = useCallback((status: ExpiryStatus) => {
     return products.filter(p => getExpiryInfo(p.expiryDate).status === status)
   }, [products])
@@ -210,21 +240,63 @@ export function useProductStore() {
     const lowerQuery = query.toLowerCase()
     return products.filter(p => 
       p.name.toLowerCase().includes(lowerQuery) ||
-      p.stockCode.toLowerCase().includes(lowerQuery) ||
-      p.barcode.includes(lowerQuery)
+      (p.stockCode && p.stockCode.toLowerCase().includes(lowerQuery)) ||
+      (p.barcode && p.barcode.includes(lowerQuery))
     )
   }, [products])
   
+  const getProductsByLocation = useCallback((locationId: string) => {
+    return products.filter(p => p.locationId === locationId)
+  }, [products])
+  
+  const getLocationName = useCallback((locationId: string | undefined) => {
+    if (!locationId) return null
+    return locations.find(l => l.id === locationId)?.name || null
+  }, [locations])
+  
+  const getProductLocations = useCallback((productId: string) => {
+    const product = products.find(p => p.id === productId)
+    if (!product?.locationId) return []
+    const location = locations.find(l => l.id === product.locationId)
+    return location ? [location] : []
+  }, [products, locations])
+  
+  // Urun ara - stok kodu veya barkod ile
+  const findProductLocations = useCallback((query: string) => {
+    const lowerQuery = query.toLowerCase()
+    const matchingProducts = products.filter(p => 
+      p.name.toLowerCase().includes(lowerQuery) ||
+      (p.stockCode && p.stockCode.toLowerCase().includes(lowerQuery)) ||
+      (p.barcode && p.barcode.includes(lowerQuery))
+    )
+    
+    return matchingProducts.map(product => ({
+      product,
+      location: product.locationId ? locations.find(l => l.id === product.locationId) : undefined
+    }))
+  }, [products, locations])
+  
   return {
     products,
+    locations,
     isLoading,
+    // Product operations
     addProduct,
     addBulkProducts,
     updateProduct,
     deleteProduct,
-    clearAll,
+    clearAllProducts,
+    // Location operations
+    addLocation,
+    updateLocation,
+    deleteLocation,
+    // Helpers
     getProductsByStatus,
     getSortedProducts,
     searchProducts,
+    getProductsByLocation,
+    getLocationName,
+    getProductLocations,
+    findProductLocations,
   }
 }

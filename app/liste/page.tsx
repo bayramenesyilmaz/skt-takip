@@ -21,7 +21,7 @@ import type { Product, ExpiryStatus } from '@/lib/types'
 type FilterStatus = 'all' | ExpiryStatus
 
 export default function ListePage() {
-  const { products, isLoading, addProduct, updateProduct, deleteProduct } = useProductStore()
+  const { products, locations, isLoading, addProduct, updateProduct, deleteProduct } = useProductStore()
   
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -29,26 +29,22 @@ export default function ListePage() {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all')
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
 
-  // Sort and filter products by expiry date
   const filteredProducts = useMemo(() => {
     let filtered = [...products]
     
-    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(query) ||
-        p.stockCode.toLowerCase().includes(query) ||
-        p.barcode.includes(query)
+        (p.stockCode && p.stockCode.toLowerCase().includes(query)) ||
+        (p.barcode && p.barcode.includes(query))
       )
     }
     
-    // Filter by status
     if (statusFilter !== 'all') {
       filtered = filtered.filter(p => getExpiryInfo(p.expiryDate).status === statusFilter)
     }
     
-    // Sort by expiry date (most urgent first)
     return filtered.sort((a, b) => {
       const aInfo = getExpiryInfo(a.expiryDate)
       const bInfo = getExpiryInfo(b.expiryDate)
@@ -102,6 +98,7 @@ export default function ListePage() {
               setEditingProduct(null)
             }}
             initialData={editingProduct || undefined}
+            locations={locations}
           />
         </div>
       </main>
@@ -109,22 +106,20 @@ export default function ListePage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-28">
+    <main className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <ListOrdered className="w-6 h-6 text-primary" />
+        <div className="max-w-lg mx-auto px-4 py-3">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <ListOrdered className="w-5 h-5 text-primary" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Tum Urunler</h1>
-              <p className="text-xs text-muted-foreground">
-                SKT sirasina gore listelendi
-              </p>
+            <div className="flex-1">
+              <h1 className="text-lg font-bold text-foreground">Tum Urunler</h1>
+              <p className="text-xs text-muted-foreground">SKT sirasina gore</p>
             </div>
-            <Badge variant="secondary" className="ml-auto">
-              {products.length} urun
+            <Badge variant="secondary" className="text-xs">
+              {products.length}
             </Badge>
           </div>
           
@@ -133,87 +128,75 @@ export default function ListePage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Ara..."
+                placeholder="Urun ara..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-10 bg-muted/50"
+                className="pl-9 h-10 bg-muted/50"
               />
             </div>
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as FilterStatus)}>
-              <SelectTrigger className="w-[130px] h-10 bg-muted/50">
-                <Filter className="w-4 h-4 mr-2" />
+              <SelectTrigger className="w-28 h-10 bg-muted/50">
+                <Filter className="w-4 h-4 mr-1" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">
-                  Tumunu ({getStatusCount('all')})
-                </SelectItem>
-                <SelectItem value="expired">
-                  Gecmis ({getStatusCount('expired')})
-                </SelectItem>
-                <SelectItem value="critical">
-                  Kritik 0-3 gun ({getStatusCount('critical')})
-                </SelectItem>
-                <SelectItem value="remove">
-                  Kaldir 4-14 gun ({getStatusCount('remove')})
-                </SelectItem>
-                <SelectItem value="campaign">
-                  Kampanya 15-90 gun ({getStatusCount('campaign')})
-                </SelectItem>
-                <SelectItem value="safe">
-                  Guvenli ({getStatusCount('safe')})
-                </SelectItem>
+                <SelectItem value="all">Tumu</SelectItem>
+                <SelectItem value="expired">Gecmis</SelectItem>
+                <SelectItem value="critical">Kritik</SelectItem>
+                <SelectItem value="remove">Kaldir</SelectItem>
+                <SelectItem value="campaign">Kampanya</SelectItem>
+                <SelectItem value="safe">Guvenli</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4">
-        {/* Product Count Summary */}
-        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="max-w-lg mx-auto px-4 py-3">
+        {/* Quick Filters */}
+        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
           <Badge 
             variant={statusFilter === 'expired' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20"
+            className="shrink-0 cursor-pointer text-xs"
             onClick={() => setStatusFilter(statusFilter === 'expired' ? 'all' : 'expired')}
           >
-            Gecmis: {getStatusCount('expired')}
+            Gecmis {getStatusCount('expired')}
           </Badge>
           <Badge 
             variant={statusFilter === 'critical' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer bg-destructive/5 text-destructive border-destructive/20 hover:bg-destructive/10"
+            className="shrink-0 cursor-pointer text-xs"
             onClick={() => setStatusFilter(statusFilter === 'critical' ? 'all' : 'critical')}
           >
-            Kritik: {getStatusCount('critical')}
+            Kritik {getStatusCount('critical')}
           </Badge>
           <Badge 
             variant={statusFilter === 'remove' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/20"
+            className="shrink-0 cursor-pointer text-xs"
             onClick={() => setStatusFilter(statusFilter === 'remove' ? 'all' : 'remove')}
           >
-            Kaldir: {getStatusCount('remove')}
+            Kaldir {getStatusCount('remove')}
           </Badge>
           <Badge 
             variant={statusFilter === 'campaign' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20"
+            className="shrink-0 cursor-pointer text-xs"
             onClick={() => setStatusFilter(statusFilter === 'campaign' ? 'all' : 'campaign')}
           >
-            Kampanya: {getStatusCount('campaign')}
+            Kampanya {getStatusCount('campaign')}
           </Badge>
           <Badge 
             variant={statusFilter === 'safe' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20"
+            className="shrink-0 cursor-pointer text-xs"
             onClick={() => setStatusFilter(statusFilter === 'safe' ? 'all' : 'safe')}
           >
-            Guvenli: {getStatusCount('safe')}
+            Guvenli {getStatusCount('safe')}
           </Badge>
         </div>
 
         {/* Product List */}
         {filteredProducts.length === 0 ? (
-          <div className="text-center py-16">
-            <ListOrdered className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
-            <h3 className="font-semibold text-foreground mb-2">Urun Bulunamadi</h3>
+          <div className="text-center py-12">
+            <ListOrdered className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+            <h3 className="font-semibold text-foreground mb-1">Urun Bulunamadi</h3>
             <p className="text-sm text-muted-foreground">
               {searchQuery || statusFilter !== 'all'
                 ? 'Filtrelere uyan urun yok.'
@@ -221,32 +204,26 @@ export default function ListePage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredProducts.map((product, index) => (
-              <div key={product.id} className="relative">
-                <div className="absolute -left-2 top-4 w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-                  {index + 1}
-                </div>
-                <div className="pl-6">
-                  <ProductCard
-                    product={product}
-                    onEdit={setEditingProduct}
-                    onDelete={(id) => {
-                      const product = products.find(p => p.id === id)
-                      if (product) setDeleteTarget(product)
-                    }}
-                  />
-                </div>
-              </div>
+          <div className="space-y-2">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onEdit={setEditingProduct}
+                onDelete={(id) => {
+                  const product = products.find(p => p.id === id)
+                  if (product) setDeleteTarget(product)
+                }}
+                locationName={locations.find(l => l.id === product.locationId)?.name}
+                compact
+              />
             ))}
           </div>
         )}
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNav onAddClick={() => setShowForm(true)} />
 
-      {/* Delete Confirmation */}
       <DeleteDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

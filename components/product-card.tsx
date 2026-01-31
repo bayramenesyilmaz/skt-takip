@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Edit, Clock, Hash, Barcode as BarcodeIcon } from 'lucide-react'
+import { Trash2, Edit, Clock, MapPin } from 'lucide-react'
 import { getExpiryInfo } from '@/hooks/use-product-store'
 import type { Product, ExpiryStatus } from '@/lib/types'
 
@@ -11,6 +11,8 @@ interface ProductCardProps {
   product: Product
   onEdit: (product: Product) => void
   onDelete: (id: string) => void
+  locationName?: string
+  compact?: boolean
 }
 
 const statusConfig: Record<ExpiryStatus, { 
@@ -18,98 +20,85 @@ const statusConfig: Record<ExpiryStatus, {
   text: string
   border: string
   badge: string
-  actionBg: string
 }> = {
   expired: {
     bg: 'bg-destructive/10',
     text: 'text-destructive',
     border: 'border-destructive/30',
     badge: 'bg-destructive text-destructive-foreground',
-    actionBg: 'bg-destructive/20',
   },
   critical: {
     bg: 'bg-destructive/5',
     text: 'text-destructive',
     border: 'border-destructive/20',
     badge: 'bg-destructive/90 text-destructive-foreground',
-    actionBg: 'bg-destructive/15',
   },
   remove: {
     bg: 'bg-orange-500/10',
-    text: 'text-orange-600 dark:text-orange-500',
+    text: 'text-orange-600',
     border: 'border-orange-500/30',
-    badge: 'bg-orange-500 text-orange-950',
-    actionBg: 'bg-orange-500/20',
+    badge: 'bg-orange-500 text-white',
   },
   campaign: {
     bg: 'bg-amber-500/10',
-    text: 'text-amber-600 dark:text-amber-500',
+    text: 'text-amber-600',
     border: 'border-amber-500/30',
-    badge: 'bg-amber-500 text-amber-950',
-    actionBg: 'bg-amber-500/20',
+    badge: 'bg-amber-500 text-white',
   },
   safe: {
     bg: 'bg-emerald-500/10',
-    text: 'text-emerald-600 dark:text-emerald-500',
+    text: 'text-emerald-600',
     border: 'border-emerald-500/30',
-    badge: 'bg-emerald-500 text-emerald-950',
-    actionBg: 'bg-emerald-500/20',
+    badge: 'bg-emerald-500 text-white',
   },
 }
 
-export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
+export function ProductCard({ product, onEdit, onDelete, locationName, compact }: ProductCardProps) {
   const expiryInfo = getExpiryInfo(product.expiryDate)
   const config = statusConfig[expiryInfo.status]
   
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('tr-TR', {
       day: '2-digit',
-      month: 'long',
+      month: 'short',
       year: 'numeric'
     })
   }
 
   return (
-    <Card className={`${config.bg} border ${config.border} overflow-hidden transition-all hover:shadow-md`}>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
+    <Card className={`${config.bg} border ${config.border} overflow-hidden`}>
+      <CardContent className={compact ? 'p-3' : 'p-4'}>
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground text-base truncate mb-2">
+            <h3 className={`font-semibold text-foreground truncate ${compact ? 'text-sm' : 'text-base'}`}>
               {product.name}
             </h3>
             
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Badge variant="secondary" className="text-xs font-normal">
-                <Hash className="w-3 h-3 mr-1" />
-                {product.stockCode}
-              </Badge>
-              {product.barcode && (
-                <Badge variant="secondary" className="text-xs font-normal">
-                  <BarcodeIcon className="w-3 h-3 mr-1" />
-                  {product.barcode}
-                </Badge>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge className={`${config.badge} text-xs`}>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <Badge className={`${config.badge} text-xs px-2 py-0`}>
                 <Clock className="w-3 h-3 mr-1" />
                 {expiryInfo.label}
               </Badge>
-              <span className={`text-xs ${config.text}`}>
-                SKT: {formatDate(product.expiryDate)}
+              <span className="text-xs text-muted-foreground">
+                {formatDate(product.expiryDate)}
               </span>
             </div>
             
-            {/* Aksiyon Bilgisi */}
-            {expiryInfo.status !== 'safe' && (
-              <div className={`mt-2 px-2 py-1 rounded-md text-xs font-medium ${config.actionBg} ${config.text}`}>
-                {expiryInfo.actionRequired}
+            {locationName && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <MapPin className="w-3 h-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{locationName}</span>
               </div>
+            )}
+            
+            {expiryInfo.status !== 'safe' && !compact && (
+              <p className={`text-xs font-medium mt-2 ${config.text}`}>
+                {expiryInfo.actionRequired}
+              </p>
             )}
           </div>
           
-          <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
             <Button 
               variant="ghost" 
               size="icon" 
