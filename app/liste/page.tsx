@@ -2,52 +2,46 @@
 
 import { useState, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ProductCard } from '@/components/product-card'
-import { ProductForm } from '@/components/product-form'
-import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { Search, ListOrdered, Filter } from 'lucide-react'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select'
-import type { Product, ExpiryStatus } from '@/lib/types'
+import { Search, Edit2, X, Clock, MapPin } from 'lucide-react'
+import type { Product } from '@/lib/types'
 
-type FilterStatus = 'all' | ExpiryStatus
+const statusConfig: Record<string, { bg: string; badge: string }> = {
+  expired: { bg: 'bg-destructive/10', badge: 'bg-destructive' },
+  critical: { bg: 'bg-destructive/5', badge: 'bg-destructive/90' },
+  remove: { bg: 'bg-orange-500/10', badge: 'bg-orange-500' },
+  campaign: { bg: 'bg-amber-500/10', badge: 'bg-amber-500' },
+  safe: { bg: 'bg-emerald-500/10', badge: 'bg-emerald-500' },
+}
 
 export default function ListePage() {
-  const { products, locations, isLoading, addProduct, updateProduct, deleteProduct, reduceProductToZero } = useProductStore()
+  const { products, locations, updateProduct, reduceProductToZero } = useProductStore()
   
-  const [showForm, setShowForm] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>('all')
-  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
 
   const filteredProducts = useMemo(() => {
-    let filtered = [...products]
-    
-    // Stok 0 olanları filtrele
-    filtered = filtered.filter(p => p.stockCode !== '0')
-    
+    let filtered = products.filter(p => p.stockCode !== '0')
+
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        (p.stockCode && p.stockCode.toLowerCase().includes(query)) ||
-        (p.barcode && p.barcode.includes(query))
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.stockCode && p.stockCode.toLowerCase().includes(q)) ||
+        (p.barcode && p.barcode.includes(q))
       )
     }
-    
+
     if (statusFilter !== 'all') {
       filtered = filtered.filter(p => getExpiryInfo(p.expiryDate).status === statusFilter)
     }
-    
+
     return filtered.sort((a, b) => {
       const aInfo = getExpiryInfo(a.expiryDate)
       const bInfo = getExpiryInfo(b.expiryDate)
@@ -55,190 +49,201 @@ export default function ListePage() {
     })
   }, [products, searchQuery, statusFilter])
 
-  const handleAddProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    addProduct(product)
-    setShowForm(false)
+  const handleEdit = (product: Product) => {
+    setEditingId(product.id)
+    setEditValue(product.name)
   }
 
-  const handleUpdateProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (editingProduct) {
-      updateProduct(editingProduct.id, product)
-      setEditingProduct(null)
+  const handleSave = (id: string) => {
+    const product = products.find(p => p.id === id)
+    if (product && editValue.trim()) {
+      updateProduct(id, { ...product, name: editValue.trim() })
+      setEditingId(null)
     }
   }
 
-  const handleDeleteConfirm = () => {
-    if (deleteTarget) {
-      deleteProduct(deleteTarget.id)
-      setDeleteTarget(null)
-    }
+  const handleZeroStock = (id: string) => {
+    reduceProductToZero(id)
   }
 
-  const getStatusCount = (status: FilterStatus) => {
-    if (status === 'all') return products.length
-    return products.filter(p => getExpiryInfo(p.expiryDate).status === status).length
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground">Yukleniyor...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (showForm || editingProduct) {
-    return (
-      <main className="min-h-screen bg-background">
-        <div className="max-w-lg mx-auto p-4">
-          <ProductForm
-            onSubmit={editingProduct ? handleUpdateProduct : handleAddProduct}
-            onCancel={() => {
-              setShowForm(false)
-              setEditingProduct(null)
-            }}
-            initialData={editingProduct || undefined}
-            locations={locations}
-          />
-        </div>
-      </main>
-    )
+  const getLocationName = (locationId?: string) => {
+    if (!locationId) return null
+    const loc = locations.find(l => l.id === locationId)
+    if (!loc) return null
+    const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : null
+    return parent ? `${parent.name} / ${loc.name}` : loc.name
   }
 
   return (
     <main className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-3">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <ListOrdered className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-foreground">Tum Urunler</h1>
-              <p className="text-xs text-muted-foreground">SKT sirasina gore</p>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {products.length}
-            </Badge>
-          </div>
+        <div className="max-w-lg mx-auto px-4 py-3 space-y-3">
+          <h1 className="text-lg font-bold text-foreground">Urunler</h1>
           
-          {/* Search & Filter */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Urun ara..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 bg-muted/50"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as FilterStatus)}>
-              <SelectTrigger className="w-28 h-10 bg-muted/50">
-                <Filter className="w-4 h-4 mr-1" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tumu</SelectItem>
-                <SelectItem value="expired">Gecmis</SelectItem>
-                <SelectItem value="critical">Kritik</SelectItem>
-                <SelectItem value="remove">Kaldir</SelectItem>
-                <SelectItem value="campaign">Kampanya</SelectItem>
-                <SelectItem value="safe">Guvenli</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Arama */}
+          <div className="relative">
+            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-10"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filtreler */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                statusFilter === 'all'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Tumu
+            </button>
+            {['expired', 'critical', 'remove', 'campaign', 'safe'].map(status => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                  statusFilter === status
+                    ? 'bg-primary text-primary-foreground'
+                    : `bg-muted text-muted-foreground hover:text-foreground`
+                }`}
+              >
+                {status === 'expired' && 'Gecmis'}
+                {status === 'critical' && 'Kritik'}
+                {status === 'remove' && 'Kaldir'}
+                {status === 'campaign' && 'Kampanya'}
+                {status === 'safe' && 'Guvenli'}
+              </button>
+            ))}
           </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-3">
-        {/* Quick Filters */}
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-          <Badge 
-            variant={statusFilter === 'expired' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer text-xs"
-            onClick={() => setStatusFilter(statusFilter === 'expired' ? 'all' : 'expired')}
-          >
-            Gecmis {getStatusCount('expired')}
-          </Badge>
-          <Badge 
-            variant={statusFilter === 'critical' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer text-xs"
-            onClick={() => setStatusFilter(statusFilter === 'critical' ? 'all' : 'critical')}
-          >
-            Kritik {getStatusCount('critical')}
-          </Badge>
-          <Badge 
-            variant={statusFilter === 'remove' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer text-xs"
-            onClick={() => setStatusFilter(statusFilter === 'remove' ? 'all' : 'remove')}
-          >
-            Kaldir {getStatusCount('remove')}
-          </Badge>
-          <Badge 
-            variant={statusFilter === 'campaign' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer text-xs"
-            onClick={() => setStatusFilter(statusFilter === 'campaign' ? 'all' : 'campaign')}
-          >
-            Kampanya {getStatusCount('campaign')}
-          </Badge>
-          <Badge 
-            variant={statusFilter === 'safe' ? 'default' : 'outline'}
-            className="shrink-0 cursor-pointer text-xs"
-            onClick={() => setStatusFilter(statusFilter === 'safe' ? 'all' : 'safe')}
-          >
-            Guvenli {getStatusCount('safe')}
-          </Badge>
-        </div>
-
-        {/* Product List */}
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-2">
         {filteredProducts.length === 0 ? (
           <div className="text-center py-12">
-            <ListOrdered className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-            <h3 className="font-semibold text-foreground mb-1">Urun Bulunamadi</h3>
-            <p className="text-sm text-muted-foreground">
-              {searchQuery || statusFilter !== 'all'
-                ? 'Filtrelere uyan urun yok.'
-                : 'Henuz urun eklenmemis.'}
-            </p>
+            <p className="text-muted-foreground">Sonuc bulunamadi</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onEdit={setEditingProduct}
-                onDelete={(id) => {
-                  const product = products.find(p => p.id === id)
-                  if (product) setDeleteTarget(product)
-                }}
-                onReduceToZero={reduceProductToZero}
-                locationName={(() => {
-                  const loc = locations.find(l => l.id === product.locationId)
-                  if (!loc) return undefined
-                  const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : undefined
-                  return parent ? `${parent.name} / ${loc.name}` : loc.name
-                })()}
-                compact
-              />
-            ))}
-          </div>
+          <>
+            <p className="text-xs text-muted-foreground px-2 pb-2">
+              {filteredProducts.length} urun
+            </p>
+            {filteredProducts.map(product => {
+              const info = getExpiryInfo(product.expiryDate)
+              const config = statusConfig[info.status]
+              const isEditing = editingId === product.id
+
+              return (
+                <Card key={product.id} className={`${config.bg} border`}>
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        {isEditing ? (
+                          <input
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-full bg-background border border-border rounded px-2 py-1 text-sm"
+                            autoFocus
+                          />
+                        ) : (
+                          <>
+                            <h3 className="font-semibold text-foreground text-sm">{product.name}</h3>
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              <Badge className={`${config.badge} text-white text-xs`}>
+                                <Clock className="w-3 h-3 mr-1" />
+                                {info.label}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(product.expiryDate)}
+                              </span>
+                            </div>
+                            {product.locationId && (
+                              <div className="flex items-center gap-1 mt-1.5">
+                                <MapPin className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">
+                                  {getLocationName(product.locationId)}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex gap-1">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleSave(product.id)}
+                              className="text-xs h-8"
+                            >
+                              Kaydet
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingId(null)}
+                              className="text-xs h-8"
+                            >
+                              Iptal
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleEdit(product)}
+                              className="h-7 w-7"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleZeroStock(product.id)}
+                              className="h-7 w-7 text-muted-foreground hover:text-amber-600"
+                              title="Stok 0 yap"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </>
         )}
       </div>
 
-      <BottomNav onAddClick={() => setShowForm(true)} />
-
-      <DeleteDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        onConfirm={handleDeleteConfirm}
-        productName={deleteTarget?.name || ''}
-      />
+      <BottomNav />
     </main>
   )
 }

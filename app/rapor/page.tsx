@@ -3,22 +3,17 @@
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BottomNav } from '@/components/bottom-nav'
-import { ProductCard } from '@/components/product-card'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { ArrowLeft, FileText, Download, Check } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { FileText, Download, Trash2, CheckCircle2, Download as DownloadIcon } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
-interface SelectedProduct extends Product {
-  quantity?: number
-}
-
 export default function RaporPage() {
-  const router = useRouter()
-  const { products, locations } = useProductStore()
-  const [selectedProducts, setSelectedProducts] = useState<Map<string, number>>(new Map())
+  const { products } = useProductStore()
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [quantities, setQuantities] = useState<Map<string, number>>(new Map())
   const [showConfirm, setShowConfirm] = useState(false)
 
   // 1-3 ayı kalan ürünleri getir
@@ -35,95 +30,73 @@ export default function RaporPage() {
       })
   }, [products])
 
-  const handleSelectProduct = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      selectedProducts.delete(productId)
-      setSelectedProducts(new Map(selectedProducts))
+  const toggleProduct = (id: string) => {
+    const newSelected = new Set(selectedIds)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+      quantities.delete(id)
     } else {
-      setSelectedProducts(new Map(selectedProducts.set(productId, quantity)))
+      newSelected.add(id)
+      setQuantities(new Map(quantities.set(id, 1)))
     }
+    setSelectedIds(newSelected)
   }
 
-  const handleSelectAll = () => {
-    const newSelected = new Map<string, number>()
+  const updateQuantity = (id: string, qty: number) => {
+    if (qty <= 0) {
+      selectedIds.delete(id)
+    } else {
+      selectedIds.add(id)
+    }
+    setSelectedIds(new Set(selectedIds))
+    setQuantities(new Map(quantities.set(id, qty)))
+  }
+
+  const selectAll = () => {
+    const newSelected = new Set<string>()
+    const newQuantities = new Map<string, number>()
     campaignProducts.forEach(p => {
-      newSelected.set(p.id, 1)
+      newSelected.add(p.id)
+      newQuantities.set(p.id, 1)
     })
-    setSelectedProducts(newSelected)
+    setSelectedIds(newSelected)
+    setQuantities(newQuantities)
   }
 
-  const handleClearAll = () => {
-    setSelectedProducts(new Map())
+  const clearAll = () => {
+    setSelectedIds(new Set())
+    setQuantities(new Map())
   }
 
   const generatePDF = () => {
-    const doc = document.createElement('div')
-    doc.style.display = 'none'
-    
+    const selected = campaignProducts.filter(p => selectedIds.has(p.id))
+    if (selected.length === 0) return
+
     let html = `
-      <html>
+      <html dir="ltr">
         <head>
           <meta charset="utf-8">
+          <title>Kampanya Raporu</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              color: #333;
-            }
-            h1 {
-              text-align: center;
-              border-bottom: 2px solid #000;
-              padding-bottom: 10px;
-            }
-            .meta {
-              text-align: right;
-              font-size: 12px;
-              margin-bottom: 20px;
-              color: #666;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
-            }
-            th {
-              background-color: #f5f5f5;
-              border: 1px solid #ddd;
-              padding: 10px;
-              text-align: left;
-              font-weight: bold;
-            }
-            td {
-              border: 1px solid #ddd;
-              padding: 10px;
-            }
-            tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            .total {
-              font-weight: bold;
-              background-color: #f5f5f5;
-            }
-            .summary {
-              margin-top: 30px;
-              padding: 15px;
-              background-color: #f9f9f9;
-              border-left: 4px solid #000;
-            }
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { text-align: center; font-size: 24px; margin-bottom: 20px; }
+            .date { text-align: right; font-size: 12px; color: #666; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #f0f0f0; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .total { font-weight: bold; text-align: right; padding-top: 20px; }
           </style>
         </head>
         <body>
-          <h1>Kampanya Ürünleri Raporu</h1>
-          <div class="meta">
-            <p>Rapor Tarihi: ${new Date().toLocaleDateString('tr-TR')}</p>
-            <p>Hazırlanma Saati: ${new Date().toLocaleTimeString('tr-TR')}</p>
-          </div>
+          <h1>KAMPANYA RAPORU - SATILACAK ÜRÜNLER</h1>
+          <div class="date">Tarih: ${new Date().toLocaleDateString('tr-TR')}</div>
           
           <table>
             <thead>
               <tr>
                 <th>Ürün Adı</th>
-                <th>SKT Tarihi</th>
+                <th>SKT</th>
                 <th>Kalan Gün</th>
                 <th>Adet</th>
               </tr>
@@ -131,237 +104,221 @@ export default function RaporPage() {
             <tbody>
     `
 
-    let totalItems = 0
-    selectedProducts.forEach((quantity, productId) => {
-      const product = products.find(p => p.id === productId)
-      if (product) {
-        const info = getExpiryInfo(product.expiryDate)
-        const expiryDate = new Date(product.expiryDate).toLocaleDateString('tr-TR')
-        html += `
-          <tr>
-            <td>${product.name}</td>
-            <td>${expiryDate}</td>
-            <td>${info.daysLeft}</td>
-            <td style="text-align: center; font-weight: bold;">${quantity}</td>
-          </tr>
-        `
-        totalItems += quantity
-      }
+    let totalQuantity = 0
+    selected.forEach(product => {
+      const info = getExpiryInfo(product.expiryDate)
+      const qty = quantities.get(product.id) || 1
+      totalQuantity += qty
+
+      html += `
+        <tr>
+          <td>${product.name}</td>
+          <td>${new Date(product.expiryDate).toLocaleDateString('tr-TR')}</td>
+          <td>${info.daysLeft} gün</td>
+          <td>${qty}</td>
+        </tr>
+      `
     })
 
     html += `
             </tbody>
           </table>
           
-          <div class="summary">
-            <p><strong>Toplam Ürün Sayısı:</strong> ${selectedProducts.size}</p>
-            <p><strong>Toplam Adet:</strong> ${totalItems}</p>
-            <p><strong>Kampanya Başlangıç Tarihi:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+          <div class="total">TOPLAM ADET: ${totalQuantity}</div>
+          
+          <div style="margin-top: 40px; page-break-after: avoid;">
+            <p>İmza: _____________________ Tarih: _____/_____/_____</p>
           </div>
         </body>
       </html>
     `
 
-    // HTML'i yazdır
-    const printWindow = window.open('', '', 'width=800,height=600')
-    if (printWindow) {
-      printWindow.document.write(html)
-      printWindow.document.close()
-      
-      setTimeout(() => {
-        printWindow.print()
-        printWindow.close()
-      }, 250)
-    }
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `kampanya-raporu-${new Date().toISOString().split('T')[0]}.html`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
-  if (campaignProducts.length === 0) {
-    return (
-      <main className="min-h-screen bg-background pb-24">
-        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-          <div className="max-w-lg mx-auto px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-9 w-9"
-                onClick={() => router.back()}
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <h1 className="text-lg font-bold text-foreground">Kampanya Raporu</h1>
-            </div>
-          </div>
-        </header>
-
-        <div className="max-w-lg mx-auto px-4 py-12 text-center">
-          <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-          <h3 className="font-semibold text-foreground mb-1">Rapor Bulunamadı</h3>
-          <p className="text-sm text-muted-foreground">
-            1-3 ayı kalan ürün yok
-          </p>
-        </div>
-
-        <BottomNav />
-      </main>
-    )
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
   }
 
   return (
     <main className="min-h-screen bg-background pb-24">
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-lg p-6 max-w-sm w-full">
-            <h2 className="text-lg font-bold mb-2 text-foreground">PDF Çıktısı Alınacak</h2>
-            <p className="text-muted-foreground mb-4">
-              {selectedProducts.size} ürün, toplam {
-                Array.from(selectedProducts.values()).reduce((a, b) => a + b, 0)
-              } adet seçilmiştir. Devam etmek istediğinize emin misiniz?
-            </p>
-            <div className="flex gap-2">
-              <Button 
-                variant="secondary" 
-                className="flex-1"
-                onClick={() => setShowConfirm(false)}
-              >
-                İptal
-              </Button>
-              <Button 
-                className="flex-1"
-                onClick={() => {
-                  generatePDF()
-                  setShowConfirm(false)
-                }}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                İndir
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3 mb-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-9 w-9"
-              onClick={() => router.back()}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-foreground">Kampanya Raporu</h1>
-              <p className="text-xs text-muted-foreground">1-3 ayı kalan ürünler</p>
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-amber-600" />
             </div>
-            <Badge variant="secondary" className="text-xs">
-              {selectedProducts.size}/{campaignProducts.length}
-            </Badge>
+            <div>
+              <h1 className="text-lg font-bold text-foreground">Kampanya Raporu</h1>
+              <p className="text-xs text-muted-foreground">1-3 ay kalan ürünler</p>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2 mb-3">
-            <Button 
-              variant="secondary" 
-              size="sm"
-              className="flex-1 text-xs h-9"
-              onClick={handleSelectAll}
-            >
-              Hepsini Seç
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="flex-1 text-xs h-9"
-              onClick={handleClearAll}
-            >
-              Seçimi Temizle
-            </Button>
+          {/* Butonlar */}
+          <div className="flex gap-2">
+            {selectedIds.size > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAll}
+                  className="flex-1 text-xs h-9"
+                >
+                  Temizle
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowConfirm(true)}
+                  className="flex-1 text-xs h-9"
+                >
+                  <DownloadIcon className="w-3 h-3 mr-1" />
+                  PDF İndir
+                </Button>
+              </>
+            )}
+            {selectedIds.size !== campaignProducts.length && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={selectAll}
+                className="flex-1 text-xs h-9"
+              >
+                Tümünü Seç
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4">
-        <div className="space-y-3">
-          {campaignProducts.map((product) => {
-            const isSelected = selectedProducts.has(product.id)
-            const quantity = selectedProducts.get(product.id) || 1
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-2">
+        {campaignProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+            <p className="text-muted-foreground">Kampanya ürünü bulunamadı</p>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground px-2 pb-2">
+              {selectedIds.size} / {campaignProducts.length} seçildi
+            </p>
+            {campaignProducts.map(product => {
+              const info = getExpiryInfo(product.expiryDate)
+              const isSelected = selectedIds.has(product.id)
+              const qty = quantities.get(product.id) || 1
 
-            return (
-              <div key={product.id} className="relative">
-                <ProductCard
-                  product={product}
-                  onEdit={() => {}}
-                  onDelete={() => {}}
-                  locationName={(() => {
-                    const loc = locations.find(l => l.id === product.locationId)
-                    if (!loc) return undefined
-                    const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : undefined
-                    return parent ? `${parent.name} / ${loc.name}` : loc.name
-                  })()}
-                  compact
-                />
-
-                {/* Selection Overlay */}
-                {isSelected && (
-                  <div className="absolute inset-0 rounded-lg border-2 border-primary flex items-center justify-end p-3 pointer-events-none">
-                    <Check className="w-5 h-5 text-primary" />
-                  </div>
-                )}
-
-                {/* Quantity Input */}
-                {isSelected && (
-                  <div className="mt-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                    <label className="text-xs font-medium text-muted-foreground block mb-2">
-                      Adet
-                    </label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 1
-                        handleSelectProduct(product.id, val)
-                      }}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                )}
-
-                {/* Select Button */}
-                <Button 
-                  variant={isSelected ? "default" : "secondary"}
-                  size="sm"
-                  className="w-full mt-2 text-xs h-9"
-                  onClick={() => {
-                    if (isSelected) {
-                      handleSelectProduct(product.id, 0)
-                    } else {
-                      handleSelectProduct(product.id, 1)
-                    }
-                  }}
+              return (
+                <Card
+                  key={product.id}
+                  className={`cursor-pointer border transition-colors ${
+                    isSelected
+                      ? 'bg-amber-500/10 border-amber-500'
+                      : 'bg-amber-500/5 hover:bg-amber-500/10'
+                  }`}
+                  onClick={() => toggleProduct(product.id)}
                 >
-                  {isSelected ? '✓ Seçili' : 'Seç'}
-                </Button>
-              </div>
-            )
-          })}
-        </div>
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {isSelected && (
+                            <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+                          )}
+                          <h3 className="font-semibold text-foreground text-sm">{product.name}</h3>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <Badge className="bg-amber-500 text-white text-xs">
+                            {info.label}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(product.expiryDate)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <div className="flex items-center gap-1 bg-background rounded px-2 py-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              updateQuantity(product.id, qty - 1)
+                            }}
+                            className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            value={qty}
+                            onChange={(e) => {
+                              e.stopPropagation()
+                              updateQuantity(product.id, parseInt(e.target.value) || 0)
+                            }}
+                            className="w-10 bg-background text-center text-sm font-medium border-0 outline-0"
+                            min="0"
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              updateQuantity(product.id, qty + 1)
+                            }}
+                            className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </>
+        )}
       </div>
 
-      {/* Floating Action Button */}
-      {selectedProducts.size > 0 && (
-        <div className="fixed bottom-24 right-4 left-4 max-w-xs mx-auto">
-          <Button 
-            className="w-full"
-            onClick={() => setShowConfirm(true)}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            PDF İndir ({selectedProducts.size} ürün)
-          </Button>
+      {/* Onay Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+          <div className="w-full max-w-lg bg-background p-4 rounded-t-lg space-y-3 safe-area-pb">
+            <div>
+              <h3 className="font-semibold text-foreground">PDF İndir?</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {selectedIds.size} ürünün raporu indirilecek.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirm(false)}
+                className="flex-1"
+              >
+                İptal
+              </Button>
+              <Button
+                onClick={() => {
+                  generatePDF()
+                  setShowConfirm(false)
+                }}
+                className="flex-1"
+              >
+                Devam Et
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
