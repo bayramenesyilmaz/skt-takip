@@ -156,6 +156,7 @@ export function useProductStore() {
   const addProduct = useCallback((product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newProduct: Product = {
       ...product,
+      stockCode: product.stockCode || '1', // Default olarak stok 1
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
