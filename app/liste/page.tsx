@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BottomNav } from '@/components/bottom-nav'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { Search, Edit2, X, Clock, MapPin } from 'lucide-react'
+import { Search, Edit2, X, Clock, MapPin, Camera } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 const statusConfig: Record<string, { bg: string; badge: string }> = {
@@ -25,6 +26,7 @@ export default function ListePage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [showScanner, setShowScanner] = useState(false)
 
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(p => p.stockCode !== '0')
@@ -90,22 +92,32 @@ export default function ListePage() {
           <h1 className="text-lg font-bold text-foreground">Urunler</h1>
           
           {/* Arama */}
-          <div className="relative">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-10"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-10"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => setShowScanner(!showScanner)}
+              className="h-10 w-10"
+            >
+              <Camera className="w-4 h-4" />
+            </Button>
           </div>
 
           {/* Filtreler */}
@@ -157,11 +169,12 @@ export default function ListePage() {
               const isEditing = editingId === product.id
 
               return (
-                <Card key={product.id} className={`${config.bg} border`}>
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        {isEditing ? (
+                <Link key={product.id} href={`/urun/${product.id}`}>
+                  <Card className={`${config.bg} border cursor-pointer hover:shadow-md transition-shadow`}>
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1" onClick={(e) => e.preventDefault()}>
+                          {isEditing ? (
                           <input
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
@@ -233,10 +246,11 @@ export default function ListePage() {
                             </Button>
                           </>
                         )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               )
             })}
           </>

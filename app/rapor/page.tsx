@@ -68,9 +68,42 @@ export default function RaporPage() {
     setQuantities(new Map())
   }
 
+  const generateText = () => {
+    const selected = campaignProducts.filter(p => selectedIds.has(p.id))
+    if (selected.length === 0) return ''
+
+    let text = '📋 KAMPANYA RAPORU\n'
+    text += `Tarih: ${new Date().toLocaleDateString('tr-TR')}\n\n`
+    text += '✏️ Toplu Ekleme Formatı:\n'
+    text += '─'.repeat(50) + '\n'
+
+    selected.forEach(product => {
+      const qty = quantities.get(product.id) || 1
+      const sktDate = new Date(product.expiryDate).toLocaleDateString('tr-TR')
+      text += `${product.name} | ${sktDate}\n`
+    })
+
+    text += '─'.repeat(50) + '\n\n'
+    text += '📊 Özet:\n'
+    text += `Toplam Ürün: ${selected.length}\n`
+    text += `Kopyalama Formatı (Ctrl+C):\n`
+    text += '─'.repeat(50) + '\n'
+
+    let copyText = ''
+    selected.forEach(product => {
+      const qty = quantities.get(product.id) || 1
+      const sktDate = new Date(product.expiryDate).toLocaleDateString('tr-TR')
+      copyText += `${product.name} | ${sktDate}\n`
+    })
+
+    return { text, copyText }
+  }
+
   const generatePDF = () => {
     const selected = campaignProducts.filter(p => selectedIds.has(p.id))
     if (selected.length === 0) return
+
+    const { text, copyText } = generateText()
 
     let html = `
       <html dir="ltr">
@@ -78,62 +111,27 @@ export default function RaporPage() {
           <meta charset="utf-8">
           <title>Kampanya Raporu</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1 { text-align: center; font-size: 24px; margin-bottom: 20px; }
+            body { font-family: 'Courier New', monospace; margin: 20px; line-height: 1.6; }
+            h1 { text-align: center; font-size: 20px; margin-bottom: 10px; }
             .date { text-align: right; font-size: 12px; color: #666; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f0f0f0; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
-            .total { font-weight: bold; text-align: right; padding-top: 20px; }
+            .content { white-space: pre-wrap; font-size: 13px; }
+            .divider { border-bottom: 1px solid #ddd; margin: 10px 0; }
           </style>
         </head>
         <body>
-          <h1>KAMPANYA RAPORU - SATILACAK ÜRÜNLER</h1>
+          <h1>📋 KAMPANYA RAPORU</h1>
           <div class="date">Tarih: ${new Date().toLocaleDateString('tr-TR')}</div>
           
-          <table>
-            <thead>
-              <tr>
-                <th>Ürün Adı</th>
-                <th>SKT</th>
-                <th>Kalan Gün</th>
-                <th>Adet</th>
-              </tr>
-            </thead>
-            <tbody>
-    `
-
-    let totalQuantity = 0
-    selected.forEach(product => {
-      const info = getExpiryInfo(product.expiryDate)
-      const qty = quantities.get(product.id) || 1
-      totalQuantity += qty
-
-      html += `
-        <tr>
-          <td>${product.name}</td>
-          <td>${new Date(product.expiryDate).toLocaleDateString('tr-TR')}</td>
-          <td>${info.daysLeft} gün</td>
-          <td>${qty}</td>
-        </tr>
-      `
-    })
-
-    html += `
-            </tbody>
-          </table>
+          <div class="content">${copyText}</div>
           
-          <div class="total">TOPLAM ADET: ${totalQuantity}</div>
-          
-          <div style="margin-top: 40px; page-break-after: avoid;">
+          <div style="margin-top: 30px; text-align: right;">
             <p>İmza: _____________________ Tarih: _____/_____/_____</p>
           </div>
         </body>
       </html>
     `
 
-    const blob = new Blob([html], { type: 'text/html' })
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -291,34 +289,36 @@ export default function RaporPage() {
 
       {/* Onay Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-          <div className="w-full max-w-lg bg-background p-4 rounded-t-lg space-y-3 safe-area-pb">
-            <div>
-              <h3 className="font-semibold text-foreground">PDF İndir?</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                {selectedIds.size} ürünün raporu indirilecek.
-              </p>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-sm">
+            <CardContent className="p-4 space-y-4">
+              <div>
+                <h3 className="font-semibold text-foreground text-lg">PDF İndir?</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedIds.size} ürünün raporu indirilecek.
+                </p>
+              </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowConfirm(false)}
-                className="flex-1"
-              >
-                İptal
-              </Button>
-              <Button
-                onClick={() => {
-                  generatePDF()
-                  setShowConfirm(false)
-                }}
-                className="flex-1"
-              >
-                Devam Et
-              </Button>
-            </div>
-          </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1"
+                >
+                  İptal
+                </Button>
+                <Button
+                  onClick={() => {
+                    generatePDF()
+                    setShowConfirm(false)
+                  }}
+                  className="flex-1"
+                >
+                  Devam Et
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
