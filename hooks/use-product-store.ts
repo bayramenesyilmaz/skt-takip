@@ -191,6 +191,15 @@ export function useProductStore() {
   const deleteProduct = useCallback((id: string) => {
     saveProducts(products.filter(p => p.id !== id))
   }, [products, saveProducts])
+
+  const reduceProductToZero = useCallback((id: string) => {
+    const updated = products.map(p => 
+      p.id === id 
+        ? { ...p, stockCode: '0', updatedAt: new Date().toISOString() }
+        : p
+    )
+    saveProducts(updated)
+  }, [products, saveProducts])
   
   const clearAllProducts = useCallback(() => {
     saveProducts([])
@@ -285,6 +294,7 @@ export function useProductStore() {
     addBulkProducts,
     updateProduct,
     deleteProduct,
+    reduceProductToZero,
     clearAllProducts,
     // Location operations
     addLocation,
