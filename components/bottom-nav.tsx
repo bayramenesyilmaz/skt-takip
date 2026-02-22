@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ListOrdered, Plus, Search, MapPin } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Home, ListOrdered, Plus, Search, MapPin, FileText } from 'lucide-react'
 
 interface NavItem {
   href: string
@@ -15,6 +14,7 @@ const navItems: NavItem[] = [
   { href: '/', icon: Home, label: 'Ana Sayfa' },
   { href: '/liste', icon: ListOrdered, label: 'Liste' },
   { href: '/ara', icon: Search, label: 'Ara' },
+  { href: '/rapor', icon: FileText, label: 'Rapor' },
   { href: '/lokasyonlar', icon: MapPin, label: 'Lokasyon' },
 ]
 
@@ -36,14 +36,14 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all min-w-[56px]",
+                  "flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[48px]",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[9px] font-medium">{item.label}</span>
               </Link>
             )
           })}
@@ -57,14 +57,14 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
               <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
                 <Plus className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
+              <span className="text-[9px] font-medium text-muted-foreground">Ekle</span>
             </button>
           ) : (
             <Link href="/ekle" className="flex flex-col items-center gap-0.5 -mt-5">
               <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
                 <Plus className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
+              <span className="text-[9px] font-medium text-muted-foreground">Ekle</span>
             </Link>
           )}
 
@@ -75,14 +75,14 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all min-w-[56px]",
+                  "flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[48px]",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[9px] font-medium">{item.label}</span>
               </Link>
             )
           })}

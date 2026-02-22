@@ -3,16 +3,16 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Edit, Clock, MapPin } from 'lucide-react'
-import { getExpiryInfo } from '@/hooks/use-product-store'
-import type { Product, ExpiryStatus } from '@/lib/types'
+import { Trash2, Edit, Clock, MapPin, Copy } from 'lucide-react'
 
 interface ProductCardProps {
   product: Product
   onEdit: (product: Product) => void
   onDelete: (id: string) => void
+  onReduceToZero?: (id: string) => void
   locationName?: string
   compact?: boolean
+  showStockButton?: boolean
 }
 
 const statusConfig: Record<ExpiryStatus, { 
@@ -53,7 +53,15 @@ const statusConfig: Record<ExpiryStatus, {
   },
 }
 
-export function ProductCard({ product, onEdit, onDelete, locationName, compact }: ProductCardProps) {
+export function ProductCard({ 
+  product, 
+  onEdit, 
+  onDelete, 
+  onReduceToZero,
+  locationName, 
+  compact,
+  showStockButton
+}: ProductCardProps) {
   const expiryInfo = getExpiryInfo(product.expiryDate)
   const config = statusConfig[expiryInfo.status]
   
@@ -99,14 +107,26 @@ export function ProductCard({ product, onEdit, onDelete, locationName, compact }
           </div>
           
           <div className="flex gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={() => onEdit(product)}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
+            {showStockButton && onReduceToZero ? (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-amber-600"
+                onClick={() => onReduceToZero(product.id)}
+                title="Stok 0 yap"
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => onEdit(product)}
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 

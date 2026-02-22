@@ -21,7 +21,7 @@ import type { Product, ExpiryStatus } from '@/lib/types'
 type FilterStatus = 'all' | ExpiryStatus
 
 export default function ListePage() {
-  const { products, locations, isLoading, addProduct, updateProduct, deleteProduct } = useProductStore()
+  const { products, locations, isLoading, addProduct, updateProduct, deleteProduct, reduceProductToZero } = useProductStore()
   
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -31,6 +31,9 @@ export default function ListePage() {
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products]
+    
+    // Stok 0 olanları filtrele
+    filtered = filtered.filter(p => p.stockCode !== '0')
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -214,6 +217,7 @@ export default function ListePage() {
                   const product = products.find(p => p.id === id)
                   if (product) setDeleteTarget(product)
                 }}
+                onReduceToZero={reduceProductToZero}
                 locationName={(() => {
                   const loc = locations.find(l => l.id === product.locationId)
                   if (!loc) return undefined

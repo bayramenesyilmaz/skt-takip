@@ -1,36 +1,26 @@
 "use client"
 
 import { useState, useMemo } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { BottomNav } from '@/components/bottom-nav'
 import { ProductForm } from '@/components/product-form'
+import { ProductCard } from '@/components/product-card'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { Button } from '@/components/ui/button'
-import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
+import { useProductStore } from '@/hooks/use-product-store'
 import { 
   Search, 
-  MapPin, 
-  Clock, 
   Camera,
   Package
 } from 'lucide-react'
-import type { Product, ExpiryStatus } from '@/lib/types'
-
-const statusConfig: Record<ExpiryStatus, { bg: string; text: string; badge: string }> = {
-  expired: { bg: 'bg-destructive/10', text: 'text-destructive', badge: 'bg-destructive' },
-  critical: { bg: 'bg-destructive/5', text: 'text-destructive', badge: 'bg-destructive/90' },
-  remove: { bg: 'bg-orange-500/10', text: 'text-orange-600', badge: 'bg-orange-500' },
-  campaign: { bg: 'bg-amber-500/10', text: 'text-amber-600', badge: 'bg-amber-500' },
-  safe: { bg: 'bg-emerald-500/10', text: 'text-emerald-600', badge: 'bg-emerald-500' },
-}
+import type { Product } from '@/lib/types'
 
 export default function AraPage() {
-  const { products, locations, isLoading, addProduct } = useProductStore()
+  const { products, locations, isLoading, addProduct, updateProduct, reduceProductToZero } = useProductStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [showScanner, setShowScanner] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return []
@@ -38,27 +28,20 @@ export default function AraPage() {
     const query = searchQuery.toLowerCase()
     return products
       .filter(p => 
-        p.name.toLowerCase().includes(query) ||
+        (p.stockCode !== '0') && // Stok 0 olanları gösterme
+        (p.name.toLowerCase().includes(query) ||
         (p.stockCode && p.stockCode.toLowerCase().includes(query)) ||
-        (p.barcode && p.barcode.includes(query))
+        (p.barcode && p.barcode.includes(query)))
       )
-      .map(product => {
-        const location = product.locationId 
-          ? locations.find(l => l.id === product.locationId) 
-          : undefined
-        // Parent lokasyonu bul (palet bir lokasyonun altindaysa)
-        const parentLocation = location?.parentId 
-          ? locations.find(l => l.id === location.parentId)
-          : undefined
-        
-        return {
-          product,
-          location,
-          parentLocation,
-          expiryInfo: getExpiryInfo(product.expiryDate)
-        }
-      })
-      .sort((a, b) => a.expiryInfo.daysLeft - b.expiryInfo.daysLeft)
+      .map(product => ({
+        product,
+        locationName: (() => {
+          const loc = locations.find(l => l.id === product.locationId)
+          if (!loc) return undefined
+          const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : undefined
+          return parent ? `${parent.name} / ${loc.name}` : loc.name
+        })()
+      }))
   }, [searchQuery, products, locations])
 
   const handleScan = (barcode: string) => {
@@ -71,12 +54,11 @@ export default function AraPage() {
     setShowForm(false)
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+  const handleUpdateProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (editingProduct) {
+      updateProduct(editingProduct.id, product)
+      setEditingProduct(null)
+    }
   }
 
   if (isLoading) {
@@ -94,13 +76,17 @@ export default function AraPage() {
     return <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />
   }
 
-  if (showForm) {
+  if (showForm || editingProduct) {
     return (
       <main className="min-h-screen bg-background">
         <div className="max-w-lg mx-auto p-4">
           <ProductForm
-            onSubmit={handleAddProduct}
-            onCancel={() => setShowForm(false)}
+            onSubmit={editingProduct ? handleUpdateProduct : handleAddProduct}
+            onCancel={() => {
+              setShowForm(false)
+              setEditingProduct(null)
+            }}
+            initialData={editingProduct || undefined}
             locations={locations}
           />
         </div>
@@ -170,57 +156,18 @@ export default function AraPage() {
               {searchResults.length} sonuc bulundu
             </p>
             
-            {searchResults.map(({ product, location, parentLocation, expiryInfo }) => {
-              const config = statusConfig[expiryInfo.status]
-              
-              return (
-                <Card key={product.id} className={`${config.bg} border`}>
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-foreground text-sm">
-                          {product.name}
-                        </h3>
-                        <Badge className={`${config.badge} text-white text-xs shrink-0`}>
-                          <Clock className="w-3 h-3 mr-1" />
-                          {expiryInfo.label}
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>SKT: {formatDate(product.expiryDate)}</span>
-                        {product.stockCode && (
-                          <span>Stok: {product.stockCode}</span>
-                        )}
-                        {product.barcode && (
-                          <span>Barkod: {product.barcode}</span>
-                        )}
-                      </div>
-                      
-                      {/* Location Info */}
-                      <div className={`flex items-center gap-2 p-2 rounded-lg ${location ? 'bg-background/80' : 'bg-muted/50'}`}>
-                        <MapPin className={`w-4 h-4 ${location ? 'text-primary' : 'text-muted-foreground'}`} />
-                        {location ? (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {parentLocation && (
-                              <>
-                                <span className="font-medium text-sm">{parentLocation.name}</span>
-                                <span className="text-muted-foreground">/</span>
-                              </>
-                            )}
-                            <span className="font-medium text-sm">{location.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            Lokasyon atanmamis
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+            {searchResults.map(({ product, locationName }) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onEdit={setEditingProduct}
+                onDelete={() => reduceProductToZero(product.id)}
+                onReduceToZero={reduceProductToZero}
+                locationName={locationName}
+                compact
+                showStockButton
+              />
+            ))}
           </div>
         )}
       </div>
