@@ -2,11 +2,11 @@
 
 import { useMemo } from 'react'
 import Link from 'next/link'
-import { Clock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { BottomNav } from '@/components/bottom-nav'
+import { ProductCardItem } from '@/components/product-card-item'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
 import { Package, AlertTriangle, ShoppingCart, ChevronRight } from 'lucide-react'
 
@@ -76,66 +76,46 @@ export default function Home() {
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
         {/* Basit Stats */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <Card className="bg-primary/5 border-0">
-            <CardContent className="p-4">
-              <p className="text-2xl font-bold text-foreground">{products.length}</p>
-              <p className="text-xs text-muted-foreground">Toplam Urun</p>
+            <CardContent className="p-3">
+              <p className="text-2xl font-bold text-foreground">{products.filter(p => p.stockCode !== '0').length}</p>
+              <p className="text-xs text-muted-foreground">Ürün</p>
             </CardContent>
           </Card>
-          
-          {urgentCount > 0 && (
-            <Card className="bg-destructive/5 border-0">
-              <CardContent className="p-4">
-                <p className="text-2xl font-bold text-destructive">{urgentCount}</p>
-                <p className="text-xs text-muted-foreground">Acil Dikkat</p>
+
+          <Card className="bg-destructive/5 border-0">
+            <CardContent className="p-3">
+              <p className="text-2xl font-bold text-destructive">{urgentCount}</p>
+              <p className="text-xs text-muted-foreground">Acil</p>
+            </CardContent>
+          </Card>
+
+          <Link href="/stok0" className="block">
+            <Card className="bg-muted/50 border-0 hover:bg-muted transition-colors">
+              <CardContent className="p-3">
+                <p className="text-2xl font-bold text-muted-foreground">
+                  {products.filter(p => p.stockCode === '0').length}
+                </p>
+                <p className="text-xs text-muted-foreground">Stok 0</p>
               </CardContent>
             </Card>
-          )}
-          
-          {campaignCount > 0 && (
-            <Card className="bg-amber-500/10 border-0">
-              <CardContent className="p-4">
-                <p className="text-2xl font-bold text-amber-600">{campaignCount}</p>
-                <p className="text-xs text-muted-foreground">Kampanya</p>
-              </CardContent>
-            </Card>
-          )}
+          </Link>
         </div>
 
-        {/* Kritik Urunler */}
+        {/* Kritik Ürünler */}
         {urgentProducts.length > 0 && (
-          <div className="space-y-3 pt-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Acil İşlem Gereken ({urgentProducts.length})</h2>
-              <Badge variant="destructive" className="text-xs">Dikkat</Badge>
-            </div>
-            <div className="space-y-2">
-              {urgentProducts.map(product => {
-                const info = getExpiryInfo(product.expiryDate)
-                const config = statusConfig[info.status]
-                return (
-                  <Link key={product.id} href={`/urun/${product.id}`}>
-                    <Card className={`${config.bg} cursor-pointer hover:shadow-md transition-shadow`}>
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold text-foreground truncate">{product.name}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge className={`${config.badge} text-white text-xs`}>
-                                {info.label}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">{formatDate(product.expiryDate)}</span>
-                            </div>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                )
-              })}
-            </div>
+          <div className="space-y-2 pt-2">
+            <h2 className="text-sm font-semibold text-foreground px-2">
+              Acil İşlem Gereken ({urgentProducts.length})
+            </h2>
+            {urgentProducts.map(product => (
+              <ProductCardItem
+                key={product.id}
+                product={product}
+                showActions={false}
+              />
+            ))}
           </div>
         )}
 

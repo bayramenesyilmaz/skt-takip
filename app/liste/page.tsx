@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
@@ -7,26 +7,20 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BottomNav } from '@/components/bottom-nav'
+import { ProductCardItem } from '@/components/product-card-item'
+import { ProductForm } from '@/components/product-form'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { Search, Edit2, X, Clock, MapPin, Camera } from 'lucide-react'
+import { Search, X, Camera } from 'lucide-react'
 import type { Product } from '@/lib/types'
-
-const statusConfig: Record<string, { bg: string; badge: string }> = {
-  expired: { bg: 'bg-destructive/10', badge: 'bg-destructive' },
-  critical: { bg: 'bg-destructive/5', badge: 'bg-destructive/90' },
-  remove: { bg: 'bg-orange-500/10', badge: 'bg-orange-500' },
-  campaign: { bg: 'bg-amber-500/10', badge: 'bg-amber-500' },
-  safe: { bg: 'bg-emerald-500/10', badge: 'bg-emerald-500' },
-}
 
 export default function ListePage() {
   const { products, locations, updateProduct, reduceProductToZero } = useProductStore()
-  
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState('')
   const [showScanner, setShowScanner] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(p => p.stockCode !== '0')
@@ -51,37 +45,18 @@ export default function ListePage() {
     })
   }, [products, searchQuery, statusFilter])
 
-  const handleEdit = (product: Product) => {
-    setEditingId(product.id)
-    setEditValue(product.name)
-  }
-
-  const handleSave = (id: string) => {
-    const product = products.find(p => p.id === id)
-    if (product && editValue.trim()) {
-      updateProduct(id, { ...product, name: editValue.trim() })
-      setEditingId(null)
+  const handleEditSubmit = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (editingProduct) {
+      updateProduct(editingProduct.id, product)
+      setEditingProduct(null)
     }
   }
 
-  const handleZeroStock = (id: string) => {
-    reduceProductToZero(id)
-  }
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
-  }
-
-  const getLocationName = (locationId?: string) => {
-    if (!locationId) return null
-    const loc = locations.find(l => l.id === locationId)
-    if (!loc) return null
-    const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : null
-    return parent ? `${parent.name} / ${loc.name}` : loc.name
+  const handleDeleteConfirm = () => {
+    if (showDeleteConfirm) {
+      reduceProductToZero(showDeleteConfirm)
+      setShowDeleteConfirm(null)
+    }
   }
 
   return (
@@ -89,8 +64,15 @@ export default function ListePage() {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3 space-y-3">
-          <h1 className="text-lg font-bold text-foreground">Urunler</h1>
-          
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-bold text-foreground">Ürünler</h1>
+            <Link href="/stok0">
+              <Badge variant="secondary" className="cursor-pointer">
+                Stok 0: {products.filter(p => p.stockCode === '0').length}
+              </Badge>
+            </Link>
+          </div>
+
           {/* Arama */}
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -130,7 +112,7 @@ export default function ListePage() {
                   : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >
-              Tumu
+              Tümü
             </button>
             {['expired', 'critical', 'remove', 'campaign', 'safe'].map(status => (
               <button
@@ -139,14 +121,14 @@ export default function ListePage() {
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   statusFilter === status
                     ? 'bg-primary text-primary-foreground'
-                    : `bg-muted text-muted-foreground hover:text-foreground`
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {status === 'expired' && 'Gecmis'}
+                {status === 'expired' && 'Geçmiş'}
                 {status === 'critical' && 'Kritik'}
-                {status === 'remove' && 'Kaldir'}
+                {status === 'remove' && 'Kaldır'}
                 {status === 'campaign' && 'Kampanya'}
-                {status === 'safe' && 'Guvenli'}
+                {status === 'safe' && 'Güvenli'}
               </button>
             ))}
           </div>
@@ -156,106 +138,80 @@ export default function ListePage() {
       <div className="max-w-lg mx-auto px-4 py-4 space-y-2">
         {filteredProducts.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">Sonuc bulunamadi</p>
+            <p className="text-muted-foreground">Sonuç bulunamadı</p>
           </div>
         ) : (
           <>
             <p className="text-xs text-muted-foreground px-2 pb-2">
-              {filteredProducts.length} urun
+              {filteredProducts.length} ürün
             </p>
-            {filteredProducts.map(product => {
-              const info = getExpiryInfo(product.expiryDate)
-              const config = statusConfig[info.status]
-              const isEditing = editingId === product.id
-
-              return (
-                <Link key={product.id} href={`/urun/${product.id}`}>
-                  <Card className={`${config.bg} border cursor-pointer hover:shadow-md transition-shadow`}>
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1" onClick={(e) => e.preventDefault()}>
-                          {isEditing ? (
-                          <input
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="w-full bg-background border border-border rounded px-2 py-1 text-sm"
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            <h3 className="font-semibold text-foreground text-sm">{product.name}</h3>
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <Badge className={`${config.badge} text-white text-xs`}>
-                                <Clock className="w-3 h-3 mr-1" />
-                                {info.label}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDate(product.expiryDate)}
-                              </span>
-                            </div>
-                            {product.locationId && (
-                              <div className="flex items-center gap-1 mt-1.5">
-                                <MapPin className="w-3 h-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">
-                                  {getLocationName(product.locationId)}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      <div className="flex gap-1">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => handleSave(product.id)}
-                              className="text-xs h-8"
-                            >
-                              Kaydet
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setEditingId(null)}
-                              className="text-xs h-8"
-                            >
-                              Iptal
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleEdit(product)}
-                              className="h-7 w-7"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleZeroStock(product.id)}
-                              className="h-7 w-7 text-muted-foreground hover:text-amber-600"
-                              title="Stok 0 yap"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </>
-                        )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
+            {filteredProducts.map(product => (
+              <ProductCardItem
+                key={product.id}
+                product={product}
+                showActions={false}
+              />
+            ))}
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+          <div className="w-full max-w-lg bg-background p-4 rounded-t-lg space-y-4 max-h-[90vh] overflow-y-auto">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Ürün Düzenle</h2>
+              <button
+                onClick={() => setEditingProduct(null)}
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <ProductForm
+              initialData={editingProduct}
+              locations={locations}
+              onSubmit={handleEditSubmit}
+              onCancel={() => setEditingProduct(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-sm">
+            <CardContent className="p-4 space-y-4">
+              <div>
+                <h3 className="font-semibold text-foreground text-lg">Ürünü Sil?</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Bu ürünün stoku sıfırlanacak ve listede görünmeyecek.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1"
+                >
+                  İptal
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteConfirm}
+                  className="flex-1"
+                >
+                  Sil
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <BottomNav />
     </main>
