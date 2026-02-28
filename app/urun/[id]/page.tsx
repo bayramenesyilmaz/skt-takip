@@ -21,9 +21,9 @@ const statusConfig: Record<string, { bg: string; badge: string }> = {
 export default function UrunPage() {
   const router = useRouter()
   const params = useParams()
-  const { products, updateProduct, reduceProductToZero, locations } = useProductStore()
+  const { products = [], updateProduct, reduceProductToZero, locations = [] } = useProductStore()
 
-  const product = products.find(p => p.id === params.id)
+  const product = Array.isArray(products) ? products.find(p => p.id === params.id) : undefined
   const [isEditing, setIsEditing] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 

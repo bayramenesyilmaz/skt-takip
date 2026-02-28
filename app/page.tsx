@@ -19,10 +19,11 @@ const statusConfig: Record<string, { bg: string; badge: string }> = {
 }
 
 export default function Home() {
-  const { products } = useProductStore()
+  const { products = [] } = useProductStore()
 
   // Acil urunler (expired + critical + remove)
   const urgentCount = useMemo(() => {
+    if (!products || !Array.isArray(products)) return 0
     return products.filter(p => {
       const info = getExpiryInfo(p.expiryDate)
       return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
@@ -31,11 +32,13 @@ export default function Home() {
 
   // Kampanya urunleri
   const campaignCount = useMemo(() => {
+    if (!products || !Array.isArray(products)) return 0
     return products.filter(p => getExpiryInfo(p.expiryDate).status === 'campaign').length
   }, [products])
 
   // 4-5 kritik/raftan kaldırılacak ürün
   const urgentProducts = useMemo(() => {
+    if (!products || !Array.isArray(products)) return []
     return products
       .filter(p => {
         const info = getExpiryInfo(p.expiryDate)

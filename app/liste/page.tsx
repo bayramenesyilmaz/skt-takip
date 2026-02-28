@@ -14,7 +14,7 @@ import { Search, X, Camera } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 export default function ListePage() {
-  const { products, locations, updateProduct, reduceProductToZero } = useProductStore()
+  const { products = [], locations = [], updateProduct, reduceProductToZero } = useProductStore()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -23,6 +23,7 @@ export default function ListePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   const filteredProducts = useMemo(() => {
+    if (!Array.isArray(products)) return []
     let filtered = products.filter(p => p.stockCode !== '0')
 
     if (searchQuery) {

@@ -13,11 +13,12 @@ import { Search, X, ArrowLeft, Package } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 export default function Stok0Page() {
-  const { products, updateProduct } = useProductStore()
+  const { products = [], updateProduct } = useProductStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [showConfirm, setShowConfirm] = useState<string | null>(null)
 
   const zeroStockProducts = useMemo(() => {
+    if (!Array.isArray(products)) return []
     let filtered = products.filter(p => p.stockCode === '0')
 
     if (searchQuery) {

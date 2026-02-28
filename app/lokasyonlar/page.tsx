@@ -25,8 +25,8 @@ import type { Product, Location } from '@/lib/types'
 
 export default function LokasyonlarPage() {
   const { 
-    products, 
-    locations, 
+    products = [], 
+    locations = [], 
     isLoading,
     addProduct,
     updateProduct,

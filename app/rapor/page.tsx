@@ -11,13 +11,14 @@ import { FileText, Download, Trash2, CheckCircle2, Download as DownloadIcon } fr
 import type { Product } from '@/lib/types'
 
 export default function RaporPage() {
-  const { products } = useProductStore()
+  const { products = [] } = useProductStore()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [quantities, setQuantities] = useState<Map<string, number>>(new Map())
   const [showConfirm, setShowConfirm] = useState(false)
 
   // 1-3 ayı kalan ürünleri getir
   const campaignProducts = useMemo(() => {
+    if (!Array.isArray(products)) return []
     return products
       .filter(p => {
         const info = getExpiryInfo(p.expiryDate)
