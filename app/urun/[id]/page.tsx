@@ -1,13 +1,13 @@
-"use client"
+'use client'
 
 import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ProductForm } from '@/components/product-form'
 import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { ArrowLeft, MapPin, Calendar, Edit2, Trash2, Clock } from 'lucide-react'
+import { ArrowLeft, MapPin, Edit2, Trash2 } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 const statusConfig: Record<string, { bg: string; badge: string }> = {
@@ -21,11 +21,11 @@ const statusConfig: Record<string, { bg: string; badge: string }> = {
 export default function UrunPage() {
   const router = useRouter()
   const params = useParams()
-  const { products, updateProduct, reduceProductToZero, locations } = useProductStore()
-  
-  const product = products.find(p => p.id === params.id)
+  const { products = [], updateProduct, reduceProductToZero, locations = [] } = useProductStore()
+
+  const product = Array.isArray(products) ? products.find(p => p.id === params.id) : undefined
   const [isEditing, setIsEditing] = useState(false)
-  const [editData, setEditData] = useState<Omit<Product, 'id' | 'createdAt' | 'updatedAt'> | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   if (!product) {
     return (
@@ -45,34 +45,26 @@ export default function UrunPage() {
     return new Date(date).toLocaleDateString('tr-TR', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     })
   }
 
-  const getLocationName = (locationId?: string) => {
+  const getLocationHierarchy = (locationId?: string) => {
     if (!locationId) return null
     const loc = locations.find(l => l.id === locationId)
     if (!loc) return null
     const parent = loc.parentId ? locations.find(l => l.id === loc.parentId) : null
-    return parent ? `${parent.name} / ${loc.name}` : loc.name
+    return parent ? [parent.name, loc.name] : [loc.name]
   }
 
-  const handleEdit = () => {
-    setEditData({
-      name: product.name,
-      stockCode: product.stockCode,
-      barcode: product.barcode,
-      expiryDate: product.expiryDate,
-      locationId: product.locationId,
-    })
-    setIsEditing(true)
+  const getProductLocations = () => {
+    const prods = products.filter(p => p.locationId === product.locationId)
+    return prods
   }
 
-  const handleSave = () => {
-    if (editData) {
-      updateProduct(product.id, editData)
-      setIsEditing(false)
-    }
+  const handleEditSubmit = (editData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    updateProduct(product.id, editData)
+    setIsEditing(false)
   }
 
   const handleDelete = () => {
@@ -80,156 +72,173 @@ export default function UrunPage() {
     router.back()
   }
 
+  const locationHierarchy = getLocationHierarchy(product.locationId)
+  const productsInLocation = getProductLocations()
+
   return (
     <main className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => router.back()}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            className="h-9 w-9"
           >
             <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-bold">Ürün Detay</h1>
-          <div className="w-9" />
+          </Button>
+          <h1 className="text-lg font-bold text-foreground flex-1 ml-2">Ürün Detayı</h1>
         </div>
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
-        {/* Ana Bilgiler */}
-        {!isEditing ? (
-          <Card className={`${config.bg} border`}>
-            <CardContent className="p-4 space-y-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">{product.name}</h1>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={`${config.badge} text-white`}>
-                    <Clock className="w-3 h-3 mr-1" />
-                    {info.label}
-                  </Badge>
-                  <Badge variant="outline">{formatDate(product.expiryDate)}</Badge>
-                </div>
+        {/* Ürün Bilgileri */}
+        <Card className={config.bg}>
+          <CardContent className="p-4 space-y-4">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">{product.name}</h2>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge className={`${config.badge} text-white`}>
+                  {info.label}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {info.daysLeft} gün kaldı
+                </span>
               </div>
+            </div>
 
-              <div className="space-y-3 pt-2">
-                <div className="bg-background/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Ürün Adı</p>
-                  <p className="font-medium text-foreground">{product.name}</p>
-                </div>
-
-                {product.stockCode && (
-                  <div className="bg-background/50 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-1">Stok Kodu</p>
-                    <p className="font-medium text-foreground">{product.stockCode}</p>
-                  </div>
-                )}
-
-                {product.barcode && (
-                  <div className="bg-background/50 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-1">Barkod</p>
-                    <p className="font-medium text-foreground font-mono">{product.barcode}</p>
-                  </div>
-                )}
-
-                <div className="bg-background/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Son Kullanma Tarihi</p>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <p className="font-medium text-foreground">{formatDate(product.expiryDate)}</p>
-                  </div>
-                </div>
-
-                {product.locationId && (
-                  <div className="bg-background/50 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-1">Konum</p>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <p className="font-medium text-foreground">{getLocationName(product.locationId)}</p>
-                    </div>
-                  </div>
-                )}
+            {/* Bilgiler Tablosu */}
+            <div className="space-y-2 border-t border-black/10 pt-4">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">SKT</span>
+                <span className="text-sm font-medium text-foreground">
+                  {formatDate(product.expiryDate)}
+                </span>
               </div>
+              {product.stockCode && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Stok Kodu</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {product.stockCode}
+                  </span>
+                </div>
+              )}
+              {product.barcode && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Barkod</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {product.barcode}
+                  </span>
+                </div>
+              )}
+            </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={handleEdit}
-                  className="flex-1 gap-2"
-                  variant="outline"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Düzenle
-                </Button>
-                <Button
-                  onClick={handleDelete}
-                  className="flex-1"
-                  variant="destructive"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Stok 0 Yap
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          /* Edit Form */
+            {/* Butonlar */}
+            <div className="flex gap-2 border-t border-black/10 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit2 className="w-4 h-4 mr-2" />
+                Düzenle
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Sil
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Lokasyon Bilgisi */}
+        {locationHierarchy && (
           <Card>
-            <CardContent className="p-4 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Ürün Adı</label>
-                <Input
-                  value={editData?.name || ''}
-                  onChange={(e) => setEditData(prev => prev ? { ...prev, name: e.target.value } : null)}
-                  placeholder="Ürün adı"
-                />
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-foreground">Konum</h3>
+              </div>
+              <div className="space-y-1">
+                {locationHierarchy.map((loc, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                    <span className="text-foreground">{loc}</span>
+                  </div>
+                ))}
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Stok Kodu</label>
-                <Input
-                  value={editData?.stockCode || ''}
-                  onChange={(e) => setEditData(prev => prev ? { ...prev, stockCode: e.target.value } : null)}
-                  placeholder="Stok kodu (opsiyonel)"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Barkod</label>
-                <Input
-                  value={editData?.barcode || ''}
-                  onChange={(e) => setEditData(prev => prev ? { ...prev, barcode: e.target.value } : null)}
-                  placeholder="Barkod (opsiyonel)"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Son Kullanma Tarihi</label>
-                <Input
-                  type="date"
-                  value={editData?.expiryDate || ''}
-                  onChange={(e) => setEditData(prev => prev ? { ...prev, expiryDate: e.target.value } : null)}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={handleSave}
-                  className="flex-1"
-                >
-                  Kaydet
-                </Button>
-                <Button
-                  onClick={() => setIsEditing(false)}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  İptal
-                </Button>
-              </div>
+              {productsInLocation.length > 1 && (
+                <div className="pt-3 border-t border-border text-xs text-muted-foreground">
+                  Bu lokasyonda {productsInLocation.length} ürün var
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+          <div className="w-full max-w-lg bg-background p-4 rounded-t-lg space-y-4 max-h-[90vh] overflow-y-auto">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Ürün Düzenle</h2>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+
+            <ProductForm
+              initialData={product}
+              locations={locations}
+              onSubmit={handleEditSubmit}
+              onCancel={() => setIsEditing(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-sm">
+            <CardContent className="p-4 space-y-4">
+              <div>
+                <h3 className="font-semibold text-foreground text-lg">Ürünü Sil?</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Bu ürünün stoku sıfırlanacak ve listede görünmeyecek.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1"
+                >
+                  İptal
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  className="flex-1"
+                >
+                  Sil
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </main>
   )
 }

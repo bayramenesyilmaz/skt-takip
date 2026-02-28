@@ -177,3 +177,46 @@ html, body {
   max-width: 100%;
   overflow: hidden;
 }
+
+/* Consistent spacing fixes */
+main {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+header {
+  z-index: 30;
+  position: sticky;
+  top: 0;
+}
+
+/* Modal fixes */
+.fixed {
+  position: fixed;
+  z-index: 50;
+}
+
+/* Padding consistency */
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.p-3 {
+  padding: 0.75rem;
+}
+
+.p-4 {
+  padding: 1rem;
+}
