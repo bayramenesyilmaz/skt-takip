@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Product, Location, ExpiryInfo, ExpiryStatus, ParsedProduct } from '@/lib/types'
+import type { Product, Location, ExpiryInfo, ExpiryStatus, ParsedProduct, ProductType } from '@/lib/types'
 
 const PRODUCTS_KEY = 'skt-takip-products'
 const LOCATIONS_KEY = 'skt-takip-locations'
@@ -59,6 +59,59 @@ export function getExpiryInfo(expiryDate: string): ExpiryInfo {
     status = 'campaign'
     label = `${daysLeft} gun kaldi`
     actionRequired = 'Yetkiliye bildir - Kampanya onerisi'
+  } else {
+    status = 'safe'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = 'Guvenli'
+  }
+  
+  return { status, daysLeft, label, actionRequired }
+}
+
+// Ürün tipine göre farklı raf ömrü hesapla
+export function getExpiryInfoByType(expiryDate: string, productType?: ProductType): ExpiryInfo {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const expiry = new Date(expiryDate)
+  expiry.setHours(0, 0, 0, 0)
+  
+  const diffTime = expiry.getTime() - today.getTime()
+  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  let status: ExpiryStatus
+  let label: string
+  let actionRequired: string
+  
+  // Ürün tipine göre kritik gün sınırları
+  const criticalDays = productType === 'fridge-4' ? 3 : (productType === 'processed' ? 10 : 14)
+  const removeDays = productType === 'fridge-4' ? 3 : (productType === 'processed' ? 10 : 14)
+  const campaignDays = productType === 'fridge-4' ? 30 : (productType === 'processed' ? 60 : 90)
+  
+  if (daysLeft < 0) {
+    status = 'expired'
+    label = `${Math.abs(daysLeft)} gun gecmis`
+    actionRequired = 'HEMEN RAFTAN KALDIR!'
+  } else if (daysLeft === 0) {
+    status = 'expired'
+    label = 'Bugun son gun!'
+    actionRequired = 'HEMEN RAFTAN KALDIR!'
+  } else if (daysLeft <= criticalDays) {
+    status = 'critical'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = productType === 'fridge-4' 
+      ? 'ACIL: +4°C Dolap - Raftan kaldir!' 
+      : (productType === 'processed' ? 'ACIL: İşlenmiş ürün - Kaldır!' : 'ACIL: Raftan kaldir!')
+  } else if (daysLeft <= removeDays) {
+    status = 'remove'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = productType === 'fridge-4'
+      ? '+4°C Dolap - Yakında kaldır'
+      : (productType === 'processed' ? 'İşlenmiş ürün - Yakında kaldır' : 'Raftan kaldirmalisin')
+  } else if (daysLeft <= campaignDays) {
+    status = 'campaign'
+    label = `${daysLeft} gun kaldi`
+    actionRequired = 'Kampanya incelemesi gerek'
   } else {
     status = 'safe'
     label = `${daysLeft} gun kaldi`

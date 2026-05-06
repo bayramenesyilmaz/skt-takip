@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { getExpiryInfo } from '@/hooks/use-product-store'
-import { Clock, ChevronRight, Edit2, Trash2 } from 'lucide-react'
+import { getExpiryInfoByType } from '@/hooks/use-product-store'
+import { Clock, ChevronRight, Edit2, Trash2, Snowflake, Thermometer, Zap } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
 interface ProductCardItemProps {
@@ -24,6 +24,13 @@ const statusConfig: Record<string, { bg: string; badge: string }> = {
   safe: { bg: 'bg-emerald-500/10', badge: 'bg-emerald-500' },
 }
 
+const typeConfig: Record<string, { icon: typeof Snowflake; label: string; color: string }> = {
+  shelf: { icon: Zap, label: 'Normal Raf', color: 'bg-blue-100 text-blue-700' },
+  'freezer-18': { icon: Snowflake, label: '-18°C', color: 'bg-cyan-100 text-cyan-700' },
+  'fridge-4': { icon: Thermometer, label: '+4°C', color: 'bg-purple-100 text-purple-700' },
+  processed: { icon: Zap, label: 'İşlenmiş', color: 'bg-yellow-100 text-yellow-700' },
+}
+
 export function ProductCardItem({
   product,
   showActions = false,
@@ -31,8 +38,10 @@ export function ProductCardItem({
   onDelete,
   onClick,
 }: ProductCardItemProps) {
-  const info = getExpiryInfo(product.expiryDate)
+  const info = getExpiryInfoByType(product.expiryDate, product.productType)
   const config = statusConfig[info.status]
+  const typeInfo = typeConfig[product.productType || 'shelf']
+  const TypeIcon = typeInfo.icon
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR', {
@@ -54,6 +63,10 @@ export function ProductCardItem({
               <Badge className={`${config.badge} text-white text-xs`}>
                 <Clock className="w-3 h-3 mr-1" />
                 {info.label}
+              </Badge>
+              <Badge className={`${typeInfo.color} text-xs font-medium`}>
+                <TypeIcon className="w-3 h-3 mr-0.5" />
+                {typeInfo.label}
               </Badge>
               <span className="text-xs text-muted-foreground">
                 {formatDate(product.expiryDate)}

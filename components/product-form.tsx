@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { Camera, Package, Hash, Barcode, Calendar, X, MapPin } from 'lucide-react'
-import type { Product, Location } from '@/lib/types'
+import type { Product, Location, ProductType } from '@/lib/types'
 
 interface ProductFormProps {
   onSubmit: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void
@@ -24,6 +24,7 @@ export function ProductForm({ onSubmit, onCancel, initialData, locations = [] }:
     stockCode: initialData?.stockCode || '',
     barcode: initialData?.barcode || '',
     expiryDate: initialData?.expiryDate || '',
+    productType: (initialData?.productType || 'shelf') as ProductType,
     locationId: initialData?.locationId || '',
   })
 
@@ -37,6 +38,7 @@ export function ProductForm({ onSubmit, onCancel, initialData, locations = [] }:
       stockCode: formData.stockCode || undefined,
       barcode: formData.barcode || undefined,
       expiryDate: formData.expiryDate,
+      productType: formData.productType,
       locationId: formData.locationId || undefined,
     })
   }
@@ -109,6 +111,27 @@ export function ProductForm({ onSubmit, onCancel, initialData, locations = [] }:
               className="h-11"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Package className="w-4 h-4 text-muted-foreground" />
+              Urun Tipi
+            </Label>
+            <Select 
+              value={formData.productType} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, productType: value as ProductType }))}
+            >
+              <SelectTrigger className="h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="shelf">Normal Raf (14 gun)</SelectItem>
+                <SelectItem value="freezer-18">-18°C Dolap (14 gun)</SelectItem>
+                <SelectItem value="fridge-4">+4°C Dolap (3 gun)</SelectItem>
+                <SelectItem value="processed">Islenmis Urun (5-10 gun)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {locations.length > 0 && (

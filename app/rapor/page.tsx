@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BottomNav } from '@/components/bottom-nav'
-import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
+import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
 import { FileText, Download, Trash2, CheckCircle2, Download as DownloadIcon } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
@@ -16,17 +16,17 @@ export default function RaporPage() {
   const [quantities, setQuantities] = useState<Map<string, number>>(new Map())
   const [showConfirm, setShowConfirm] = useState(false)
 
-  // 1-3 ayı kalan ürünleri getir
+  // 1-3 ayı kalan ürünleri getir - tip bazında
   const campaignProducts = useMemo(() => {
     if (!Array.isArray(products)) return []
     return products
       .filter(p => {
-        const info = getExpiryInfo(p.expiryDate)
+        const info = getExpiryInfoByType(p.expiryDate, p.productType)
         return info.status === 'campaign' && p.stockCode !== '0'
       })
       .sort((a, b) => {
-        const aInfo = getExpiryInfo(a.expiryDate)
-        const bInfo = getExpiryInfo(b.expiryDate)
+        const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
+        const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
         return aInfo.daysLeft - bInfo.daysLeft
       })
   }, [products])

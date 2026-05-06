@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { BottomNav } from '@/components/bottom-nav'
 import { ProductCardItem } from '@/components/product-card-item'
 import { ProductForm } from '@/components/product-form'
-import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
+import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
 import { Search, X, Camera } from 'lucide-react'
 import type { Product } from '@/lib/types'
 
@@ -36,12 +36,12 @@ export default function ListePage() {
     }
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => getExpiryInfo(p.expiryDate).status === statusFilter)
+      filtered = filtered.filter(p => getExpiryInfoByType(p.expiryDate, p.productType).status === statusFilter)
     }
 
     return filtered.sort((a, b) => {
-      const aInfo = getExpiryInfo(a.expiryDate)
-      const bInfo = getExpiryInfo(b.expiryDate)
+      const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
+      const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
       return aInfo.daysLeft - bInfo.daysLeft
     })
   }, [products, searchQuery, statusFilter])

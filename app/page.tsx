@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { BottomNav } from '@/components/bottom-nav'
 import { ProductCardItem } from '@/components/product-card-item'
-import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
+import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
 import { Package, AlertTriangle, ShoppingCart, ChevronRight } from 'lucide-react'
 
 const statusConfig: Record<string, { bg: string; badge: string }> = {
@@ -21,11 +21,11 @@ const statusConfig: Record<string, { bg: string; badge: string }> = {
 export default function Home() {
   const { products = [] } = useProductStore()
 
-  // Acil urunler (expired + critical + remove)
+  // Acil urunler (expired + critical + remove) - tip bazında
   const urgentCount = useMemo(() => {
     if (!products || !Array.isArray(products)) return 0
     return products.filter(p => {
-      const info = getExpiryInfo(p.expiryDate)
+      const info = getExpiryInfoByType(p.expiryDate, p.productType)
       return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
     }).length
   }, [products])
@@ -33,7 +33,7 @@ export default function Home() {
   // Kampanya urunleri
   const campaignCount = useMemo(() => {
     if (!products || !Array.isArray(products)) return 0
-    return products.filter(p => getExpiryInfo(p.expiryDate).status === 'campaign').length
+    return products.filter(p => getExpiryInfoByType(p.expiryDate, p.productType).status === 'campaign').length
   }, [products])
 
   // 4-5 kritik/raftan kaldırılacak ürün
@@ -41,12 +41,12 @@ export default function Home() {
     if (!products || !Array.isArray(products)) return []
     return products
       .filter(p => {
-        const info = getExpiryInfo(p.expiryDate)
+        const info = getExpiryInfoByType(p.expiryDate, p.productType)
         return (info.status === 'expired' || info.status === 'critical' || info.status === 'remove') && p.stockCode !== '0'
       })
       .sort((a, b) => {
-        const aInfo = getExpiryInfo(a.expiryDate)
-        const bInfo = getExpiryInfo(b.expiryDate)
+        const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
+        const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
         return aInfo.daysLeft - bInfo.daysLeft
       })
       .slice(0, 5)

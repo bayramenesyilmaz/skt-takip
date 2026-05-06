@@ -1,9 +1,12 @@
+export type ProductType = 'shelf' | 'freezer-18' | 'fridge-4' | 'processed'
+
 export interface Product {
   id: string
   name: string
   stockCode?: string
   barcode?: string
   expiryDate: string
+  productType?: ProductType // Raf/Dolap tipi: Normal Raf, -18°C Dolap, +4°C Dolap, İşlenmiş
   locationId?: string
   createdAt: string
   updatedAt: string
