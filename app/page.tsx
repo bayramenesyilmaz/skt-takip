@@ -3,46 +3,44 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { BottomNav } from '@/components/bottom-nav'
-import { ProductCardItem } from '@/components/product-card-item'
+import { ProductItem } from '@/components/product-item'
 import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
-import { Package, AlertTriangle, ShoppingCart, ChevronRight } from 'lucide-react'
+import { Package, AlertTriangle, Tag, Archive } from 'lucide-react'
 
-const statusConfig: Record<string, { bg: string; badge: string }> = {
-  expired: { bg: 'bg-destructive/10', badge: 'bg-destructive' },
-  critical: { bg: 'bg-destructive/5', badge: 'bg-destructive/90' },
-  remove: { bg: 'bg-orange-500/10', badge: 'bg-orange-500' },
-  campaign: { bg: 'bg-amber-500/10', badge: 'bg-amber-500' },
-  safe: { bg: 'bg-emerald-500/10', badge: 'bg-emerald-500' },
-}
+export default function HomePage() {
+  const { activeProducts, zeroStockProducts, setStockZero, isLoading } = useProductStore()
 
-export default function Home() {
-  const { products = [] } = useProductStore()
-
-  // Acil urunler (expired + critical + remove) - tip bazında
-  const urgentCount = useMemo(() => {
-    if (!products || !Array.isArray(products)) return 0
-    return products.filter(p => {
+  const stats = useMemo(() => {
+    if (!Array.isArray(activeProducts)) return { total: 0, critical: 0, campaign: 0, zero: 0 }
+    
+    let critical = 0
+    let campaign = 0
+    
+    activeProducts.forEach(p => {
       const info = getExpiryInfoByType(p.expiryDate, p.productType)
-      return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
-    }).length
-  }, [products])
+      if (info.status === 'expired' || info.status === 'critical' || info.status === 'remove') {
+        critical++
+      } else if (info.status === 'campaign') {
+        campaign++
+      }
+    })
+    
+    return {
+      total: activeProducts.length,
+      critical,
+      campaign,
+      zero: zeroStockProducts.length
+    }
+  }, [activeProducts, zeroStockProducts])
 
-  // Kampanya urunleri
-  const campaignCount = useMemo(() => {
-    if (!products || !Array.isArray(products)) return 0
-    return products.filter(p => getExpiryInfoByType(p.expiryDate, p.productType).status === 'campaign').length
-  }, [products])
-
-  // 4-5 kritik/raftan kaldırılacak ürün
   const urgentProducts = useMemo(() => {
-    if (!products || !Array.isArray(products)) return []
-    return products
+    if (!Array.isArray(activeProducts)) return []
+    
+    return activeProducts
       .filter(p => {
         const info = getExpiryInfoByType(p.expiryDate, p.productType)
-        return (info.status === 'expired' || info.status === 'critical' || info.status === 'remove') && p.stockCode !== '0'
+        return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
       })
       .sort((a, b) => {
         const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
@@ -50,125 +48,147 @@ export default function Home() {
         return aInfo.daysLeft - bInfo.daysLeft
       })
       .slice(0, 5)
-  }, [products])
+  }, [activeProducts])
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+  const campaignProducts = useMemo(() => {
+    if (!Array.isArray(activeProducts)) return []
+    
+    return activeProducts
+      .filter(p => {
+        const info = getExpiryInfoByType(p.expiryDate, p.productType)
+        return info.status === 'campaign'
+      })
+      .sort((a, b) => {
+        const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
+        const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
+        return aInfo.daysLeft - bInfo.daysLeft
+      })
+      .slice(0, 5)
+  }, [activeProducts])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Package className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground">SKT Takip</h1>
-              <p className="text-xs text-muted-foreground">Son Kullanma Tarihi</p>
-            </div>
-          </div>
-        </div>
+    <main className="min-h-screen bg-background pb-20">
+      <header className="bg-primary text-primary-foreground p-4">
+        <h1 className="text-xl font-bold">SKT Takip</h1>
+        <p className="text-sm opacity-80">Son kullanma tarihi yonetimi</p>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-        {/* Basit Stats */}
-        <div className="grid grid-cols-3 gap-2">
-          <Card className="bg-primary/5 border-0">
-            <CardContent className="p-3">
-              <p className="text-2xl font-bold text-foreground">{products.filter(p => p.stockCode !== '0').length}</p>
-              <p className="text-xs text-muted-foreground">Ürün</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-destructive/5 border-0">
-            <CardContent className="p-3">
-              <p className="text-2xl font-bold text-destructive">{urgentCount}</p>
-              <p className="text-xs text-muted-foreground">Acil</p>
-            </CardContent>
-          </Card>
-
-          <Link href="/stok0" className="block">
-            <Card className="bg-muted/50 border-0 hover:bg-muted transition-colors">
-              <CardContent className="p-3">
-                <p className="text-2xl font-bold text-muted-foreground">
-                  {products.filter(p => p.stockCode === '0').length}
-                </p>
-                <p className="text-xs text-muted-foreground">Stok 0</p>
+      <div className="p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/liste">
+            <Card className="bg-slate-50 border-slate-200 hover:shadow-md transition-shadow">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-700">{stats.total}</p>
+                  <p className="text-xs text-slate-500">Toplam Urun</p>
+                </div>
               </CardContent>
             </Card>
           </Link>
-        </div>
 
-        {/* Kritik Ürünler */}
-        {urgentProducts.length > 0 && (
-          <div className="space-y-2 pt-2">
-            <h2 className="text-sm font-semibold text-foreground px-2">
-              Acil İşlem Gereken ({urgentProducts.length})
-            </h2>
-            {urgentProducts.map(product => (
-              <ProductCardItem
-                key={product.id}
-                product={product}
-                showActions={false}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Menu Kartlari */}
-        <div className="space-y-3 pt-4">
-          <Link href="/liste">
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <AlertTriangle className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Urunleri Goster</p>
-                    <p className="text-xs text-muted-foreground">Ara, filtrele ve duzenle</p>
-                  </div>
+          <Link href="/liste?filter=critical">
+            <Card className="bg-red-50 border-red-200 hover:shadow-md transition-shadow">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-red-200 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                <div>
+                  <p className="text-2xl font-bold text-red-700">{stats.critical}</p>
+                  <p className="text-xs text-red-500">Acil Islem</p>
+                </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/rapor">
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                    <ShoppingCart className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Kampanya Raporu</p>
-                    <p className="text-xs text-muted-foreground">PDF indirme</p>
-                  </div>
+            <Card className="bg-blue-50 border-blue-200 hover:shadow-md transition-shadow">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-200 flex items-center justify-center">
+                  <Tag className="w-5 h-5 text-blue-600" />
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                <div>
+                  <p className="text-2xl font-bold text-blue-700">{stats.campaign}</p>
+                  <p className="text-xs text-blue-500">Kampanya</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/stok0">
+            <Card className="bg-gray-50 border-gray-200 hover:shadow-md transition-shadow">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
+                  <Archive className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-700">{stats.zero}</p>
+                  <p className="text-xs text-gray-500">Stok 0</p>
+                </div>
               </CardContent>
             </Card>
           </Link>
         </div>
 
-        {/* Empty State */}
-        {products.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Package className="w-8 h-8 text-primary" />
+        {urgentProducts.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-foreground">Acil Islem Gereken</h2>
+              <Link href="/liste?filter=critical" className="text-xs text-primary">
+                Tumu
+              </Link>
             </div>
-            <p className="text-muted-foreground mb-4">Henuz urun eklenmedi</p>
-            <Link href="/ekle">
-              <Button>Urun Ekle</Button>
-            </Link>
+            <div className="space-y-2">
+              {urgentProducts.map(product => (
+                <ProductItem
+                  key={product.id}
+                  product={product}
+                  onDelete={setStockZero}
+                  showLink={false}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {campaignProducts.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-foreground">Kampanya Onerisi</h2>
+              <Link href="/rapor" className="text-xs text-primary">
+                Rapor Al
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {campaignProducts.map(product => (
+                <ProductItem
+                  key={product.id}
+                  product={product}
+                  onDelete={setStockZero}
+                  showLink={false}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {activeProducts.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="font-medium text-foreground">Henuz urun yok</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Liste sayfasindan urun ekleyin
+            </p>
           </div>
         )}
       </div>

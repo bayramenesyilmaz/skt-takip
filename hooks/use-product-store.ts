@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Product, Location, ExpiryInfo, ExpiryStatus, ParsedProduct, ProductType } from '@/lib/types'
+import type { Product, ExpiryInfo, ExpiryStatus, ParsedProduct, ProductType, AppSettings } from '@/lib/types'
 
 const PRODUCTS_KEY = 'skt-takip-products'
-const LOCATIONS_KEY = 'skt-takip-locations'
+const SETTINGS_KEY = 'skt-takip-settings'
 
 // SSR-safe localStorage helpers
 function getStorageItem(key: string): string | null {
@@ -25,50 +25,7 @@ function setStorageItem(key: string, value: string): void {
   }
 }
 
-export function getExpiryInfo(expiryDate: string): ExpiryInfo {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  const expiry = new Date(expiryDate)
-  expiry.setHours(0, 0, 0, 0)
-  
-  const diffTime = expiry.getTime() - today.getTime()
-  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
-  let status: ExpiryStatus
-  let label: string
-  let actionRequired: string
-  
-  if (daysLeft < 0) {
-    status = 'expired'
-    label = `${Math.abs(daysLeft)} gun gecmis`
-    actionRequired = 'HEMEN RAFTAN KALDIR!'
-  } else if (daysLeft === 0) {
-    status = 'expired'
-    label = 'Bugun son gun!'
-    actionRequired = 'HEMEN RAFTAN KALDIR!'
-  } else if (daysLeft <= 3) {
-    status = 'critical'
-    label = `${daysLeft} gun kaldi`
-    actionRequired = 'ACIL: Raftan kaldir!'
-  } else if (daysLeft <= 14) {
-    status = 'remove'
-    label = `${daysLeft} gun kaldi`
-    actionRequired = 'Raftan kaldirmalisin'
-  } else if (daysLeft <= 90) {
-    status = 'campaign'
-    label = `${daysLeft} gun kaldi`
-    actionRequired = 'Yetkiliye bildir - Kampanya onerisi'
-  } else {
-    status = 'safe'
-    label = `${daysLeft} gun kaldi`
-    actionRequired = 'Guvenli'
-  }
-  
-  return { status, daysLeft, label, actionRequired }
-}
-
-// Ürün tipine göre farklı raf ömrü hesapla
+// Urun tipine gore farkli raf omru hesapla
 export function getExpiryInfoByType(expiryDate: string, productType?: ProductType): ExpiryInfo {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -83,8 +40,9 @@ export function getExpiryInfoByType(expiryDate: string, productType?: ProductTyp
   let label: string
   let actionRequired: string
   
-  // Ürün tipine göre kritik gün sınırları
-  const criticalDays = productType === 'fridge-4' ? 3 : (productType === 'processed' ? 10 : 14)
+  // Urun tipine gore kritik gun sinirlari
+  // fridge-4: 3 gun, processed: 5-10 gun, diger: 14 gun
+  const criticalDays = productType === 'fridge-4' ? 3 : (productType === 'processed' ? 5 : 14)
   const removeDays = productType === 'fridge-4' ? 3 : (productType === 'processed' ? 10 : 14)
   const campaignDays = productType === 'fridge-4' ? 30 : (productType === 'processed' ? 60 : 90)
   
@@ -98,23 +56,19 @@ export function getExpiryInfoByType(expiryDate: string, productType?: ProductTyp
     actionRequired = 'HEMEN RAFTAN KALDIR!'
   } else if (daysLeft <= criticalDays) {
     status = 'critical'
-    label = `${daysLeft} gun kaldi`
-    actionRequired = productType === 'fridge-4' 
-      ? 'ACIL: +4°C Dolap - Raftan kaldir!' 
-      : (productType === 'processed' ? 'ACIL: İşlenmiş ürün - Kaldır!' : 'ACIL: Raftan kaldir!')
+    label = `${daysLeft} gun`
+    actionRequired = 'ACIL: Raftan kaldir!'
   } else if (daysLeft <= removeDays) {
     status = 'remove'
-    label = `${daysLeft} gun kaldi`
-    actionRequired = productType === 'fridge-4'
-      ? '+4°C Dolap - Yakında kaldır'
-      : (productType === 'processed' ? 'İşlenmiş ürün - Yakında kaldır' : 'Raftan kaldirmalisin')
+    label = `${daysLeft} gun`
+    actionRequired = 'Raftan kaldirmalisin'
   } else if (daysLeft <= campaignDays) {
     status = 'campaign'
-    label = `${daysLeft} gun kaldi`
-    actionRequired = 'Kampanya incelemesi gerek'
+    label = `${daysLeft} gun`
+    actionRequired = 'Kampanya incele'
   } else {
     status = 'safe'
-    label = `${daysLeft} gun kaldi`
+    label = `${daysLeft} gun`
     actionRequired = 'Guvenli'
   }
   
@@ -156,9 +110,13 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
   return products
 }
 
+const defaultSettings: AppSettings = {
+  noReturnBrands: []
+}
+
 export function useProductStore() {
   const [products, setProducts] = useState<Product[]>([])
-  const [locations, setLocations] = useState<Location[]>([])
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings)
   const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
   
@@ -179,12 +137,10 @@ export function useProductStore() {
         }
       }
       
-      const storedLocations = getStorageItem(LOCATIONS_KEY)
-      if (storedLocations) {
-        const parsed = JSON.parse(storedLocations)
-        if (Array.isArray(parsed)) {
-          setLocations(parsed)
-        }
+      const storedSettings = getStorageItem(SETTINGS_KEY)
+      if (storedSettings) {
+        const parsed = JSON.parse(storedSettings)
+        setSettings({ ...defaultSettings, ...parsed })
       }
     } catch (error) {
       console.error('Failed to load data:', error)
@@ -199,17 +155,17 @@ export function useProductStore() {
     setProducts(newProducts)
   }, [])
   
-  // Save locations
-  const saveLocations = useCallback((newLocations: Location[]) => {
-    setStorageItem(LOCATIONS_KEY, JSON.stringify(newLocations))
-    setLocations(newLocations)
+  // Save settings
+  const saveSettings = useCallback((newSettings: AppSettings) => {
+    setStorageItem(SETTINGS_KEY, JSON.stringify(newSettings))
+    setSettings(newSettings)
   }, [])
   
   // Product operations
   const addProduct = useCallback((product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newProduct: Product = {
       ...product,
-      stockCode: product.stockCode || '1', // Default olarak stok 1
+      stockCode: product.stockCode || '1',
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -218,13 +174,13 @@ export function useProductStore() {
     return newProduct
   }, [products, saveProducts])
   
-  const addBulkProducts = useCallback((parsedProducts: ParsedProduct[], locationId?: string) => {
+  const addBulkProducts = useCallback((parsedProducts: ParsedProduct[]) => {
     const validProducts = parsedProducts.filter(p => p.isValid)
     const newProducts: Product[] = validProducts.map(p => ({
       id: crypto.randomUUID(),
       name: p.name,
+      stockCode: '1',
       expiryDate: p.expiryDate,
-      locationId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }))
@@ -246,10 +202,19 @@ export function useProductStore() {
     saveProducts(products.filter(p => p.id !== id))
   }, [products, saveProducts])
 
-  const reduceProductToZero = useCallback((id: string) => {
+  const setStockZero = useCallback((id: string) => {
     const updated = products.map(p => 
       p.id === id 
         ? { ...p, stockCode: '0', updatedAt: new Date().toISOString() }
+        : p
+    )
+    saveProducts(updated)
+  }, [products, saveProducts])
+
+  const restoreProduct = useCallback((id: string) => {
+    const updated = products.map(p => 
+      p.id === id 
+        ? { ...p, stockCode: '1', updatedAt: new Date().toISOString() }
         : p
     )
     saveProducts(updated)
@@ -258,109 +223,61 @@ export function useProductStore() {
   const clearAllProducts = useCallback(() => {
     saveProducts([])
   }, [saveProducts])
-  
-  // Location operations
-  const addLocation = useCallback((location: Omit<Location, 'id' | 'createdAt'>) => {
-    const newLocation: Location = {
-      ...location,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+
+  // Import/Export
+  const exportProducts = useCallback(() => {
+    return JSON.stringify(products, null, 2)
+  }, [products])
+
+  const importProducts = useCallback((jsonData: string) => {
+    try {
+      const imported = JSON.parse(jsonData)
+      if (Array.isArray(imported)) {
+        saveProducts(imported)
+        return { success: true, count: imported.length }
+      }
+      return { success: false, error: 'Gecersiz format' }
+    } catch {
+      return { success: false, error: 'JSON parse hatasi' }
     }
-    saveLocations([...locations, newLocation])
-    return newLocation
-  }, [locations, saveLocations])
+  }, [saveProducts])
+
+  // Settings operations
+  const addNoReturnBrand = useCallback((brand: string) => {
+    const newBrands = [...settings.noReturnBrands, brand.trim()]
+    saveSettings({ ...settings, noReturnBrands: newBrands })
+  }, [settings, saveSettings])
+
+  const removeNoReturnBrand = useCallback((brand: string) => {
+    const newBrands = settings.noReturnBrands.filter(b => b !== brand)
+    saveSettings({ ...settings, noReturnBrands: newBrands })
+  }, [settings, saveSettings])
+
+  // Helper - aktif urunler (stok > 0)
+  const activeProducts = products.filter(p => p.stockCode !== '0')
   
-  const updateLocation = useCallback((id: string, updates: Partial<Omit<Location, 'id' | 'createdAt'>>) => {
-    const updated = locations.map(l => 
-      l.id === id ? { ...l, ...updates } : l
-    )
-    saveLocations(updated)
-  }, [locations, saveLocations])
-  
-  const deleteLocation = useCallback((id: string) => {
-    // Lokasyon silinince urunlerin locationId'sini temizle
-    const updatedProducts = products.map(p => 
-      p.locationId === id ? { ...p, locationId: undefined } : p
-    )
-    saveProducts(updatedProducts)
-    saveLocations(locations.filter(l => l.id !== id))
-  }, [locations, products, saveLocations, saveProducts])
-  
-  // Helper functions
-  const getProductsByStatus = useCallback((status: ExpiryStatus) => {
-    return products.filter(p => getExpiryInfo(p.expiryDate).status === status)
-  }, [products])
-  
-  const getSortedProducts = useCallback(() => {
-    return [...products].sort((a, b) => {
-      const aInfo = getExpiryInfo(a.expiryDate)
-      const bInfo = getExpiryInfo(b.expiryDate)
-      return aInfo.daysLeft - bInfo.daysLeft
-    })
-  }, [products])
-  
-  const searchProducts = useCallback((query: string) => {
-    const lowerQuery = query.toLowerCase()
-    return products.filter(p => 
-      p.name.toLowerCase().includes(lowerQuery) ||
-      (p.stockCode && p.stockCode.toLowerCase().includes(lowerQuery)) ||
-      (p.barcode && p.barcode.includes(lowerQuery))
-    )
-  }, [products])
-  
-  const getProductsByLocation = useCallback((locationId: string) => {
-    return products.filter(p => p.locationId === locationId)
-  }, [products])
-  
-  const getLocationName = useCallback((locationId: string | undefined) => {
-    if (!locationId) return null
-    return locations.find(l => l.id === locationId)?.name || null
-  }, [locations])
-  
-  const getProductLocations = useCallback((productId: string) => {
-    const product = products.find(p => p.id === productId)
-    if (!product?.locationId) return []
-    const location = locations.find(l => l.id === product.locationId)
-    return location ? [location] : []
-  }, [products, locations])
-  
-  // Urun ara - stok kodu veya barkod ile
-  const findProductLocations = useCallback((query: string) => {
-    const lowerQuery = query.toLowerCase()
-    const matchingProducts = products.filter(p => 
-      p.name.toLowerCase().includes(lowerQuery) ||
-      (p.stockCode && p.stockCode.toLowerCase().includes(lowerQuery)) ||
-      (p.barcode && p.barcode.includes(lowerQuery))
-    )
-    
-    return matchingProducts.map(product => ({
-      product,
-      location: product.locationId ? locations.find(l => l.id === product.locationId) : undefined
-    }))
-  }, [products, locations])
+  // Helper - stok 0 urunler
+  const zeroStockProducts = products.filter(p => p.stockCode === '0')
   
   return {
     products,
-    locations,
+    activeProducts,
+    zeroStockProducts,
+    settings,
     isLoading,
     // Product operations
     addProduct,
     addBulkProducts,
     updateProduct,
     deleteProduct,
-    reduceProductToZero,
+    setStockZero,
+    restoreProduct,
     clearAllProducts,
-    // Location operations
-    addLocation,
-    updateLocation,
-    deleteLocation,
-    // Helpers
-    getProductsByStatus,
-    getSortedProducts,
-    searchProducts,
-    getProductsByLocation,
-    getLocationName,
-    getProductLocations,
-    findProductLocations,
+    exportProducts,
+    importProducts,
+    // Settings
+    addNoReturnBrand,
+    removeNoReturnBrand,
+    saveSettings,
   }
 }
