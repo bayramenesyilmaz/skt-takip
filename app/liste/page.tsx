@@ -1,88 +1,147 @@
-'use client'
+"use client"
 
-import { useState, useMemo } from 'react'
-import Link from 'next/link'
+import { useState, useMemo, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BottomNav } from '@/components/bottom-nav'
-import { ProductCardItem } from '@/components/product-card-item'
-import { ProductForm } from '@/components/product-form'
-import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { Search, X, Camera } from 'lucide-react'
-import type { Product } from '@/lib/types'
+import { ProductItem } from '@/components/product-item'
+import { BarcodeScanner } from '@/components/barcode-scanner'
+import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
+import { Search, Camera, Plus, X, Filter, Package } from 'lucide-react'
+import type { ProductType } from '@/lib/types'
 
-export default function ListePage() {
-  const { products = [], locations = [], updateProduct, reduceProductToZero } = useProductStore()
+function ListeContent() {
+  const searchParams = useSearchParams()
+  const initialFilter = searchParams.get('filter') || 'all'
+  
+  const { activeProducts, addProduct, setStockZero, isLoading } = useProductStore()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilter)
+  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [showScanner, setShowScanner] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+
+  const [formData, setFormData] = useState({
+    name: '',
+    stockCode: '',
+    barcode: '',
+    brand: '',
+    expiryDate: '',
+    productType: 'shelf' as ProductType,
+  })
 
   const filteredProducts = useMemo(() => {
-    if (!Array.isArray(products)) return []
-    let filtered = products.filter(p => p.stockCode !== '0')
+    if (!Array.isArray(activeProducts)) return []
+    
+    let filtered = activeProducts
 
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase()
       filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        (p.stockCode && p.stockCode.toLowerCase().includes(q)) ||
-        (p.barcode && p.barcode.includes(q))
+        p.name.toLowerCase().includes(query) ||
+        (p.stockCode && p.stockCode.toLowerCase().includes(query)) ||
+        (p.barcode && p.barcode.includes(query))
       )
     }
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => getExpiryInfo(p.expiryDate).status === statusFilter)
+      if (statusFilter === 'critical') {
+        filtered = filtered.filter(p => {
+          const info = getExpiryInfoByType(p.expiryDate, p.productType)
+          return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
+        })
+      } else {
+        filtered = filtered.filter(p => 
+          getExpiryInfoByType(p.expiryDate, p.productType).status === statusFilter
+        )
+      }
+    }
+
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(p => (p.productType || 'shelf') === typeFilter)
     }
 
     return filtered.sort((a, b) => {
-      const aInfo = getExpiryInfo(a.expiryDate)
-      const bInfo = getExpiryInfo(b.expiryDate)
+      const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
+      const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
       return aInfo.daysLeft - bInfo.daysLeft
     })
-  }, [products, searchQuery, statusFilter])
+  }, [activeProducts, searchQuery, statusFilter, typeFilter])
 
-  const handleEditSubmit = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (editingProduct) {
-      updateProduct(editingProduct.id, product)
-      setEditingProduct(null)
+  const handleScan = (barcode: string) => {
+    setSearchQuery(barcode)
+    setShowScanner(false)
+  }
+
+  const handleDelete = (id: string) => {
+    setDeleteConfirm(id)
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      setStockZero(deleteConfirm)
+      setDeleteConfirm(null)
     }
   }
 
-  const handleDeleteConfirm = () => {
-    if (showDeleteConfirm) {
-      reduceProductToZero(showDeleteConfirm)
-      setShowDeleteConfirm(null)
-    }
+  const handleAddProduct = () => {
+    if (!formData.name || !formData.expiryDate) return
+
+    addProduct({
+      name: formData.name,
+      stockCode: formData.stockCode || undefined,
+      barcode: formData.barcode || undefined,
+      brand: formData.brand || undefined,
+      expiryDate: formData.expiryDate,
+      productType: formData.productType,
+    })
+
+    setFormData({
+      name: '',
+      stockCode: '',
+      barcode: '',
+      brand: '',
+      expiryDate: '',
+      productType: 'shelf',
+    })
+    setShowAddModal(false)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-3 space-y-3">
+    <main className="min-h-screen bg-background pb-20">
+      <header className="sticky top-0 z-30 bg-background border-b border-border">
+        <div className="p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold text-foreground">Ürünler</h1>
-            <Link href="/stok0">
-              <Badge variant="secondary" className="cursor-pointer">
-                Stok 0: {products.filter(p => p.stockCode === '0').length}
-              </Badge>
-            </Link>
+            <h1 className="text-lg font-bold text-foreground">Urunler</h1>
+            <Button size="sm" onClick={() => setShowAddModal(true)}>
+              <Plus className="w-4 h-4 mr-1" />
+              Ekle
+            </Button>
           </div>
 
-          {/* Arama */}
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Ara..."
+                placeholder="Ara (isim, stok kodu, barkod)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-10"
+                className="pl-9 h-9"
               />
               {searchQuery && (
                 <button
@@ -93,121 +152,218 @@ export default function ListePage() {
                 </button>
               )}
             </div>
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={() => setShowScanner(!showScanner)}
-              className="h-10 w-10"
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-9 w-9"
+              onClick={() => setShowScanner(true)}
             >
               <Camera className="w-4 h-4" />
             </Button>
+            <Button 
+              variant={showFilters ? "secondary" : "outline"}
+              size="icon" 
+              className="h-9 w-9"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="w-4 h-4" />
+            </Button>
           </div>
 
-          {/* Filtreler */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                statusFilter === 'all'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Tümü
-            </button>
-            {['expired', 'critical', 'remove', 'campaign', 'safe'].map(status => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  statusFilter === status
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {status === 'expired' && 'Geçmiş'}
-                {status === 'critical' && 'Kritik'}
-                {status === 'remove' && 'Kaldır'}
-                {status === 'campaign' && 'Kampanya'}
-                {status === 'safe' && 'Güvenli'}
-              </button>
-            ))}
-          </div>
+          {showFilters && (
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="Durum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tum Durumlar</SelectItem>
+                  <SelectItem value="critical">Acil + Kaldirilacak</SelectItem>
+                  <SelectItem value="campaign">Kampanya</SelectItem>
+                  <SelectItem value="safe">Guvenli</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="Tip" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tum Tipler</SelectItem>
+                  <SelectItem value="shelf">Normal Raf</SelectItem>
+                  <SelectItem value="freezer-18">-18C Dolap</SelectItem>
+                  <SelectItem value="fridge-4">+4C Dolap</SelectItem>
+                  <SelectItem value="processed">Islenmis</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-2">
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Sonuç bulunamadı</p>
-          </div>
+      <div className="p-4 space-y-2">
+        <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+          <span>{filteredProducts.length} urun</span>
+          {(searchQuery || statusFilter !== 'all' || typeFilter !== 'all') && (
+            <button 
+              onClick={() => {
+                setSearchQuery('')
+                setStatusFilter('all')
+                setTypeFilter('all')
+              }}
+              className="text-primary text-xs"
+            >
+              Filtreleri Temizle
+            </button>
+          )}
+        </div>
+
+        {filteredProducts.length > 0 ? (
+          filteredProducts.map(product => (
+            <ProductItem
+              key={product.id}
+              product={product}
+              onDelete={handleDelete}
+              showLink={false}
+            />
+          ))
         ) : (
-          <>
-            <p className="text-xs text-muted-foreground px-2 pb-2">
-              {filteredProducts.length} ürün
+          <div className="text-center py-12">
+            <Package className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="font-medium text-foreground">Urun bulunamadi</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {searchQuery ? 'Arama kriterlerini degistirin' : 'Yeni urun ekleyin'}
             </p>
-            {filteredProducts.map(product => (
-              <ProductCardItem
-                key={product.id}
-                product={product}
-                showActions={false}
-              />
-            ))}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Edit Modal */}
-      {editingProduct && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-          <div className="w-full max-w-lg bg-background p-4 rounded-t-lg space-y-4 max-h-[90vh] overflow-y-auto">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Ürün Düzenle</h2>
-              <button
-                onClick={() => setEditingProduct(null)}
-                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <ProductForm
-              initialData={editingProduct}
-              locations={locations}
-              onSubmit={handleEditSubmit}
-              onCancel={() => setEditingProduct(null)}
-            />
-          </div>
-        </div>
+      {showScanner && (
+        <BarcodeScanner
+          onScan={handleScan}
+          onClose={() => setShowScanner(false)}
+        />
       )}
 
       {/* Delete Confirmation */}
-      {showDeleteConfirm && (
+      {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-sm">
             <CardContent className="p-4 space-y-4">
               <div>
-                <h3 className="font-semibold text-foreground text-lg">Ürünü Sil?</h3>
+                <h3 className="font-semibold text-foreground">Stok Sifirla?</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Bu ürünün stoku sıfırlanacak ve listede görünmeyecek.
+                  Bu urunun stoku sifirlanacak.
                 </p>
               </div>
-
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteConfirm(null)}
-                  className="flex-1"
-                >
-                  İptal
+                <Button variant="outline" onClick={() => setDeleteConfirm(null)} className="flex-1">
+                  Iptal
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteConfirm}
-                  className="flex-1"
-                >
-                  Sil
+                <Button variant="destructive" onClick={confirmDelete} className="flex-1">
+                  Sifirla
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md mx-4 mb-4 sm:mb-0 max-h-[90vh] overflow-y-auto">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Yeni Urun</h2>
+                <Button variant="ghost" size="icon" onClick={() => setShowAddModal(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Urun Adi *</Label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ornek: Sutas Yogurt"
+                    className="h-9 mt-1"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Stok Kodu</Label>
+                    <Input
+                      value={formData.stockCode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, stockCode: e.target.value }))}
+                      placeholder="123456"
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Barkod</Label>
+                    <Input
+                      value={formData.barcode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
+                      placeholder="8690..."
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Marka</Label>
+                    <Input
+                      value={formData.brand}
+                      onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
+                      placeholder="Sutas"
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">SKT *</Label>
+                    <Input
+                      type="date"
+                      value={formData.expiryDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Urun Tipi</Label>
+                  <Select 
+                    value={formData.productType} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, productType: value as ProductType }))}
+                  >
+                    <SelectTrigger className="h-9 mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="shelf">Normal Raf (14 gun)</SelectItem>
+                      <SelectItem value="freezer-18">-18C Dolap (14 gun)</SelectItem>
+                      <SelectItem value="fridge-4">+4C Dolap (3 gun)</SelectItem>
+                      <SelectItem value="processed">Islenmis (5-10 gun)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowAddModal(false)}>
+                    Iptal
+                  </Button>
+                  <Button 
+                    className="flex-1" 
+                    onClick={handleAddProduct}
+                    disabled={!formData.name || !formData.expiryDate}
+                  >
+                    Ekle
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -216,5 +372,17 @@ export default function ListePage() {
 
       <BottomNav />
     </main>
+  )
+}
+
+export default function ListePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <ListeContent />
+    </Suspense>
   )
 }

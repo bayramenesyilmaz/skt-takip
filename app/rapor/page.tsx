@@ -5,31 +5,51 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BottomNav } from '@/components/bottom-nav'
-import { useProductStore, getExpiryInfo } from '@/hooks/use-product-store'
-import { FileText, Download, Trash2, CheckCircle2, Download as DownloadIcon } from 'lucide-react'
-import type { Product } from '@/lib/types'
+import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
+import { FileText, Download, CheckCircle2, Package, Filter } from 'lucide-react'
 
 export default function RaporPage() {
-  const { products = [] } = useProductStore()
+  const { activeProducts, settings, isLoading } = useProductStore()
+  
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [quantities, setQuantities] = useState<Map<string, number>>(new Map())
   const [showConfirm, setShowConfirm] = useState(false)
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [showNoReturnOnly, setShowNoReturnOnly] = useState(false)
 
-  // 1-3 ayı kalan ürünleri getir
+  // Kampanya urunleri - tip bazli filtreleme
   const campaignProducts = useMemo(() => {
-    if (!Array.isArray(products)) return []
-    return products
-      .filter(p => {
-        const info = getExpiryInfo(p.expiryDate)
-        return info.status === 'campaign' && p.stockCode !== '0'
-      })
-      .sort((a, b) => {
-        const aInfo = getExpiryInfo(a.expiryDate)
-        const bInfo = getExpiryInfo(b.expiryDate)
-        return aInfo.daysLeft - bInfo.daysLeft
-      })
-  }, [products])
+    if (!Array.isArray(activeProducts)) return []
+    
+    let filtered = activeProducts.filter(p => {
+      const info = getExpiryInfoByType(p.expiryDate, p.productType)
+      return info.status === 'campaign'
+    })
+
+    // Tip filtresi
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(p => (p.productType || 'shelf') === typeFilter)
+    }
+
+    // Iade almayan markalar filtresi
+    if (showNoReturnOnly && settings.noReturnBrands.length > 0) {
+      filtered = filtered.filter(p => 
+        p.brand && settings.noReturnBrands.some(b => 
+          p.brand?.toLowerCase().includes(b.toLowerCase())
+        )
+      )
+    }
+
+    return filtered.sort((a, b) => {
+      const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
+      const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
+      return aInfo.daysLeft - bInfo.daysLeft
+    })
+  }, [activeProducts, typeFilter, showNoReturnOnly, settings.noReturnBrands])
 
   const toggleProduct = (id: string) => {
     const newSelected = new Set(selectedIds)
@@ -46,11 +66,13 @@ export default function RaporPage() {
   const updateQuantity = (id: string, qty: number) => {
     if (qty <= 0) {
       selectedIds.delete(id)
+      quantities.delete(id)
     } else {
       selectedIds.add(id)
+      quantities.set(id, qty)
     }
     setSelectedIds(new Set(selectedIds))
-    setQuantities(new Map(quantities.set(id, qty)))
+    setQuantities(new Map(quantities))
   }
 
   const selectAll = () => {
@@ -69,64 +91,82 @@ export default function RaporPage() {
     setQuantities(new Map())
   }
 
-  const generateText = () => {
-    const selected = campaignProducts.filter(p => selectedIds.has(p.id))
-    if (selected.length === 0) return ''
-
-    let text = '📋 KAMPANYA RAPORU\n'
-    text += `Tarih: ${new Date().toLocaleDateString('tr-TR')}\n\n`
-    text += '✏️ Toplu Ekleme Formatı:\n'
-    text += '─'.repeat(50) + '\n'
-
-    selected.forEach(product => {
-      const qty = quantities.get(product.id) || 1
-      const sktDate = new Date(product.expiryDate).toLocaleDateString('tr-TR')
-      text += `${product.name} | ${sktDate}\n`
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     })
-
-    text += '─'.repeat(50) + '\n\n'
-    text += '📊 Özet:\n'
-    text += `Toplam Ürün: ${selected.length}\n`
-    text += `Kopyalama Formatı (Ctrl+C):\n`
-    text += '─'.repeat(50) + '\n'
-
-    let copyText = ''
-    selected.forEach(product => {
-      const qty = quantities.get(product.id) || 1
-      const sktDate = new Date(product.expiryDate).toLocaleDateString('tr-TR')
-      copyText += `${product.name} | ${sktDate}\n`
-    })
-
-    return { text, copyText }
   }
 
   const generatePDF = () => {
     const selected = campaignProducts.filter(p => selectedIds.has(p.id))
     if (selected.length === 0) return
 
-    const { text, copyText } = generateText()
+    const today = new Date().toLocaleDateString('tr-TR')
+    
+    let tableRows = ''
+    selected.forEach((product, idx) => {
+      const qty = quantities.get(product.id) || 1
+      const info = getExpiryInfoByType(product.expiryDate, product.productType)
+      tableRows += `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${product.stockCode || '-'}</td>
+          <td>${product.name}</td>
+          <td>${product.barcode || '-'}</td>
+          <td>${product.brand || '-'}</td>
+          <td>${formatDate(product.expiryDate)}</td>
+          <td>${info.daysLeft} gun</td>
+          <td style="border: 1px solid #333; width: 60px;">${qty}</td>
+        </tr>
+      `
+    })
 
-    let html = `
-      <html dir="ltr">
+    const html = `
+      <!DOCTYPE html>
+      <html>
         <head>
           <meta charset="utf-8">
-          <title>Kampanya Raporu</title>
+          <title>Kampanya Raporu - ${today}</title>
           <style>
-            body { font-family: 'Courier New', monospace; margin: 20px; line-height: 1.6; }
-            h1 { text-align: center; font-size: 20px; margin-bottom: 10px; }
-            .date { text-align: right; font-size: 12px; color: #666; margin-bottom: 20px; }
-            .content { white-space: pre-wrap; font-size: 13px; }
-            .divider { border-bottom: 1px solid #ddd; margin: 10px 0; }
+            body { font-family: Arial, sans-serif; margin: 20px; font-size: 12px; }
+            h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
+            .date { text-align: center; font-size: 11px; color: #666; margin-bottom: 15px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+            th { background: #f5f5f5; font-weight: bold; }
+            tr:nth-child(even) { background: #fafafa; }
+            .footer { margin-top: 30px; display: flex; justify-content: space-between; }
+            .signature { border-top: 1px solid #333; width: 150px; text-align: center; padding-top: 5px; }
+            @media print { body { margin: 10px; } }
           </style>
         </head>
         <body>
-          <h1>📋 KAMPANYA RAPORU</h1>
-          <div class="date">Tarih: ${new Date().toLocaleDateString('tr-TR')}</div>
+          <h1>KAMPANYA RAPORU</h1>
+          <p class="date">Tarih: ${today} | Toplam: ${selected.length} urun</p>
           
-          <div class="content">${copyText}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Stok Kodu</th>
+                <th>Urun Adi</th>
+                <th>Barkod</th>
+                <th>Marka</th>
+                <th>SKT</th>
+                <th>Kalan</th>
+                <th>Adet</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
           
-          <div style="margin-top: 30px; text-align: right;">
-            <p>İmza: _____________________ Tarih: _____/_____/_____</p>
+          <div class="footer">
+            <div class="signature">Hazirlayan</div>
+            <div class="signature">Onaylayan</div>
           </div>
         </body>
       </html>
@@ -143,148 +183,167 @@ export default function RaporPage() {
     URL.revokeObjectURL(url)
   }
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-lg mx-auto px-4 py-3">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground">Kampanya Raporu</h1>
-              <p className="text-xs text-muted-foreground">1-3 ay kalan ürünler</p>
+    <main className="min-h-screen bg-background pb-20">
+      <header className="sticky top-0 z-30 bg-background border-b border-border">
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-foreground">Kampanya Raporu</h1>
+                <p className="text-xs text-muted-foreground">{campaignProducts.length} urun</p>
+              </div>
             </div>
           </div>
 
-          {/* Butonlar */}
+          {/* Filtreler */}
+          <div className="flex gap-2 items-center">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="h-8 text-xs flex-1">
+                <SelectValue placeholder="Tip" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tum Tipler</SelectItem>
+                <SelectItem value="shelf">Normal Raf</SelectItem>
+                <SelectItem value="freezer-18">-18C Dolap</SelectItem>
+                <SelectItem value="fridge-4">+4C Dolap</SelectItem>
+                <SelectItem value="processed">Islenmis</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {settings.noReturnBrands.length > 0 && (
+              <div className="flex items-center gap-2 bg-muted px-2 py-1 rounded">
+                <Label className="text-xs whitespace-nowrap">Iade Almayan</Label>
+                <Switch 
+                  checked={showNoReturnOnly} 
+                  onCheckedChange={setShowNoReturnOnly}
+                  className="scale-75"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Secim butonlari */}
           <div className="flex gap-2">
-            {selectedIds.size > 0 && (
+            {selectedIds.size > 0 ? (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearAll}
-                  className="flex-1 text-xs h-9"
-                >
-                  Temizle
+                <Button variant="outline" size="sm" onClick={clearAll} className="flex-1 h-8 text-xs">
+                  Temizle ({selectedIds.size})
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setShowConfirm(true)}
-                  className="flex-1 text-xs h-9"
-                >
-                  <DownloadIcon className="w-3 h-3 mr-1" />
-                  PDF İndir
+                <Button size="sm" onClick={() => setShowConfirm(true)} className="flex-1 h-8 text-xs">
+                  <Download className="w-3 h-3 mr-1" />
+                  PDF Indir
                 </Button>
               </>
-            )}
-            {selectedIds.size !== campaignProducts.length && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={selectAll}
-                className="flex-1 text-xs h-9"
-              >
-                Tümünü Seç
+            ) : (
+              <Button variant="outline" size="sm" onClick={selectAll} className="flex-1 h-8 text-xs">
+                Tumunu Sec
               </Button>
             )}
           </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-2">
+      <div className="p-4 space-y-2">
         {campaignProducts.length === 0 ? (
           <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="text-muted-foreground">Kampanya ürünü bulunamadı</p>
+            <Package className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="font-medium text-foreground">Kampanya urunu yok</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {showNoReturnOnly ? 'Iade almayan marka filtresi aktif' : 'Filtre kriterlerine uyan urun bulunamadi'}
+            </p>
           </div>
         ) : (
-          <>
-            <p className="text-xs text-muted-foreground px-2 pb-2">
-              {selectedIds.size} / {campaignProducts.length} seçildi
-            </p>
-            {campaignProducts.map(product => {
-              const info = getExpiryInfo(product.expiryDate)
-              const isSelected = selectedIds.has(product.id)
-              const qty = quantities.get(product.id) || 1
+          campaignProducts.map(product => {
+            const info = getExpiryInfoByType(product.expiryDate, product.productType)
+            const isSelected = selectedIds.has(product.id)
+            const qty = quantities.get(product.id) || 1
+            const isNoReturn = product.brand && settings.noReturnBrands.some(b => 
+              product.brand?.toLowerCase().includes(b.toLowerCase())
+            )
 
-              return (
-                <Card
-                  key={product.id}
-                  className={`cursor-pointer border transition-colors ${
-                    isSelected
-                      ? 'bg-amber-500/10 border-amber-500'
-                      : 'bg-amber-500/5 hover:bg-amber-500/10'
-                  }`}
-                  onClick={() => toggleProduct(product.id)}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          {isSelected && (
-                            <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
-                          )}
-                          <h3 className="font-semibold text-foreground text-sm">{product.name}</h3>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <Badge className="bg-amber-500 text-white text-xs">
-                            {info.label}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(product.expiryDate)}
-                          </span>
-                        </div>
+            return (
+              <Card
+                key={product.id}
+                className={`cursor-pointer border transition-colors ${
+                  isSelected
+                    ? 'bg-blue-50 border-blue-300'
+                    : 'hover:bg-muted/50'
+                }`}
+                onClick={() => toggleProduct(product.id)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {isSelected && (
+                          <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                        )}
+                        <h3 className="font-medium text-sm text-foreground truncate">
+                          {product.name}
+                        </h3>
                       </div>
-
-                      {isSelected && (
-                        <div className="flex items-center gap-1 bg-background rounded px-2 py-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              updateQuantity(product.id, qty - 1)
-                            }}
-                            className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground"
-                          >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            value={qty}
-                            onChange={(e) => {
-                              e.stopPropagation()
-                              updateQuantity(product.id, parseInt(e.target.value) || 0)
-                            }}
-                            className="w-10 bg-background text-center text-sm font-medium border-0 outline-0"
-                            min="0"
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              updateQuantity(product.id, qty + 1)
-                            }}
-                            className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground"
-                          >
-                            +
-                          </button>
-                        </div>
-                      )}
+                      
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <Badge className="bg-blue-500 text-white text-xs px-1.5 py-0">
+                          {info.daysLeft} gun
+                        </Badge>
+                        {product.brand && (
+                          <Badge variant={isNoReturn ? "destructive" : "secondary"} className="text-xs px-1.5 py-0">
+                            {product.brand}
+                            {isNoReturn && ' (iade yok)'}
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <div className="text-xs text-muted-foreground mt-1">
+                        SKT: {formatDate(product.expiryDate)}
+                        {product.stockCode && ` | Stok: ${product.stockCode}`}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </>
+
+                    {isSelected && (
+                      <div 
+                        className="flex items-center gap-1 bg-background border rounded px-2 py-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => updateQuantity(product.id, qty - 1)}
+                          className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                        >
+                          -
+                        </button>
+                        <Input
+                          type="number"
+                          value={qty}
+                          onChange={(e) => updateQuantity(product.id, parseInt(e.target.value) || 0)}
+                          className="w-12 h-6 text-center text-sm border-0 p-0"
+                          min="0"
+                        />
+                        <button
+                          onClick={() => updateQuantity(product.id, qty + 1)}
+                          className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
         )}
       </div>
 
@@ -294,28 +353,17 @@ export default function RaporPage() {
           <Card className="w-full max-w-sm">
             <CardContent className="p-4 space-y-4">
               <div>
-                <h3 className="font-semibold text-foreground text-lg">PDF İndir?</h3>
+                <h3 className="font-semibold text-foreground">PDF Indir</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {selectedIds.size} ürünün raporu indirilecek.
+                  {selectedIds.size} urun raporu indirilecek.
                 </p>
               </div>
-
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowConfirm(false)}
-                  className="flex-1"
-                >
-                  İptal
+                <Button variant="outline" onClick={() => setShowConfirm(false)} className="flex-1">
+                  Iptal
                 </Button>
-                <Button
-                  onClick={() => {
-                    generatePDF()
-                    setShowConfirm(false)
-                  }}
-                  className="flex-1"
-                >
-                  Devam Et
+                <Button onClick={() => { generatePDF(); setShowConfirm(false) }} className="flex-1">
+                  Indir
                 </Button>
               </div>
             </CardContent>

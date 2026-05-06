@@ -1,21 +1,25 @@
+export type ProductType = 'shelf' | 'freezer-18' | 'fridge-4' | 'processed'
+
 export interface Product {
   id: string
   name: string
   stockCode?: string
   barcode?: string
+  brand?: string // Marka
   expiryDate: string
-  locationId?: string
+  productType?: ProductType
   createdAt: string
   updatedAt: string
 }
 
-// Lokasyon sistemi - Reyon, Palet, Depo vb.
-export interface Location {
-  id: string
-  name: string
-  type: 'reyon' | 'palet' | 'depo' | 'dolap' | 'raf'
-  parentId?: string // Alt lokasyonlar icin
-  createdAt: string
+// Ayarlar - iade almayan markalar
+export interface AppSettings {
+  noReturnBrands: string[] // iade almayan markalar
+}
+
+// Ayarlar - iade almayan markalar
+export interface AppSettings {
+  noReturnBrands: string[] // iade almayan markalar
 }
 
 // Yeni gelismiş durum sistemi
