@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getExpiryInfoByType } from '@/hooks/use-product-store'
-import { Clock, ChevronRight, Trash2, Snowflake, Thermometer, Package } from 'lucide-react'
+import { Clock, ChevronRight, Trash2, Snowflake, Thermometer, Package, Edit2 } from 'lucide-react'
 import type { Product, ExpiryStatus, ProductType } from '@/lib/types'
 
 const statusConfig: Record<ExpiryStatus, { bg: string; badge: string; border: string }> = {
