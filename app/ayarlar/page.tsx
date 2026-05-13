@@ -1,5 +1,6 @@
 "use client"
-
+import { useProductStore } from "@/hooks/use-product-store"
+import { BottomNav } from "@/components/bottom-nav"
 import { useState } from 'react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
