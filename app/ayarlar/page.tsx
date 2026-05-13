@@ -9,29 +9,32 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { BottomNav } from '@/components/bottom-nav'
 import { useProductStore } from '@/hooks/use-product-store'
-import { ArrowLeft, Settings, Plus, X, Database, Download, Upload, Trash2 } from 'lucide-react'
+import { ArrowLeft, Settings, Plus, X, Database, Download, Upload, Trash2, Check } from 'lucide-react'
 
 export default function AyarlarPage() {
-  const { settings, updateSettings, products, clearAllData, exportData, importData, isLoading } = useProductStore()
+  const { settings, updateSettings, products, getBrands, addBrand, deleteBrand, toggleBrandReturn, clearAllData, exportData, importData, isLoading } = useProductStore()
   
   const [newBrand, setNewBrand] = useState('')
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  const allBrands = getBrands()
 
   const handleAddBrand = () => {
     if (!newBrand.trim()) return
-    if (settings.noReturnBrands.includes(newBrand.trim())) return
-    
-    updateSettings({
-      noReturnBrands: [...settings.noReturnBrands, newBrand.trim()]
-    })
+    addBrand(newBrand.trim())
     setNewBrand('')
   }
 
   const handleRemoveBrand = (brand: string) => {
-    updateSettings({
-      noReturnBrands: settings.noReturnBrands.filter(b => b !== brand)
-    })
+    deleteBrand(brand)
+  }
+
+  const handleToggleReturn = (brand: string) => {
+    toggleBrandReturn(brand)
+  }
+
+  const isNoReturnBrand = (brand: string) => {
+    return settings.noReturnBrands.includes(brand)
   }
 
   const handleExport = () => {
@@ -97,18 +100,18 @@ export default function AyarlarPage() {
       </header>
 
       <div className="p-4 space-y-4">
-        {/* Iade Almayan Markalar */}
+        {/* Markalar */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Iade Almayan Markalar</CardTitle>
+            <CardTitle className="text-base">Urun Markalari</CardTitle>
             <CardDescription className="text-xs">
-              Bu markalar kampanya raporunda isaratlenir
+              Ticari markalari ekleyip iade durumlarini belirleyin
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2">
               <Input
-                placeholder="Marka adi..."
+                placeholder="Yeni marka adi..."
                 value={newBrand}
                 onChange={(e) => setNewBrand(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddBrand()}
@@ -119,15 +122,36 @@ export default function AyarlarPage() {
               </Button>
             </div>
             
-            {settings.noReturnBrands.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {settings.noReturnBrands.map(brand => (
-                  <Badge key={brand} variant="secondary" className="px-2 py-1 flex items-center gap-1">
-                    {brand}
-                    <button onClick={() => handleRemoveBrand(brand)}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
+            {allBrands.length > 0 ? (
+              <div className="space-y-2">
+                {allBrands.map(brand => (
+                  <div key={brand} className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{brand}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isNoReturnBrand(brand) ? 'İade almıyor' : 'İade alıyor'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant={isNoReturnBrand(brand) ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => handleToggleReturn(brand)}
+                        title={isNoReturnBrand(brand) ? 'İade Almıyor' : 'İade Alıyor'}
+                      >
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                        onClick={() => handleRemoveBrand(brand)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (

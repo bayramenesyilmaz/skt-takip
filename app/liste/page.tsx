@@ -18,7 +18,7 @@ function ListeContent() {
   const searchParams = useSearchParams()
   const initialFilter = searchParams.get('filter') || 'all'
   
-  const { activeProducts, addProduct, updateProduct, setStockZero, isLoading } = useProductStore()
+  const { activeProducts, addProduct, updateProduct, setStockZero, isLoading, getBrands } = useProductStore()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter)
@@ -311,9 +311,10 @@ function ListeContent() {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
-          <Card className="w-full max-w-md mx-4 mb-4 sm:mb-0 max-h-[90vh] overflow-y-auto">
-            <CardContent className="p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <Card>
+              <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Urunu Duzenle</h2>
                 <Button variant="ghost" size="icon" onClick={() => setShowEditModal(false)}>
@@ -350,24 +351,34 @@ function ListeContent() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Marka</Label>
-                    <Input
-                      value={formData.brand}
-                      onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                      className="h-9 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">SKT *</Label>
-                    <Input
-                      type="date"
-                      value={formData.expiryDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
-                      className="h-9 mt-1"
-                    />
-                  </div>
+                <div>
+                  <Label className="text-xs">Marka</Label>
+                  <Select 
+                    value={formData.brand} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, brand: value }))}
+                  >
+                    <SelectTrigger className="h-9 mt-1">
+                      <SelectValue placeholder="Marka Sec" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getBrands().map(brand => (
+                        <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Yeni marka eklemek icin Ayarlar&apos;a gidin
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-xs">SKT *</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                    className="h-9 mt-1"
+                  />
                 </div>
 
                 <div>
@@ -402,14 +413,16 @@ function ListeContent() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       )}
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
-          <Card className="w-full max-w-md mx-4 mb-4 sm:mb-0 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Yeni Urun</h2>
@@ -450,25 +463,34 @@ function ListeContent() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Marka</Label>
-                    <Input
-                      value={formData.brand}
-                      onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                      placeholder="Sutas"
-                      className="h-9 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">SKT *</Label>
-                    <Input
-                      type="date"
-                      value={formData.expiryDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
-                      className="h-9 mt-1"
-                    />
-                  </div>
+                <div>
+                  <Label className="text-xs">Marka</Label>
+                  <Select 
+                    value={formData.brand} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, brand: value }))}
+                  >
+                    <SelectTrigger className="h-9 mt-1">
+                      <SelectValue placeholder="Marka Sec" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getBrands().map(brand => (
+                        <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Yeni marka eklemek icin Ayarlar&apos;a gidin
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-xs">SKT *</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                    className="h-9 mt-1"
+                  />
                 </div>
 
                 <div>
@@ -503,7 +525,8 @@ function ListeContent() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       )}
 

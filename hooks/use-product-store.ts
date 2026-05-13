@@ -259,25 +259,64 @@ export function useProductStore() {
   // Helper - stok 0 urunler
   const zeroStockProducts = products.filter(p => p.stockCode === '0')
   
+  const getBrands = useCallback(() => {
+    return settings.allBrands || []
+  }, [settings])
+
+  const addBrand = useCallback((brand: string) => {
+    if (!brand.trim()) return
+    const allBrands = settings.allBrands || []
+    if (!allBrands.includes(brand.trim())) {
+      updateSettings({
+        allBrands: [...allBrands, brand.trim()],
+        noReturnBrands: settings.noReturnBrands
+      })
+    }
+  }, [settings, updateSettings])
+
+  const deleteBrand = useCallback((brand: string) => {
+    const allBrands = (settings.allBrands || []).filter(b => b !== brand)
+    const noReturn = settings.noReturnBrands.filter(b => b !== brand)
+    updateSettings({
+      allBrands,
+      noReturnBrands: noReturn
+    })
+  }, [settings, updateSettings])
+
+  const toggleBrandReturn = useCallback((brand: string) => {
+    const noReturn = settings.noReturnBrands
+    if (noReturn.includes(brand)) {
+      updateSettings({
+        allBrands: settings.allBrands,
+        noReturnBrands: noReturn.filter(b => b !== brand)
+      })
+    } else {
+      updateSettings({
+        allBrands: settings.allBrands,
+        noReturnBrands: [...noReturn, brand]
+      })
+    }
+  }, [settings, updateSettings])
+
   return {
-    products,
-    activeProducts,
+    products: activeProducts,
     zeroStockProducts,
-    settings,
     isLoading,
-    // Product operations
+    activeProducts,
+    settings,
     addProduct,
-    addBulkProducts,
     updateProduct,
-    deleteProduct,
     setStockZero,
     restoreProduct,
-    clearAllProducts,
-    exportProducts,
-    importProducts,
-    // Settings
-    addNoReturnBrand,
-    removeNoReturnBrand,
-    saveSettings,
+    deleteProduct,
+    updateSettings,
+    getBrands,
+    addBrand,
+    deleteBrand,
+    toggleBrandReturn,
+    clearAllData,
+    exportData,
+    importData,
   }
+}
 }
