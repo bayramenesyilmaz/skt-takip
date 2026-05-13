@@ -6,7 +6,6 @@ import type { Product, ExpiryInfo, ExpiryStatus, ParsedProduct, ProductType, App
 const PRODUCTS_KEY = 'skt-takip-products'
 const SETTINGS_KEY = 'skt-takip-settings'
 
-// SSR-safe localStorage helpers
 function getStorageItem(key: string): string | null {
   if (typeof window === 'undefined') return null
   try {
@@ -21,11 +20,10 @@ function setStorageItem(key: string, value: string): void {
   try {
     localStorage.setItem(key, value)
   } catch (error) {
-    console.error('Failed to save to localStorage:', error)
+    console.error('[v0] localStorage error:', error)
   }
 }
 
-// Urun tipine gore farkli raf omru hesapla
 export function getExpiryInfoByType(expiryDate: string, productType?: ProductType): ExpiryInfo {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -36,15 +34,13 @@ export function getExpiryInfoByType(expiryDate: string, productType?: ProductTyp
   const diffTime = expiry.getTime() - today.getTime()
   const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   
-  let status: ExpiryStatus
-  let label: string
-  let actionRequired: string
-  
-  // Urun tipine gore kritik gun sinirlari
-  // fridge-4: 3 gun, processed: 5-10 gun, diger: 14 gun
   const criticalDays = productType === 'fridge-4' ? 3 : (productType === 'processed' ? 5 : 14)
   const removeDays = productType === 'fridge-4' ? 3 : (productType === 'processed' ? 10 : 14)
   const campaignDays = productType === 'fridge-4' ? 30 : (productType === 'processed' ? 60 : 90)
+  
+  let status: ExpiryStatus = 'safe'
+  let label = '?'
+  let actionRequired = 'Guvenli'
   
   if (daysLeft < 0) {
     status = 'expired'
@@ -52,20 +48,20 @@ export function getExpiryInfoByType(expiryDate: string, productType?: ProductTyp
     actionRequired = 'HEMEN RAFTAN KALDIR!'
   } else if (daysLeft === 0) {
     status = 'expired'
-    label = 'Bugun son gun!'
+    label = 'Son gun!'
     actionRequired = 'HEMEN RAFTAN KALDIR!'
   } else if (daysLeft <= criticalDays) {
     status = 'critical'
     label = `${daysLeft} gun`
-    actionRequired = 'ACIL: Raftan kaldir!'
+    actionRequired = 'ACIL!'
   } else if (daysLeft <= removeDays) {
     status = 'remove'
     label = `${daysLeft} gun`
-    actionRequired = 'Raftan kaldirmalisin'
+    actionRequired = 'Yakinda'
   } else if (daysLeft <= campaignDays) {
     status = 'campaign'
     label = `${daysLeft} gun`
-    actionRequired = 'Kampanya incele'
+    actionRequired = 'Kampanya'
   } else {
     status = 'safe'
     label = `${daysLeft} gun`
@@ -75,7 +71,6 @@ export function getExpiryInfoByType(expiryDate: string, productType?: ProductTyp
   return { status, daysLeft, label, actionRequired }
 }
 
-// WhatsApp formatindan urunleri ayristir
 export function parseProductsFromText(text: string): ParsedProduct[] {
   const products: ParsedProduct[] = []
   const lines = text.split(/\n/).filter(line => line.trim())
@@ -84,7 +79,6 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
     const trimmedLine = line.trim()
     if (!trimmedLine) continue
     
-    // Tarih formatini bul: DD/MM/YYYY
     const dateMatch = trimmedLine.match(/(\d{2})\/(\d{2})\/(\d{4})/)
     
     if (dateMatch) {
@@ -111,6 +105,7 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
 }
 
 const defaultSettings: AppSettings = {
+  allBrands: [],
   noReturnBrands: []
 }
 
@@ -124,7 +119,6 @@ export function useProductStore() {
     setIsMounted(true)
   }, [])
   
-  // Load data from localStorage
   useEffect(() => {
     if (!isMounted) return
     
@@ -143,25 +137,22 @@ export function useProductStore() {
         setSettings({ ...defaultSettings, ...parsed })
       }
     } catch (error) {
-      console.error('Failed to load data:', error)
+      console.error('[v0] Load error:', error)
     } finally {
       setIsLoading(false)
     }
   }, [isMounted])
   
-  // Save products
   const saveProducts = useCallback((newProducts: Product[]) => {
     setStorageItem(PRODUCTS_KEY, JSON.stringify(newProducts))
     setProducts(newProducts)
   }, [])
   
-  // Save settings
-  const saveSettings = useCallback((newSettings: AppSettings) => {
+  const updateSettings = useCallback((newSettings: AppSettings) => {
     setStorageItem(SETTINGS_KEY, JSON.stringify(newSettings))
     setSettings(newSettings)
   }, [])
   
-  // Product operations
   const addProduct = useCallback((product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newProduct: Product = {
       ...product,
@@ -171,22 +162,6 @@ export function useProductStore() {
       updatedAt: new Date().toISOString(),
     }
     saveProducts([...products, newProduct])
-    return newProduct
-  }, [products, saveProducts])
-  
-  const addBulkProducts = useCallback((parsedProducts: ParsedProduct[]) => {
-    const validProducts = parsedProducts.filter(p => p.isValid)
-    const newProducts: Product[] = validProducts.map(p => ({
-      id: crypto.randomUUID(),
-      name: p.name,
-      stockCode: '1',
-      expiryDate: p.expiryDate,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }))
-    
-    saveProducts([...products, ...newProducts])
-    return newProducts
   }, [products, saveProducts])
   
   const updateProduct = useCallback((id: string, updates: Partial<Omit<Product, 'id' | 'createdAt'>>) => {
@@ -203,62 +178,38 @@ export function useProductStore() {
   }, [products, saveProducts])
 
   const setStockZero = useCallback((id: string) => {
-    const updated = products.map(p => 
-      p.id === id 
-        ? { ...p, stockCode: '0', updatedAt: new Date().toISOString() }
-        : p
-    )
-    saveProducts(updated)
-  }, [products, saveProducts])
+    updateProduct(id, { stockCode: '0' })
+  }, [updateProduct])
 
   const restoreProduct = useCallback((id: string) => {
-    const updated = products.map(p => 
-      p.id === id 
-        ? { ...p, stockCode: '1', updatedAt: new Date().toISOString() }
-        : p
-    )
-    saveProducts(updated)
-  }, [products, saveProducts])
+    updateProduct(id, { stockCode: '1' })
+  }, [updateProduct])
   
-  const clearAllProducts = useCallback(() => {
+  const clearAllData = useCallback(() => {
     saveProducts([])
-  }, [saveProducts])
+    updateSettings(defaultSettings)
+  }, [saveProducts, updateSettings])
 
-  // Import/Export
-  const exportProducts = useCallback(() => {
-    return JSON.stringify(products, null, 2)
-  }, [products])
+  const exportData = useCallback(() => {
+    return JSON.stringify({ products, settings }, null, 2)
+  }, [products, settings])
 
-  const importProducts = useCallback((jsonData: string) => {
+  const importData = useCallback((jsonData: string) => {
     try {
-      const imported = JSON.parse(jsonData)
-      if (Array.isArray(imported)) {
-        saveProducts(imported)
-        return { success: true, count: imported.length }
+      const data = JSON.parse(jsonData)
+      if (data.products && Array.isArray(data.products)) {
+        saveProducts(data.products)
+        if (data.settings) {
+          updateSettings({ ...defaultSettings, ...data.settings })
+        }
+        return true
       }
-      return { success: false, error: 'Gecersiz format' }
+      return false
     } catch {
-      return { success: false, error: 'JSON parse hatasi' }
+      return false
     }
-  }, [saveProducts])
+  }, [saveProducts, updateSettings])
 
-  // Settings operations
-  const addNoReturnBrand = useCallback((brand: string) => {
-    const newBrands = [...settings.noReturnBrands, brand.trim()]
-    saveSettings({ ...settings, noReturnBrands: newBrands })
-  }, [settings, saveSettings])
-
-  const removeNoReturnBrand = useCallback((brand: string) => {
-    const newBrands = settings.noReturnBrands.filter(b => b !== brand)
-    saveSettings({ ...settings, noReturnBrands: newBrands })
-  }, [settings, saveSettings])
-
-  // Helper - aktif urunler (stok > 0)
-  const activeProducts = products.filter(p => p.stockCode !== '0')
-  
-  // Helper - stok 0 urunler
-  const zeroStockProducts = products.filter(p => p.stockCode === '0')
-  
   const getBrands = useCallback(() => {
     return settings.allBrands || []
   }, [settings])
@@ -268,8 +219,8 @@ export function useProductStore() {
     const allBrands = settings.allBrands || []
     if (!allBrands.includes(brand.trim())) {
       updateSettings({
-        allBrands: [...allBrands, brand.trim()],
-        noReturnBrands: settings.noReturnBrands
+        ...settings,
+        allBrands: [...allBrands, brand.trim()]
       })
     }
   }, [settings, updateSettings])
@@ -287,17 +238,20 @@ export function useProductStore() {
     const noReturn = settings.noReturnBrands
     if (noReturn.includes(brand)) {
       updateSettings({
-        allBrands: settings.allBrands,
+        ...settings,
         noReturnBrands: noReturn.filter(b => b !== brand)
       })
     } else {
       updateSettings({
-        allBrands: settings.allBrands,
+        ...settings,
         noReturnBrands: [...noReturn, brand]
       })
     }
   }, [settings, updateSettings])
 
+  const activeProducts = products.filter(p => p.stockCode !== '0')
+  const zeroStockProducts = products.filter(p => p.stockCode === '0')
+  
   return {
     products: activeProducts,
     zeroStockProducts,

@@ -154,7 +154,6 @@ export default function HomePage() {
                   key={product.id}
                   product={product}
                   onDelete={setStockZero}
-                  showLink={false}
                 />
               ))}
             </div>
@@ -175,7 +174,6 @@ export default function HomePage() {
                   key={product.id}
                   product={product}
                   onDelete={setStockZero}
-                  showLink={false}
                 />
               ))}
             </div>

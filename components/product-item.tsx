@@ -1,6 +1,5 @@
 "use client"
 
-import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,10 +28,9 @@ interface ProductItemProps {
   onDelete?: (id: string) => void
   showEdit?: boolean
   showDelete?: boolean
-  showLink?: boolean
 }
 
-export function ProductItem({ product, onEdit, onDelete, showEdit = true, showDelete = true, showLink = true }: ProductItemProps) {
+export function ProductItem({ product, onEdit, onDelete, showEdit = true, showDelete = true }: ProductItemProps) {
   const info = getExpiryInfoByType(product.expiryDate, product.productType)
   const config = statusConfig[info.status]
   const typeInfo = typeConfig[product.productType || 'shelf']
@@ -113,22 +111,11 @@ export function ProductItem({ product, onEdit, onDelete, showEdit = true, showDe
               </Button>
             )}
             
-            {showLink && (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
           </div>
         </div>
       </CardContent>
     </Card>
   )
-
-  if (showLink) {
-    return (
-      <Link href={`/urun/${product.id}`} className="block">
-        {content}
-      </Link>
-    )
-  }
 
   return content
 }

@@ -264,7 +264,6 @@ function ListeContent() {
               product={product}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              showLink={false}
             />
           ))
         ) : (
