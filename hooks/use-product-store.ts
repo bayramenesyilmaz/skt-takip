@@ -115,7 +115,8 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
 
 const defaultSettings: AppSettings = {
   allBrands: [],
-  noReturnBrands: []
+  noReturnBrands: [],
+  disablePWAPrompt: false
 }
 
 export function useProductStore() {

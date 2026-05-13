@@ -16,6 +16,7 @@ export interface Product {
 export interface AppSettings {
   allBrands: string[] // tüm markalar
   noReturnBrands: string[] // iade almayan markalar
+  disablePWAPrompt: boolean // PWA indir bildirimi devre dışı
 }
 
 // Yeni gelismiş durum sistemi

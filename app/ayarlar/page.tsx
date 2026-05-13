@@ -5,10 +5,10 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { BottomNav } from '@/components/bottom-nav'
-import { useProductStore } from '@/hooks/use-product-store'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { ArrowLeft, Settings, Plus, X, Database, Download, Upload, Trash2, Check } from 'lucide-react'
 
 export default function AyarlarPage() {
@@ -170,6 +170,35 @@ export default function AyarlarPage() {
             ) : (
               <p className="text-xs text-muted-foreground">Henuz marka eklenmedi</p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* PWA Ayarlari */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Uygulama Ayarlari</CardTitle>
+            <CardDescription className="text-xs">
+              Uygulama davranisini ozelleştirin
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div className="flex-1">
+                <p className="text-sm font-medium">Indir Bildirimi</p>
+                <p className="text-xs text-muted-foreground">
+                  PWA indir promptu gosterme
+                </p>
+              </div>
+              <Switch
+                checked={settings.disablePWAPrompt || false}
+                onCheckedChange={(checked) => 
+                  updateSettings({
+                    ...settings,
+                    disablePWAPrompt: checked
+                  })
+                }
+              />
+            </div>
           </CardContent>
         </Card>
 
