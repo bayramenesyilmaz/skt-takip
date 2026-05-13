@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Download, X, WifiOff } from 'lucide-react'
+import { useProductStore } from '@/hooks/use-product-store'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -11,6 +12,9 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function InstallPrompt() {
+  const store = useProductStore() || {}
+  const { settings = { allBrands: [], noReturnBrands: [], disablePWAPrompt: false } } = store
+  
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
@@ -40,9 +44,8 @@ export function InstallPrompt() {
       return
     }
 
-    // Check if dismissed recently
-    const dismissed = localStorage.getItem('pwa-dismissed')
-    if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) {
+    // Check if PWA prompt is disabled in settings
+    if (settings?.disablePWAPrompt) {
       return
     }
 

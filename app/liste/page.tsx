@@ -18,15 +18,25 @@ function ListeContent() {
   const searchParams = useSearchParams()
   const initialFilter = searchParams.get('filter') || 'all'
   
-  const { activeProducts, addProduct, setStockZero, isLoading } = useProductStore()
+  const store = useProductStore() || {}
+  const { 
+    activeProducts = [], 
+    addProduct = () => {}, 
+    updateProduct = () => {}, 
+    setStockZero = () => {}, 
+    isLoading = false, 
+    getBrands = () => [] 
+  } = store
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter)
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [showScanner, setShowScanner] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [editingProduct, setEditingProduct] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -78,6 +88,43 @@ function ListeContent() {
   const handleScan = (barcode: string) => {
     setSearchQuery(barcode)
     setShowScanner(false)
+  }
+
+  const handleEdit = (product: typeof activeProducts[0]) => {
+    setEditingProduct(product.id)
+    setFormData({
+      name: product.name,
+      stockCode: product.stockCode || '',
+      barcode: product.barcode || '',
+      brand: product.brand || '',
+      expiryDate: product.expiryDate,
+      productType: product.productType || 'shelf',
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdateProduct = () => {
+    if (!editingProduct || !formData.name || !formData.expiryDate) return
+
+    updateProduct(editingProduct, {
+      name: formData.name,
+      stockCode: formData.stockCode || undefined,
+      barcode: formData.barcode || undefined,
+      brand: formData.brand || undefined,
+      expiryDate: formData.expiryDate,
+      productType: formData.productType,
+    })
+
+    setShowEditModal(false)
+    setEditingProduct(null)
+    setFormData({
+      name: '',
+      stockCode: '',
+      barcode: '',
+      brand: '',
+      expiryDate: '',
+      productType: 'shelf',
+    })
   }
 
   const handleDelete = (id: string) => {
@@ -223,8 +270,8 @@ function ListeContent() {
             <ProductItem
               key={product.id}
               product={product}
+              onEdit={handleEdit}
               onDelete={handleDelete}
-              showLink={false}
             />
           ))
         ) : (
@@ -269,10 +316,120 @@ function ListeContent() {
         </div>
       )}
 
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <Card>
+              <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Urunu Duzenle</h2>
+                <Button variant="ghost" size="icon" onClick={() => setShowEditModal(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Urun Adi *</Label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="h-9 mt-1"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Stok Kodu</Label>
+                    <Input
+                      value={formData.stockCode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, stockCode: e.target.value }))}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Barkod</Label>
+                    <Input
+                      value={formData.barcode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Marka</Label>
+                  <Select 
+                    value={formData.brand} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, brand: value }))}
+                  >
+                    <SelectTrigger className="h-9 mt-1">
+                      <SelectValue placeholder="Marka Sec" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getBrands().map(brand => (
+                        <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Yeni marka eklemek icin Ayarlar&apos;a gidin
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-xs">SKT *</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                    className="h-9 mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Urun Tipi</Label>
+                  <Select 
+                    value={formData.productType} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, productType: value as ProductType }))}
+                  >
+                    <SelectTrigger className="h-9 mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="shelf">Normal Raf (14 gun)</SelectItem>
+                      <SelectItem value="freezer-18">-18C Dolap (14 gun)</SelectItem>
+                      <SelectItem value="fridge-4">+4C Dolap (3 gun)</SelectItem>
+                      <SelectItem value="processed">Islenmis (5-10 gun)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowEditModal(false)}>
+                    Iptal
+                  </Button>
+                  <Button 
+                    className="flex-1" 
+                    onClick={handleUpdateProduct}
+                    disabled={!formData.name || !formData.expiryDate}
+                  >
+                    Kaydet
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
-          <Card className="w-full max-w-md mx-4 mb-4 sm:mb-0 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Yeni Urun</h2>
@@ -313,25 +470,34 @@ function ListeContent() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Marka</Label>
-                    <Input
-                      value={formData.brand}
-                      onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                      placeholder="Sutas"
-                      className="h-9 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">SKT *</Label>
-                    <Input
-                      type="date"
-                      value={formData.expiryDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
-                      className="h-9 mt-1"
-                    />
-                  </div>
+                <div>
+                  <Label className="text-xs">Marka</Label>
+                  <Select 
+                    value={formData.brand} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, brand: value }))}
+                  >
+                    <SelectTrigger className="h-9 mt-1">
+                      <SelectValue placeholder="Marka Sec" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getBrands().map(brand => (
+                        <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Yeni marka eklemek icin Ayarlar&apos;a gidin
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-xs">SKT *</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                    className="h-9 mt-1"
+                  />
                 </div>
 
                 <div>
@@ -366,7 +532,8 @@ function ListeContent() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       )}
 

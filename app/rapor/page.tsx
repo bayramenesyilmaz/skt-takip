@@ -13,7 +13,12 @@ import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
 import { FileText, Download, CheckCircle2, Package, Filter } from 'lucide-react'
 
 export default function RaporPage() {
-  const { activeProducts, settings, isLoading } = useProductStore()
+  const store = useProductStore() || {}
+  const { 
+    activeProducts = [], 
+    settings = { allBrands: [], noReturnBrands: [] }, 
+    isLoading = false 
+  } = store
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [quantities, setQuantities] = useState<Map<string, number>>(new Map())

@@ -1,11 +1,10 @@
 "use client"
 
-import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getExpiryInfoByType } from '@/hooks/use-product-store'
-import { Clock, ChevronRight, Trash2, Snowflake, Thermometer, Package } from 'lucide-react'
+import { Clock, ChevronRight, Trash2, Snowflake, Thermometer, Package, Edit2 } from 'lucide-react'
 import type { Product, ExpiryStatus, ProductType } from '@/lib/types'
 
 const statusConfig: Record<ExpiryStatus, { bg: string; badge: string; border: string }> = {
@@ -25,16 +24,19 @@ const typeConfig: Record<ProductType, { icon: typeof Package; label: string; col
 
 interface ProductItemProps {
   product: Product
+  onEdit?: (product: Product) => void
   onDelete?: (id: string) => void
+  showEdit?: boolean
   showDelete?: boolean
-  showLink?: boolean
 }
 
-export function ProductItem({ product, onDelete, showDelete = true, showLink = true }: ProductItemProps) {
+export function ProductItem({ product, onEdit, onDelete, showEdit = true, showDelete = true }: ProductItemProps) {
+  if (!product || !product.expiryDate) return null
+  
   const info = getExpiryInfoByType(product.expiryDate, product.productType)
-  const config = statusConfig[info.status]
-  const typeInfo = typeConfig[product.productType || 'shelf']
-  const TypeIcon = typeInfo.icon
+  const config = statusConfig[info.status] || statusConfig.safe
+  const typeInfo = typeConfig[product.productType || 'shelf'] || typeConfig.shelf
+  const TypeIcon = typeInfo?.icon || Package
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR', {
@@ -81,6 +83,21 @@ export function ProductItem({ product, onDelete, showDelete = true, showLink = t
           </div>
           
           <div className="flex items-center gap-1">
+            {showEdit && onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-blue-500"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onEdit(product)
+                }}
+              >
+                <Edit2 className="w-4 h-4" />
+              </Button>
+            )}
+            
             {showDelete && onDelete && (
               <Button
                 variant="ghost"
@@ -96,22 +113,11 @@ export function ProductItem({ product, onDelete, showDelete = true, showLink = t
               </Button>
             )}
             
-            {showLink && (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
           </div>
         </div>
       </CardContent>
     </Card>
   )
-
-  if (showLink) {
-    return (
-      <Link href={`/urun/${product.id}`} className="block">
-        {content}
-      </Link>
-    )
-  }
 
   return content
 }

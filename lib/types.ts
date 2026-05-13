@@ -12,14 +12,11 @@ export interface Product {
   updatedAt: string
 }
 
-// Ayarlar - iade almayan markalar
+// Ayarlar
 export interface AppSettings {
+  allBrands: string[] // tüm markalar
   noReturnBrands: string[] // iade almayan markalar
-}
-
-// Ayarlar - iade almayan markalar
-export interface AppSettings {
-  noReturnBrands: string[] // iade almayan markalar
+  disablePWAPrompt: boolean // PWA indir bildirimi devre dışı
 }
 
 // Yeni gelismiş durum sistemi

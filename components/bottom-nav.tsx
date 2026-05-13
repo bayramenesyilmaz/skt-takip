@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ListOrdered, FileText, Settings } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Home, ListOrdered, FileText, Settings, AlertCircle } from 'lucide-react'
 
 interface NavItem {
   href: string
@@ -15,6 +14,7 @@ const navItems: NavItem[] = [
   { href: '/', icon: Home, label: 'Ana' },
   { href: '/liste', icon: ListOrdered, label: 'Liste' },
   { href: '/rapor', icon: FileText, label: 'Rapor' },
+  { href: '/eksik', icon: AlertCircle, label: 'Eksik' },
   { href: '/ayarlar', icon: Settings, label: 'Ayarlar' },
 ]
 
