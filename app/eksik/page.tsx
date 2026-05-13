@@ -10,7 +10,14 @@ import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
 import { ArrowLeft, Package, AlertCircle, Edit2, Trash2 } from 'lucide-react'
 
 export default function EksikPage() {
-  const { activeProducts, updateProduct, setStockZero, isLoading, getBrands } = useProductStore()
+  const store = useProductStore() || {}
+  const { 
+    activeProducts = [], 
+    updateProduct = () => {}, 
+    setStockZero = () => {}, 
+    isLoading = false, 
+    getBrands = () => [] 
+  } = store
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editType, setEditType] = useState<'brand' | 'type' | null>(null)
   const [editValue, setEditValue] = useState('')

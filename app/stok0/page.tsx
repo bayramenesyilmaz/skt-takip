@@ -11,7 +11,13 @@ import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
 import { Search, X, ArrowLeft, Package, RefreshCw, Trash2 } from 'lucide-react'
 
 export default function Stok0Page() {
-  const { zeroStockProducts, restoreProduct, deleteProduct, isLoading } = useProductStore()
+  const store = useProductStore() || {}
+  const { 
+    zeroStockProducts = [], 
+    restoreProduct = () => {}, 
+    deleteProduct = () => {}, 
+    isLoading = false 
+  } = store
   
   const [searchQuery, setSearchQuery] = useState('')
   const [actionModal, setActionModal] = useState<{ id: string; action: 'restore' | 'delete' } | null>(null)

@@ -25,6 +25,15 @@ function setStorageItem(key: string, value: string): void {
 }
 
 export function getExpiryInfoByType(expiryDate: string, productType?: ProductType): ExpiryInfo {
+  if (!expiryDate) {
+    return {
+      status: 'safe',
+      daysLeft: 0,
+      label: 'N/A',
+      actionRequired: 'Tarih yok'
+    }
+  }
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   
@@ -144,6 +153,10 @@ export function useProductStore() {
   }, [isMounted])
   
   const saveProducts = useCallback((newProducts: Product[]) => {
+    if (!Array.isArray(newProducts)) {
+      console.warn('[v0] saveProducts: newProducts is not array', newProducts)
+      return
+    }
     setStorageItem(PRODUCTS_KEY, JSON.stringify(newProducts))
     setProducts(newProducts)
   }, [])

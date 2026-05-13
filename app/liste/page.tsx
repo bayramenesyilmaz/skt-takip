@@ -18,7 +18,15 @@ function ListeContent() {
   const searchParams = useSearchParams()
   const initialFilter = searchParams.get('filter') || 'all'
   
-  const { activeProducts, addProduct, updateProduct, setStockZero, isLoading, getBrands } = useProductStore()
+  const store = useProductStore() || {}
+  const { 
+    activeProducts = [], 
+    addProduct = () => {}, 
+    updateProduct = () => {}, 
+    setStockZero = () => {}, 
+    isLoading = false, 
+    getBrands = () => [] 
+  } = store
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter)

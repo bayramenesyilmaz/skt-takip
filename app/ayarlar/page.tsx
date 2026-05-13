@@ -12,7 +12,20 @@ import { useProductStore } from '@/hooks/use-product-store'
 import { ArrowLeft, Settings, Plus, X, Database, Download, Upload, Trash2, Check } from 'lucide-react'
 
 export default function AyarlarPage() {
-  const { settings, updateSettings, products, getBrands, addBrand, deleteBrand, toggleBrandReturn, clearAllData, exportData, importData, isLoading } = useProductStore()
+  const store = useProductStore() || {}
+  const { 
+    settings = { allBrands: [], noReturnBrands: [] }, 
+    updateSettings = () => {}, 
+    products = [], 
+    getBrands = () => [], 
+    addBrand = () => {}, 
+    deleteBrand = () => {}, 
+    toggleBrandReturn = () => {}, 
+    clearAllData = () => {}, 
+    exportData = () => '', 
+    importData = () => false, 
+    isLoading = false 
+  } = store
   
   const [newBrand, setNewBrand] = useState('')
   const [showClearConfirm, setShowClearConfirm] = useState(false)

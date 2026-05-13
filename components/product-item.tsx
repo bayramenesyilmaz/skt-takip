@@ -31,10 +31,12 @@ interface ProductItemProps {
 }
 
 export function ProductItem({ product, onEdit, onDelete, showEdit = true, showDelete = true }: ProductItemProps) {
+  if (!product || !product.expiryDate) return null
+  
   const info = getExpiryInfoByType(product.expiryDate, product.productType)
-  const config = statusConfig[info.status]
-  const typeInfo = typeConfig[product.productType || 'shelf']
-  const TypeIcon = typeInfo.icon
+  const config = statusConfig[info.status] || statusConfig.safe
+  const typeInfo = typeConfig[product.productType || 'shelf'] || typeConfig.shelf
+  const TypeIcon = typeInfo?.icon || Package
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR', {

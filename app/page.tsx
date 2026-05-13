@@ -9,7 +9,16 @@ import { useProductStore, getExpiryInfoByType } from '@/hooks/use-product-store'
 import { Package, AlertTriangle, Tag, Archive } from 'lucide-react'
 
 export default function HomePage() {
-  const { activeProducts, zeroStockProducts, setStockZero, isLoading } = useProductStore()
+  const store = useProductStore()
+  const { activeProducts = [], zeroStockProducts = [], setStockZero, isLoading } = store
+  
+  if (!store) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-red-500">Store initializing...</p>
+      </div>
+    )
+  }
 
   const stats = useMemo(() => {
     if (!Array.isArray(activeProducts)) return { total: 0, critical: 0, campaign: 0, zero: 0 }
