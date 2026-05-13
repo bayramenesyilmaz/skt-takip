@@ -25,12 +25,14 @@ const typeConfig: Record<ProductType, { icon: typeof Package; label: string; col
 
 interface ProductItemProps {
   product: Product
+  onEdit?: (product: Product) => void
   onDelete?: (id: string) => void
+  showEdit?: boolean
   showDelete?: boolean
   showLink?: boolean
 }
 
-export function ProductItem({ product, onDelete, showDelete = true, showLink = true }: ProductItemProps) {
+export function ProductItem({ product, onEdit, onDelete, showEdit = true, showDelete = true, showLink = true }: ProductItemProps) {
   const info = getExpiryInfoByType(product.expiryDate, product.productType)
   const config = statusConfig[info.status]
   const typeInfo = typeConfig[product.productType || 'shelf']
@@ -81,6 +83,21 @@ export function ProductItem({ product, onDelete, showDelete = true, showLink = t
           </div>
           
           <div className="flex items-center gap-1">
+            {showEdit && onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-blue-500"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onEdit(product)
+                }}
+              >
+                <Edit2 className="w-4 h-4" />
+              </Button>
+            )}
+            
             {showDelete && onDelete && (
               <Button
                 variant="ghost"
