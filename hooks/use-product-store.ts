@@ -124,31 +124,6 @@ export function useProductStore() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings)
   const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
-
-  // SSR safety
-  if (typeof window === 'undefined') {
-    console.log('[v0] useProductStore: SSR mode detected')
-    return {
-      products: [],
-      zeroStockProducts: [],
-      isLoading: false,
-      activeProducts: [],
-      settings: defaultSettings,
-      addProduct: () => console.warn('[v0] addProduct called in SSR'),
-      updateProduct: () => console.warn('[v0] updateProduct called in SSR'),
-      setStockZero: () => console.warn('[v0] setStockZero called in SSR'),
-      restoreProduct: () => console.warn('[v0] restoreProduct called in SSR'),
-      deleteProduct: () => console.warn('[v0] deleteProduct called in SSR'),
-      updateSettings: () => console.warn('[v0] updateSettings called in SSR'),
-      getBrands: () => [],
-      addBrand: () => console.warn('[v0] addBrand called in SSR'),
-      deleteBrand: () => console.warn('[v0] deleteBrand called in SSR'),
-      toggleBrandReturn: () => console.warn('[v0] toggleBrandReturn called in SSR'),
-      clearAllData: () => console.warn('[v0] clearAllData called in SSR'),
-      exportData: () => JSON.stringify({ products: [], settings: defaultSettings }),
-      importData: () => false,
-    }
-  }
   
   useEffect(() => {
     setIsMounted(true)
