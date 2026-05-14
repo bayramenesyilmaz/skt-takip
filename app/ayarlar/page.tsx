@@ -1,7 +1,7 @@
 "use client"
 import { useProductStore } from "@/hooks/use-product-store"
 import { BottomNav } from "@/components/bottom-nav"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -30,7 +30,14 @@ export default function AyarlarPage() {
   const [newBrand, setNewBrand] = useState('')
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  const [pwaDisabled, setPwaDisabled] = useState(false)
   const allBrands = getBrands()
+
+  // PWA prompt state'i localStorage'dan al
+  useEffect(() => {
+    const disabled = localStorage.getItem('pwa-prompt-disabled') === 'true'
+    setPwaDisabled(disabled)
+  }, [])
 
   const handleAddBrand = () => {
     if (!newBrand.trim()) return
@@ -190,13 +197,11 @@ export default function AyarlarPage() {
                 </p>
               </div>
               <Switch
-                checked={settings.disablePWAPrompt || false}
-                onCheckedChange={(checked) => 
-                  updateSettings({
-                    ...settings,
-                    disablePWAPrompt: checked
-                  })
-                }
+                checked={pwaDisabled}
+                onCheckedChange={(checked) => {
+                  setPwaDisabled(checked)
+                  localStorage.setItem('pwa-prompt-disabled', checked ? 'true' : 'false')
+                }}
               />
             </div>
           </CardContent>

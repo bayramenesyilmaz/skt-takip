@@ -10,67 +10,77 @@ import { Package, AlertTriangle, Tag, Archive } from 'lucide-react'
 
 export default function HomePage() {
   const store = useProductStore()
-  const { activeProducts = [], zeroStockProducts = [], setStockZero, isLoading } = store
   
   if (!store) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-red-500">Store initializing...</p>
+        <p className="text-muted-foreground">Baslaniyor...</p>
       </div>
     )
   }
 
+  const { 
+    activeProducts = [], 
+    zeroStockProducts = [], 
+    setStockZero = () => {}, 
+    isLoading = false 
+  } = store
+
   const stats = useMemo(() => {
-    if (!Array.isArray(activeProducts)) return { total: 0, critical: 0, campaign: 0, zero: 0 }
+    const validActive = Array.isArray(activeProducts) ? activeProducts : []
+    const validZero = Array.isArray(zeroStockProducts) ? zeroStockProducts : []
     
     let critical = 0
     let campaign = 0
     
-    activeProducts.forEach(p => {
+    validActive.forEach(p => {
+      if (!p || !p.expiryDate) return
       const info = getExpiryInfoByType(p.expiryDate, p.productType)
-      if (info.status === 'expired' || info.status === 'critical' || info.status === 'remove') {
+      if (info?.status === 'expired' || info?.status === 'critical' || info?.status === 'remove') {
         critical++
-      } else if (info.status === 'campaign') {
+      } else if (info?.status === 'campaign') {
         campaign++
       }
     })
     
     return {
-      total: activeProducts.length,
+      total: validActive.length,
       critical,
       campaign,
-      zero: zeroStockProducts.length
+      zero: validZero.length
     }
   }, [activeProducts, zeroStockProducts])
 
   const urgentProducts = useMemo(() => {
-    if (!Array.isArray(activeProducts)) return []
+    const validActive = Array.isArray(activeProducts) ? activeProducts : []
     
-    return activeProducts
+    return validActive
       .filter(p => {
+        if (!p || !p.expiryDate) return false
         const info = getExpiryInfoByType(p.expiryDate, p.productType)
-        return info.status === 'expired' || info.status === 'critical' || info.status === 'remove'
+        return info?.status === 'expired' || info?.status === 'critical' || info?.status === 'remove'
       })
       .sort((a, b) => {
-        const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
-        const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
-        return aInfo.daysLeft - bInfo.daysLeft
+        const aInfo = getExpiryInfoByType(a?.expiryDate || '', a?.productType)
+        const bInfo = getExpiryInfoByType(b?.expiryDate || '', b?.productType)
+        return (aInfo?.daysLeft || 0) - (bInfo?.daysLeft || 0)
       })
       .slice(0, 5)
   }, [activeProducts])
 
   const campaignProducts = useMemo(() => {
-    if (!Array.isArray(activeProducts)) return []
+    const validActive = Array.isArray(activeProducts) ? activeProducts : []
     
-    return activeProducts
+    return validActive
       .filter(p => {
+        if (!p || !p.expiryDate) return false
         const info = getExpiryInfoByType(p.expiryDate, p.productType)
-        return info.status === 'campaign'
+        return info?.status === 'campaign'
       })
       .sort((a, b) => {
-        const aInfo = getExpiryInfoByType(a.expiryDate, a.productType)
-        const bInfo = getExpiryInfoByType(b.expiryDate, b.productType)
-        return aInfo.daysLeft - bInfo.daysLeft
+        const aInfo = getExpiryInfoByType(a?.expiryDate || '', a?.productType)
+        const bInfo = getExpiryInfoByType(b?.expiryDate || '', b?.productType)
+        return (aInfo?.daysLeft || 0) - (bInfo?.daysLeft || 0)
       })
       .slice(0, 5)
   }, [activeProducts])
@@ -149,7 +159,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {urgentProducts.length > 0 && (
+        {Array.isArray(urgentProducts) && urgentProducts?.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-foreground">Acil Islem Gereken</h2>
@@ -158,18 +168,21 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="space-y-2">
-              {urgentProducts.map(product => (
-                <ProductItem
-                  key={product.id}
-                  product={product}
-                  onDelete={setStockZero}
-                />
-              ))}
+              {urgentProducts.map(product => {
+                if (!product?.id) return null
+                return (
+                  <ProductItem
+                    key={product.id}
+                    product={product}
+                    onDelete={setStockZero}
+                  />
+                )
+              })}
             </div>
           </section>
         )}
 
-        {campaignProducts.length > 0 && (
+        {Array.isArray(campaignProducts) && campaignProducts?.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-foreground">Kampanya Onerisi</h2>
@@ -178,18 +191,21 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="space-y-2">
-              {campaignProducts.map(product => (
-                <ProductItem
-                  key={product.id}
-                  product={product}
-                  onDelete={setStockZero}
-                />
-              ))}
+              {campaignProducts.map(product => {
+                if (!product?.id) return null
+                return (
+                  <ProductItem
+                    key={product.id}
+                    product={product}
+                    onDelete={setStockZero}
+                  />
+                )
+              })}
             </div>
           </section>
         )}
 
-        {activeProducts.length === 0 && (
+        {(!Array.isArray(activeProducts) || activeProducts?.length === 0) && (
           <div className="text-center py-12">
             <Package className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
             <h3 className="font-medium text-foreground">Henuz urun yok</h3>

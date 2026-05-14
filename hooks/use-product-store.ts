@@ -263,15 +263,15 @@ export function useProductStore() {
     }
   }, [settings, updateSettings])
 
-  const activeProducts = products.filter(p => p.stockCode !== '0')
-  const zeroStockProducts = products.filter(p => p.stockCode === '0')
+  const activeProducts = (Array.isArray(products) ? products : []).filter(p => p?.stockCode !== '0')
+  const zeroStockProducts = (Array.isArray(products) ? products : []).filter(p => p?.stockCode === '0')
   
   return {
-    products: activeProducts,
-    zeroStockProducts,
-    isLoading,
-    activeProducts,
-    settings,
+    products: activeProducts || [],
+    zeroStockProducts: zeroStockProducts || [],
+    isLoading: !!isLoading,
+    activeProducts: activeProducts || [],
+    settings: settings || defaultSettings,
     addProduct,
     updateProduct,
     setStockZero,
