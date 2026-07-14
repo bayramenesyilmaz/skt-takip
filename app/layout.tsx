@@ -1,7 +1,6 @@
 import React from "react"
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/next'
-import { AppProviders } from '@/components/app-providers'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -47,7 +46,6 @@ export default function RootLayout({
       </head>
       <body className={`font-sans antialiased`}>
         {children}
-        <AppProviders />
         <Analytics />
       </body>
     </html>

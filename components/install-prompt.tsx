@@ -40,9 +40,9 @@ export function InstallPrompt() {
       return
     }
 
-    // Check if PWA prompt is disabled (localStorage)
-    const pwaDisabled = localStorage.getItem('pwa-prompt-disabled')
-    if (pwaDisabled === 'true') {
+    // Check if dismissed recently
+    const dismissed = localStorage.getItem('pwa-dismissed')
+    if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) {
       return
     }
 
@@ -73,11 +73,7 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-  }
-
-  const handleDisablePrompt = () => {
-    localStorage.setItem('pwa-prompt-disabled', 'true')
-    setShowPrompt(false)
+    localStorage.setItem('pwa-dismissed', Date.now().toString())
   }
 
   if (!isMounted) return null
