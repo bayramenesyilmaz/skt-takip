@@ -1,21 +1,28 @@
 "use client"
 
 import { Card, CardContent } from '@/components/ui/card'
-import { AlertTriangle, Clock, AlertCircle, CheckCircle, ShoppingCart, Package } from 'lucide-react'
-import type { Product } from '@/lib/types'
-import { getExpiryInfo } from '@/hooks/use-product-store'
+import { AlertTriangle, AlertCircle, CheckCircle, ShoppingCart, Package } from 'lucide-react'
+import type { ProductWithStock } from '@/lib/types'
+import { getExpiryInfo } from '@/lib/expiry'
 
 interface StatsCardsProps {
-  products: Product[]
+  products: ProductWithStock[]
 }
 
 export function StatsCards({ products }: StatsCardsProps) {
   const stats = {
-    expired: products.filter(p => getExpiryInfo(p.expiryDate).status === 'expired').length,
-    critical: products.filter(p => getExpiryInfo(p.expiryDate).status === 'critical').length,
-    remove: products.filter(p => getExpiryInfo(p.expiryDate).status === 'remove').length,
-    campaign: products.filter(p => getExpiryInfo(p.expiryDate).status === 'campaign').length,
-    safe: products.filter(p => getExpiryInfo(p.expiryDate).status === 'safe').length,
+    expired: 0,
+    critical: 0,
+    remove: 0,
+    campaign: 0,
+    safe: 0,
+  }
+
+  for (const p of products) {
+    for (const s of p.stock_items || []) {
+      const info = getExpiryInfo(s.expiry_date)
+      stats[info.status]++
+    }
   }
 
   const cards = [
@@ -23,46 +30,41 @@ export function StatsCards({ products }: StatsCardsProps) {
       label: 'Süresi Geçmiş',
       value: stats.expired,
       icon: AlertTriangle,
-      bg: 'bg-destructive/10',
-      text: 'text-destructive',
-      iconBg: 'bg-destructive/20',
-      description: 'Hemen kaldır!',
+      bg: 'bg-red-500/10',
+      text: 'text-red-600 dark:text-red-400',
+      iconBg: 'bg-red-500/20',
     },
     {
       label: 'Kritik (0-3 gün)',
       value: stats.critical,
       icon: AlertCircle,
-      bg: 'bg-destructive/5',
-      text: 'text-destructive',
-      iconBg: 'bg-destructive/10',
-      description: 'Acil raftan kaldır',
+      bg: 'bg-red-500/5',
+      text: 'text-red-600 dark:text-red-400',
+      iconBg: 'bg-red-500/10',
     },
     {
-      label: 'Raftan Kaldır (4-14 gün)',
+      label: 'Kaldır (4-14 gün)',
       value: stats.remove,
       icon: Package,
       bg: 'bg-orange-500/10',
-      text: 'text-orange-600 dark:text-orange-500',
+      text: 'text-orange-600 dark:text-orange-400',
       iconBg: 'bg-orange-500/20',
-      description: 'Kaldırılabilir',
     },
     {
       label: 'Kampanya (15-90 gün)',
       value: stats.campaign,
       icon: ShoppingCart,
       bg: 'bg-amber-500/10',
-      text: 'text-amber-600 dark:text-amber-500',
+      text: 'text-amber-600 dark:text-amber-400',
       iconBg: 'bg-amber-500/20',
-      description: 'Yetkiliye bildir',
     },
     {
       label: 'Güvenli (90+ gün)',
       value: stats.safe,
       icon: CheckCircle,
       bg: 'bg-emerald-500/10',
-      text: 'text-emerald-600 dark:text-emerald-500',
+      text: 'text-emerald-600 dark:text-emerald-400',
       iconBg: 'bg-emerald-500/20',
-      description: 'Güvenli',
     },
   ]
 

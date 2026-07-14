@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ListOrdered, Plus, Search, MapPin } from 'lucide-react'
+import { Home, ListOrdered, Plus, Search, MapPin, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -12,10 +12,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/', icon: Home, label: 'Ana Sayfa' },
-  { href: '/liste', icon: ListOrdered, label: 'Liste' },
-  { href: '/ara', icon: Search, label: 'Ara' },
-  { href: '/lokasyonlar', icon: MapPin, label: 'Lokasyon' },
+  { href: '/app', icon: Home, label: 'Ana Sayfa' },
+  { href: '/app/liste', icon: ListOrdered, label: 'Liste' },
+  { href: '/app/ara', icon: Search, label: 'Ara' },
+  { href: '/app/lokasyonlar', icon: MapPin, label: 'Lokasyon' },
+  { href: '/app/ayarlar', icon: Settings, label: 'Ayarlar' },
 ]
 
 interface BottomNavProps {
@@ -25,30 +26,32 @@ interface BottomNavProps {
 export function BottomNav({ onAddClick }: BottomNavProps) {
   const pathname = usePathname()
 
+  const renderNavItems = (items: NavItem[]) =>
+    items.map((item) => {
+      const isActive = pathname === item.href
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={cn(
+            "flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[48px]",
+            isActive
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
+          <span className="text-[10px] font-medium">{item.label}</span>
+        </Link>
+      )
+    })
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-pb">
       <div className="max-w-lg mx-auto">
         <div className="flex items-center justify-around py-1">
-          {navItems.slice(0, 2).map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all min-w-[56px]",
-                  isActive 
-                    ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </Link>
-            )
-          })}
-          
-          {/* Center Add Button */}
+          {renderNavItems(navItems.slice(0, 2))}
+
           {onAddClick ? (
             <button
               onClick={onAddClick}
@@ -60,7 +63,7 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
               <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
             </button>
           ) : (
-            <Link href="/ekle" className="flex flex-col items-center gap-0.5 -mt-5">
+            <Link href="/app/ekle" className="flex flex-col items-center gap-0.5 -mt-5">
               <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
                 <Plus className="w-6 h-6 text-primary-foreground" />
               </div>
@@ -68,24 +71,7 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
             </Link>
           )}
 
-          {navItems.slice(2).map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all min-w-[56px]",
-                  isActive 
-                    ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </Link>
-            )
-          })}
+          {renderNavItems(navItems.slice(2))}
         </div>
       </div>
     </nav>
