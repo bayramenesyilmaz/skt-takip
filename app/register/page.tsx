@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package, ArrowLeft, Mail, Lock, User, Building2, Store, Smartphone } from 'lucide-react'
 import type { OrganizationType } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
-import { getRepository } from '@/lib/repositories/repository.factory'
+import { setStorageMode, resetRepositoryCache } from '@/lib/repositories/repository.factory'
 
 const orgTypes: { type: OrganizationType; label: string; description: string; icon: typeof Building2 }[] = [
   { type: 'multi_branch', label: 'Cok Subeli Firma', description: 'Birden fazla subesi olan zincir marketler', icon: Building2 },
@@ -40,16 +40,34 @@ function RegisterContent() {
       const { error: signUpError, user } = await signUp(email, password, fullName)
       if (signUpError) { setError(signUpError); setLoading(false); return }
       if (!user) { setError('Kullanici olusturulamadi.'); setLoading(false); return }
-      const repo = getRepository()
-      const org = await repo.createOrganization({ name: orgName, type: orgType, plan: 'premium' })
+
+      setStorageMode('supabase')
+      resetRepositoryCache()
+
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert({ name: orgName, type: orgType, plan: 'premium' })
+        .select()
+        .single()
+      if (orgError || !org) {
+        setError('Firma olusturulamadi: ' + (orgError?.message || 'Bilinmeyen hata'))
+        setLoading(false)
+        return
+      }
+
       const role = orgType === 'multi_branch' ? 'super_admin' : 'owner'
-      const { error: profileError } = await supabase.from('profiles').insert({ user_id: user.id, org_id: org.id, full_name: fullName, role, is_active: true })
+      const { error: profileError } = await supabase.from('profiles').insert({
+        user_id: user.id,
+        org_id: org.id,
+        full_name: fullName,
+        role,
+        is_active: true,
+      })
       if (profileError) {
         setError('Profil olusturulamadi: ' + profileError.message)
         setLoading(false)
         return
       }
-      // Wait a moment for the auth session to propagate, then redirect
       setTimeout(() => router.push('/app'), 500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bir hata olustu')
