@@ -106,6 +106,12 @@ export interface ProductWithStock extends Product {
   locations?: Location[]
 }
 
+export interface ProfileLocation {
+  profile_id: string
+  location_id: string
+  created_at: string
+}
+
 export interface ParsedProduct {
   name: string
   expiryDate: string

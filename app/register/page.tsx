@@ -43,8 +43,14 @@ function RegisterContent() {
       const repo = getRepository()
       const org = await repo.createOrganization({ name: orgName, type: orgType, plan: 'premium' })
       const role = orgType === 'multi_branch' ? 'super_admin' : 'owner'
-      await supabase.from('profiles').insert({ user_id: user.id, org_id: org.id, full_name: fullName, role, is_active: true })
-      router.push('/app')
+      const { error: profileError } = await supabase.from('profiles').insert({ user_id: user.id, org_id: org.id, full_name: fullName, role, is_active: true })
+      if (profileError) {
+        setError('Profil olusturulamadi: ' + profileError.message)
+        setLoading(false)
+        return
+      }
+      // Wait a moment for the auth session to propagate, then redirect
+      setTimeout(() => router.push('/app'), 500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bir hata olustu')
     } finally {
