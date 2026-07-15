@@ -11,13 +11,16 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Plus, Trash2, Tag, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 
 export default function BrandsPage() {
   const { profile } = useAuth()
   const { brands, products, addBrand, updateBrand, deleteBrand } = useAppData()
 
-  const storageMode = getStorageMode()
+  const [mounted, setMounted] = useState(false)
+  const [storageMode, setStorageModeState] = useState<'supabase' | 'local'>('supabase')
+  useEffect(() => { setStorageModeState(getStorageMode()); setMounted(true) }, [])
+
   const canDelete =
     profile?.role === 'super_admin' ||
     profile?.role === 'owner' ||
@@ -29,7 +32,7 @@ export default function BrandsPage() {
   const productCount = useMemo(() => {
     const m: Record<string, number> = {}
     products.forEach((p: any) => {
-      if (p.brandId) m[p.brandId] = (m[p.brandId] || 0) + 1
+      if (p.brand_id) m[p.brand_id] = (m[p.brand_id] || 0) + 1
     })
     return m
   }, [products])
@@ -38,6 +41,14 @@ export default function BrandsPage() {
     if (!newBrandName.trim()) return
     await addBrand({ name: newBrandName, returnAccepts: false })
     setNewBrandName('')
+  }
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (

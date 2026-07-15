@@ -1,6 +1,7 @@
 import React from "react"
 import type { Metadata, Viewport } from 'next'
 import { AuthProvider } from '@/lib/auth/auth-context'
+import { InstallPrompt } from '@/components/install-prompt'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -30,7 +31,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="font-sans antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <InstallPrompt />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

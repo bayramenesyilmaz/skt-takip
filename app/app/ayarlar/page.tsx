@@ -16,23 +16,45 @@ import {
   Database, Info, RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 export default function SettingsPage() {
+  const router = useRouter()
   const { profile, organization, signOut } = useAuth()
-  const { products, locations, brands, clearAll } = useAppData()
-  const [storageMode, setStorageModeState] = useState(getStorageMode())
+  const { products, locations, brands } = useAppData()
+  const [mounted, setMounted] = useState(false)
+  const [storageMode, setStorageModeState] = useState<'supabase' | 'local'>('supabase')
 
-  const handleStorageChange = (mode: 'local' | 'remote') => {
+  useEffect(() => {
+    setStorageModeState(getStorageMode())
+    setMounted(true)
+  }, [])
+
+  const handleStorageChange = (mode: 'local' | 'supabase') => {
     setStorageMode(mode)
     setStorageModeState(mode)
     resetRepositoryCache()
+    router.refresh()
   }
 
-  const handleClearAll = async () => {
-    if (confirm('Tum veriler silinecek. Emin misiniz?')) {
-      await clearAll()
+  const handleSignOut = async () => {
+    if (storageMode === 'local') {
+      setStorageMode('supabase')
+      resetRepositoryCache()
+      router.push('/')
+    } else {
+      await signOut()
+      router.push('/')
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -86,23 +108,21 @@ export default function SettingsPage() {
             <Database className="w-4 h-4" />
             <h2 className="font-semibold">Veri Modu</h2>
           </div>
+          <p className="text-xs text-gray-500 mb-2">
+            {storageMode === 'local' ? 'Veriler cihazinizda saklaniyor' : 'Veriler bulutta saklaniyor'}
+          </p>
           <div className="flex gap-2">
             <Button size="sm" variant={storageMode === 'local' ? 'default' : 'outline'} onClick={() => handleStorageChange('local')}>Local</Button>
-            <Button size="sm" variant={storageMode === 'remote' ? 'default' : 'outline'} onClick={() => handleStorageChange('remote')}>Remote</Button>
-            <Button size="sm" variant="ghost" onClick={() => resetRepositoryCache()}><RefreshCw className="w-4 h-4" /></Button>
+            <Button size="sm" variant={storageMode === 'supabase' ? 'default' : 'outline'} onClick={() => handleStorageChange('supabase')}>Remote</Button>
+            <Button size="sm" variant="ghost" onClick={() => { resetRepositoryCache(); router.refresh() }}><RefreshCw className="w-4 h-4" /></Button>
           </div>
         </Card>
 
         <Card className="p-4 border-red-200">
-          <h2 className="font-semibold mb-2 text-red-600">Tehlikeli Bolge</h2>
-          <div className="flex gap-2">
-            <Button variant="destructive" size="sm" onClick={handleClearAll}>
-              <Trash2 className="w-4 h-4 mr-1" /> Tumunu Sil
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => signOut()}>
-              <LogOut className="w-4 h-4 mr-1" /> Cikis
-            </Button>
-          </div>
+          <h2 className="font-semibold mb-2 text-red-600">Hesap</h2>
+          <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <LogOut className="w-4 h-4 mr-1" /> Cikis Yap
+          </Button>
         </Card>
 
         <Card className="p-4">

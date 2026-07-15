@@ -21,11 +21,14 @@ export default function BranchesPage() {
 
   const canManage = profile?.role === 'super_admin' || profile?.role === 'owner'
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    if (!organization) return
+    loadData()
+  }, [organization])
 
   const loadData = async () => {
     const [bRes, pRes] = await Promise.all([
-      supabase.from('branches').select('*'),
+      supabase.from('branches').select('*').eq('org_id', organization?.id),
       supabase.from('profiles').select('*'),
     ])
     if (bRes.data) setBranches(bRes.data)
@@ -34,12 +37,12 @@ export default function BranchesPage() {
   }
 
   const handleAdd = async () => {
-    if (!form.name.trim()) return
+    if (!form.name.trim() || !organization) return
     await supabase.from('branches').insert({
       name: form.name,
       address: form.address,
       phone: form.phone,
-      organization_id: organization?.id,
+      org_id: organization.id,
     })
     setForm({ name: '', address: '', phone: '' })
     loadData()
@@ -52,6 +55,14 @@ export default function BranchesPage() {
 
   const getManager = (branchId: string) => profiles.find((p) => p.branch_id === branchId && p.role === 'branch_manager')
   const getStaffCount = (branchId: string) => profiles.filter((p) => p.branch_id === branchId).length
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -88,7 +99,7 @@ export default function BranchesPage() {
                   {b.phone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{b.phone}</p>}
                   <div className="flex gap-2 pt-1">
                     <Badge variant="outline">{staffCount} personel</Badge>
-                    {manager && <Badge variant="secondary">{manager.email}</Badge>}
+                    {manager && <Badge variant="secondary">{manager.full_name || manager.email}</Badge>}
                   </div>
                 </div>
                 {canManage && (
@@ -101,7 +112,7 @@ export default function BranchesPage() {
           )
         })}
 
-        {branches.length === 0 && !loading && (
+        {branches.length === 0 && (
           <Card className="p-4 text-center text-sm text-gray-500">Sube yok.</Card>
         )}
       </main>

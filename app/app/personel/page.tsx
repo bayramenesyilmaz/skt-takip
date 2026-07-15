@@ -10,32 +10,41 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Plus, Trash2, Copy, User } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Copy, User, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 
-const roleColors: Record<string, any> = {
-  super_admin: 'destructive',
-  owner: 'default',
-  branch_manager: 'secondary',
-  staff: 'outline',
+const roleLabels: Record<string, string> = {
+  super_admin: 'Super Admin',
+  owner: 'Sahip',
+  branch_manager: 'Sube Muduru',
+  staff: 'Personel',
 }
 
 export default function PersonnelPage() {
   const { profile, organization } = useAuth()
-  const storageMode = getStorageMode()
+  const [mounted, setMounted] = useState(false)
+  const [storageMode, setStorageModeState] = useState<'supabase' | 'local'>('supabase')
 
   const [profiles, setProfiles] = useState<any[]>([])
   const [branches, setBranches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ email: '', password: '', role: 'staff', branchId: '' })
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [form, setForm] = useState({ email: '', password: '', fullName: '', role: 'staff', branchId: '' })
 
   const canManage = profile?.role === 'super_admin' || profile?.role === 'owner'
 
   useEffect(() => {
+    setStorageModeState(getStorageMode())
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
     if (storageMode === 'local') { setLoading(false); return }
+    if (!organization) return
     loadData()
-  }, [storageMode])
+  }, [storageMode, organization])
 
   const loadData = async () => {
     const [pRes, bRes] = await Promise.all([
@@ -48,32 +57,56 @@ export default function PersonnelPage() {
   }
 
   const handleCreate = async () => {
-    if (!form.email || !form.password) return
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: form.email,
-      password: form.password,
-    })
-    if (!error && data.user) {
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        email: form.email,
-        role: form.role,
-        branch_id: form.branchId || null,
-        organization_id: organization?.id,
+    if (!form.email || !form.password || !form.fullName) return
+    setCreating(true)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          full_name: form.fullName,
+          org_id: organization?.id,
+          role: form.role,
+          branch_id: form.branchId || null,
+        }),
       })
-      setForm({ email: '', password: '', role: 'staff', branchId: '' })
-      loadData()
+      const result = await res.json()
+      if (!res.ok) {
+        setError(result.error || 'Kullanici olusturulamadi')
+      } else {
+        setForm({ email: '', password: '', fullName: '', role: 'staff', branchId: '' })
+        loadData()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata olustu')
+    } finally {
+      setCreating(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    await supabase.from('profiles').delete().eq('id', id)
+  const handleDelete = async (userId: string) => {
+    await supabase.from('profiles').delete().eq('user_id', userId)
     loadData()
   }
 
   const handleCopy = (p: any) => {
-    const text = `Giris: ${window.location.origin}/login\nEmail: ${p.email}\nSifre: (yonetici tarafindan belirlendi)\nRol: ${p.role}`
+    const text = `Giris: ${window.location.origin}/login\nEmail: ${p.email || form.email}\nSifre: (yonetici tarafindan belirlendi)\nRol: ${roleLabels[p.role] || p.role}`
     navigator.clipboard.writeText(text)
+  }
+
+  if (!mounted || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   if (storageMode === 'local') {
@@ -106,50 +139,64 @@ export default function PersonnelPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-4 space-y-4">
         {canManage && (
-          <Card className="p-4 space-y-2">
-            <Label>Yeni Personel</Label>
-            <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Card className="p-4 space-y-3">
+            <Label>Yeni Personel Ekle</Label>
+            <Input placeholder="Ad Soyad" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+            <Input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             <Input type="password" placeholder="Sifre" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="branch_manager">Branch Manager</SelectItem>
-                <SelectItem value="owner">Owner</SelectItem>
-                <SelectItem value="super_admin">Super Admin</SelectItem>
+                <SelectItem value="staff">Personel</SelectItem>
+                <SelectItem value="branch_manager">Sube Muduru</SelectItem>
+                <SelectItem value="owner">Sahip</SelectItem>
+                {profile?.role === 'super_admin' && <SelectItem value="super_admin">Super Admin</SelectItem>}
               </SelectContent>
             </Select>
-            <Select value={form.branchId} onValueChange={(v) => setForm({ ...form, branchId: v })}>
-              <SelectTrigger><SelectValue placeholder="Sube" /></SelectTrigger>
-              <SelectContent>
-                {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-1" /> Ekle</Button>
+            {branches.length > 0 && (
+              <Select value={form.branchId} onValueChange={(v) => setForm({ ...form, branchId: v })}>
+                <SelectTrigger><SelectValue placeholder="Sube (opsiyonel)" /></SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+              Ekle
+            </Button>
           </Card>
         )}
 
         {profiles.map((p) => (
-          <Card key={p.id} className="p-3 flex items-center justify-between">
+          <Card key={p.user_id} className="p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4" />
               <div>
-                <p className="font-medium text-sm">{p.email}</p>
-                <Badge variant={roleColors[p.role] || 'outline'}>{p.role}</Badge>
+                <p className="font-medium text-sm">{p.full_name || p.email}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Badge variant="outline">{roleLabels[p.role] || p.role}</Badge>
+                  {p.branch_id && <Badge variant="secondary">Sube</Badge>}
+                </div>
               </div>
             </div>
             <div className="flex gap-1">
               <Button variant="ghost" size="sm" onClick={() => handleCopy(p)}>
                 <Copy className="w-3 h-3" />
               </Button>
-              {canManage && (
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}>
+              {canManage && p.user_id !== profile?.user_id && (
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(p.user_id)}>
                   <Trash2 className="w-4 h-4 text-red-500" />
                 </Button>
               )}
             </div>
           </Card>
         ))}
+
+        {profiles.length === 0 && (
+          <Card className="p-4 text-center text-sm text-gray-500">Personel yok.</Card>
+        )}
       </main>
 
       <BottomNav onAddClick={() => {}} />
