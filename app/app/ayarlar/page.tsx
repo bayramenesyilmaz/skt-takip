@@ -1,52 +1,34 @@
 'use client'
 
 import { useAppData } from '@/hooks/use-app-data'
-import { useAuth } from '@/lib/auth/auth-context'
-import {
-  getStorageMode,
-  setStorageMode,
-  resetRepositoryCache,
-} from '@/lib/repositories/repository.factory'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-  ArrowLeft, Building2, MapPin, Tag, Users, Trash2, LogOut,
-  Database, Info, RefreshCw,
-} from 'lucide-react'
+import { ArrowLeft, Tag, ScanBarcode, Info, Trash2, WifiOff } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { profile, organization, signOut } = useAuth()
-  const { products, locations, brands } = useAppData()
+  const { products, brands, reload } = useAppData()
   const [mounted, setMounted] = useState(false)
-  const [storageMode, setStorageModeState] = useState<'supabase' | 'local'>('supabase')
 
-  useEffect(() => {
-    setStorageModeState(getStorageMode())
-    setMounted(true)
-  }, [])
+  useEffect(() => { setMounted(true) }, [])
 
-  const handleStorageChange = (mode: 'local' | 'supabase') => {
-    setStorageMode(mode)
-    setStorageModeState(mode)
-    resetRepositoryCache()
-    router.refresh()
-  }
+  const missingBarcodeCount = useMemo(
+    () => products.filter((p) => !p.barcode || !p.barcode.trim()).length,
+    [products]
+  )
 
-  const handleSignOut = async () => {
-    if (storageMode === 'local') {
-      setStorageMode('supabase')
-      resetRepositoryCache()
-      router.push('/')
-    } else {
-      await signOut()
-      router.push('/')
-    }
+  const handleResetData = async () => {
+    if (typeof window === 'undefined') return
+    if (!window.confirm('Tum urunler, markalar ve stok kayitlari silinecek. Emin misiniz?')) return
+    localStorage.removeItem('skt-local-products')
+    localStorage.removeItem('skt-local-brands')
+    localStorage.removeItem('skt-local-stock')
+    await reload()
+    router.push('/app')
   }
 
   if (!mounted) {
@@ -69,18 +51,16 @@ export default function SettingsPage() {
       <main className="max-w-4xl mx-auto px-4 py-4 space-y-4">
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Building2 className="w-4 h-4" />
-            <h2 className="font-semibold">Organizasyon</h2>
+            <WifiOff className="w-4 h-4" />
+            <h2 className="font-semibold">Depolama</h2>
           </div>
-          <p className="text-sm">{organization?.name || 'Organizasyon'}</p>
-          <Badge variant="outline">{profile?.role}</Badge>
+          <p className="text-xs text-gray-500">Veriler yalnizca bu cihazda, tarayici hafizasinda saklanir. Internet veya hesap gerekmez.</p>
         </Card>
 
         <Card className="p-4">
           <h2 className="font-semibold mb-2">Veri Ozeti</h2>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-2 gap-2 text-center">
             <div><p className="text-2xl font-bold">{products.length}</p><p className="text-xs text-gray-500">Urun</p></div>
-            <div><p className="text-2xl font-bold">{locations.length}</p><p className="text-xs text-gray-500">Lokasyon</p></div>
             <div><p className="text-2xl font-bold">{brands.length}</p><p className="text-xs text-gray-500">Marka</p></div>
           </div>
         </Card>
@@ -88,40 +68,21 @@ export default function SettingsPage() {
         <Card className="p-4">
           <h2 className="font-semibold mb-2">Yonetim</h2>
           <div className="space-y-2">
-            <Link href="/app/lokasyonlar" className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50">
-              <MapPin className="w-4 h-4" /> Lokasyonlar
-            </Link>
             <Link href="/app/markalar" className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50">
               <Tag className="w-4 h-4" /> Markalar
             </Link>
-            <Link href="/app/personel" className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50">
-              <Users className="w-4 h-4" /> Personel
+            <Link href="/app/barkodsuz" className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
+              <span className="flex items-center gap-2"><ScanBarcode className="w-4 h-4" /> Barkodsuz Urunler</span>
+              {missingBarcodeCount > 0 && <span className="text-xs font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">{missingBarcodeCount}</span>}
             </Link>
-            <Link href="/app/subeler" className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50">
-              <Building2 className="w-4 h-4" /> Subeler
-            </Link>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Database className="w-4 h-4" />
-            <h2 className="font-semibold">Veri Modu</h2>
-          </div>
-          <p className="text-xs text-gray-500 mb-2">
-            {storageMode === 'local' ? 'Veriler cihazinizda saklaniyor' : 'Veriler bulutta saklaniyor'}
-          </p>
-          <div className="flex gap-2">
-            <Button size="sm" variant={storageMode === 'local' ? 'default' : 'outline'} onClick={() => handleStorageChange('local')}>Local</Button>
-            <Button size="sm" variant={storageMode === 'supabase' ? 'default' : 'outline'} onClick={() => handleStorageChange('supabase')}>Remote</Button>
-            <Button size="sm" variant="ghost" onClick={() => { resetRepositoryCache(); router.refresh() }}><RefreshCw className="w-4 h-4" /></Button>
           </div>
         </Card>
 
         <Card className="p-4 border-red-200">
-          <h2 className="font-semibold mb-2 text-red-600">Hesap</h2>
-          <Button variant="outline" size="sm" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-1" /> Cikis Yap
+          <h2 className="font-semibold mb-2 text-red-600">Veriler</h2>
+          <p className="text-xs text-gray-500 mb-2">Tum urun, marka ve stok kayitlarini bu cihazdan siler.</p>
+          <Button variant="outline" size="sm" onClick={handleResetData}>
+            <Trash2 className="w-4 h-4 mr-1" /> Verileri Sifirla
           </Button>
         </Card>
 
@@ -130,7 +91,7 @@ export default function SettingsPage() {
             <Info className="w-4 h-4" />
             <h2 className="font-semibold text-sm">Uygulama Bilgisi</h2>
           </div>
-          <p className="text-xs text-gray-500">Versiyon 3.0.0 - PWA destekli</p>
+          <p className="text-xs text-gray-500">Versiyon 4.0.0 - Yerel PWA</p>
         </Card>
       </main>
 

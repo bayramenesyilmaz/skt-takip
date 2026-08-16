@@ -7,56 +7,49 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import { useAuth } from '@/lib/auth/auth-context'
 import { getExpiryInfo, formatDate, statusConfig } from '@/lib/expiry'
 import { DeleteDialog } from '@/components/delete-dialog'
-import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, MapPin } from 'lucide-react'
-import type { ProductWithStock, StockItem, Location } from '@/lib/types'
+import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Barcode, Camera } from 'lucide-react'
+import { BarcodeScanner } from '@/components/barcode-scanner'
+import type { ProductWithStock, StockItem } from '@/lib/types'
 
 function ProductDetailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
-  const { profile, organization } = useAuth()
   const [product, setProduct] = useState<ProductWithStock | null>(null)
-  const [locations, setLocations] = useState<Location[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddStock, setShowAddStock] = useState(false)
   const [deleteStockTarget, setDeleteStockTarget] = useState<StockItem | null>(null)
-  const [newStock, setNewStock] = useState({ expiry_date: '', location_id: '', quantity: '1' })
-
-  const orgId = organization?.id || 'local'
-  const branchId = profile?.branch_id
+  const [newStock, setNewStock] = useState({ expiry_date: '', quantity: '1' })
+  const [showScanner, setShowScanner] = useState(false)
+  const [barcodeInput, setBarcodeInput] = useState('')
 
   const loadData = async () => {
     if (!id) { setIsLoading(false); return }
     const repo = getRepository()
-    const [prod, locs] = await Promise.all([
-      repo.getProduct(id),
-      repo.getLocations(orgId, branchId),
-    ])
+    const prod = await repo.getProduct(id)
     setProduct(prod)
-    setLocations(locs)
+    setBarcodeInput(prod?.barcode || '')
     setIsLoading(false)
   }
 
   useEffect(() => {
     loadData()
-  }, [id, orgId, branchId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const handleAddStock = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!product || !newStock.expiry_date) return
     const repo = getRepository()
     await repo.createStockItem({
-      org_id: orgId, branch_id: branchId, product_id: product.id,
-      location_id: newStock.location_id || undefined,
+      product_id: product.id,
       expiry_date: newStock.expiry_date,
       quantity: parseInt(newStock.quantity) || 1,
-    } as any)
-    setNewStock({ expiry_date: '', location_id: '', quantity: '1' })
+    })
+    setNewStock({ expiry_date: '', quantity: '1' })
     setShowAddStock(false)
     loadData()
   }
@@ -72,6 +65,13 @@ function ProductDetailContent() {
   const handleZeroStock = async (stock: StockItem) => {
     const repo = getRepository()
     await repo.updateStockItem(stock.id, { quantity: 0 })
+    loadData()
+  }
+
+  const handleSaveBarcode = async () => {
+    if (!product) return
+    const repo = getRepository()
+    await repo.updateProduct(product.id, { barcode: barcodeInput.trim() || undefined })
     loadData()
   }
 
@@ -94,9 +94,12 @@ function ProductDetailContent() {
     )
   }
 
+  if (showScanner) {
+    return <BarcodeScanner onScan={(b) => { setBarcodeInput(b); setShowScanner(false) }} onClose={() => setShowScanner(false)} />
+  }
+
   const stockItems = product.stock_items || []
   const distinctExpiryDates = new Set(stockItems.map((s) => s.expiry_date))
-  const distinctLocations = new Set(stockItems.map((s) => s.location_id).filter(Boolean))
 
   return (
     <main className="min-h-screen bg-background pb-24">
@@ -129,9 +132,19 @@ function ProductDetailContent() {
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="outline" className="text-xs">{stockItems.length} stok kaydi</Badge>
                   <Badge variant="outline" className="text-xs">{distinctExpiryDates.size} farkli SKT</Badge>
-                  <Badge variant="outline" className="text-xs">{distinctLocations.size} lokasyon</Badge>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-3"><Barcode className="w-4 h-4" />Barkod</h3>
+            <div className="flex gap-2">
+              <Input value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)} placeholder="Barkod yok" className="h-10 flex-1" />
+              <Button type="button" variant="secondary" className="h-10 px-3" onClick={() => setShowScanner(true)}><Camera className="w-4 h-4" /></Button>
+              <Button type="button" className="h-10" disabled={barcodeInput === (product.barcode || '')} onClick={handleSaveBarcode}>Kaydet</Button>
             </div>
           </CardContent>
         </Card>
@@ -147,18 +160,6 @@ function ProductDetailContent() {
               <CardContent className="p-3">
                 <form onSubmit={handleAddStock} className="space-y-3">
                   <div className="space-y-1.5"><Label className="text-xs">Son Kullanma Tarihi *</Label><Input type="date" value={newStock.expiry_date} onChange={(e) => setNewStock({ ...newStock, expiry_date: e.target.value })} className="h-10" required /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Lokasyon</Label>
-                    <Select value={newStock.location_id || 'none'} onValueChange={(v) => setNewStock({ ...newStock, location_id: v === 'none' ? '' : v })}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="Lokasyon sec" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Lokasyon yok</SelectItem>
-                        {locations.map((l) => {
-                          const parent = l.parent_id ? locations.find((p) => p.id === l.parent_id) : undefined
-                          return <SelectItem key={l.id} value={l.id}>{parent ? `${parent.name} / ${l.name}` : l.name}{l.type === 'palet' && ` (Kat ${l.level})`}</SelectItem>
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="space-y-1.5"><Label className="text-xs">Adet</Label><Input type="number" value={newStock.quantity} onChange={(e) => setNewStock({ ...newStock, quantity: e.target.value })} className="h-10" min="1" /></div>
                   <div className="flex gap-2"><Button type="submit" className="flex-1 h-10">Ekle</Button><Button type="button" variant="outline" onClick={() => setShowAddStock(false)}>Iptal</Button></div>
                 </form>
@@ -167,7 +168,7 @@ function ProductDetailContent() {
           )}
 
           {stockItems.length === 0 ? (
-            <Card className="border-dashed"><CardContent className="p-6 text-center"><Clock className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" /><p className="text-sm text-muted-foreground">Henutz stok kaydi yok</p><p className="text-xs text-muted-foreground mt-1">SKT ekleyerek baslayin</p></CardContent></Card>
+            <Card className="border-dashed"><CardContent className="p-6 text-center"><Clock className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" /><p className="text-sm text-muted-foreground">Henuz stok kaydi yok</p><p className="text-xs text-muted-foreground mt-1">SKT ekleyerek baslayin</p></CardContent></Card>
           ) : (
             <div className="space-y-2">
               {stockItems
@@ -175,8 +176,6 @@ function ProductDetailContent() {
                 .map((stock) => {
                   const info = getExpiryInfo(stock.expiry_date)
                   const config = statusConfig[info.status]
-                  const location = stock.location_id ? locations.find((l) => l.id === stock.location_id) : undefined
-                  const parent = location?.parent_id ? locations.find((l) => l.id === location.parent_id) : undefined
                   return (
                     <Card key={stock.id} className={`${config.bg} border ${config.border}`}>
                       <CardContent className="p-3">
@@ -187,9 +186,6 @@ function ProductDetailContent() {
                               <span className="text-xs text-muted-foreground">SKT: {formatDate(stock.expiry_date)}</span>
                               <Badge variant="outline" className="text-xs">Adet: {stock.quantity}</Badge>
                             </div>
-                            {location && (
-                              <div className="flex items-center gap-1 mt-1.5"><MapPin className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{parent ? `${parent.name} / ` : ''}{location.name}{location.type === 'palet' && ` (Kat ${location.level})`}</span></div>
-                            )}
                             {info.status !== 'safe' && <p className={`text-xs font-medium mt-1.5 ${config.text}`}>{info.actionRequired}</p>}
                           </div>
                           <div className="flex gap-1">
