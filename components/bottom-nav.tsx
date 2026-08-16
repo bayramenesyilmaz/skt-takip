@@ -13,11 +13,7 @@ const navItems = [
   { href: '/app/ayarlar', icon: Settings, label: 'Ayarlar' },
 ]
 
-interface BottomNavProps {
-  onAddClick?: () => void
-}
-
-export function BottomNav({ onAddClick }: BottomNavProps) {
+export function BottomNav() {
   const pathname = usePathname()
 
   const renderItems = (items: typeof navItems) =>
@@ -38,21 +34,12 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
       <div className="max-w-lg mx-auto">
         <div className="flex items-center justify-around py-1">
           {renderItems(navItems.slice(0, 2))}
-          {onAddClick ? (
-            <button onClick={onAddClick} className="flex flex-col items-center gap-0.5 -mt-5">
-              <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
-                <Plus className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
-            </button>
-          ) : (
-            <Link href="/app/ekle" className="flex flex-col items-center gap-0.5 -mt-5">
-              <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
-                <Plus className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
-            </Link>
-          )}
+          <Link href="/app/ekle" className="flex flex-col items-center gap-0.5 -mt-5">
+            <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
+              <Plus className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
+          </Link>
           {renderItems(navItems.slice(2))}
         </div>
       </div>

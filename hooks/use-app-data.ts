@@ -2,20 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct } from '@/lib/types'
+import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems } from '@/lib/types'
 
 export function useAppData() {
   const [products, setProducts] = useState<ProductWithStock[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
+  const [pallets, setPallets] = useState<PalletWithItems[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
       const repo = getRepository()
-      const [prods, brnds] = await Promise.all([repo.getProducts(), repo.getBrands()])
+      const [prods, brnds, plts] = await Promise.all([repo.getProducts(), repo.getBrands(), repo.getPallets()])
       setProducts(prods)
       setBrands(brnds)
+      setPallets(plts)
     } catch (err) {
       console.error('Failed to load data:', err)
     } finally {
@@ -104,13 +106,51 @@ export function useAppData() {
     await loadData()
   }, [loadData])
 
+  const zeroProductStock = useCallback(async (productId: string) => {
+    const repo = getRepository()
+    const product = products.find((p) => p.id === productId)
+    const items = product?.stock_items || []
+    for (const item of items) {
+      if (item.quantity > 0) await repo.updateStockItem(item.id, { quantity: 0 })
+    }
+    await loadData()
+  }, [products, loadData])
+
+  const addPallet = useCallback(async (data: Partial<Pallet>) => {
+    const repo = getRepository()
+    const created = await repo.createPallet(data)
+    await loadData()
+    return created
+  }, [loadData])
+
+  const deletePallet = useCallback(async (palletId: string) => {
+    const repo = getRepository()
+    await repo.deletePallet(palletId)
+    await loadData()
+  }, [loadData])
+
+  const addPalletItem = useCallback(async (data: { pallet_id: string; product_id: string; quantity?: number }) => {
+    const repo = getRepository()
+    const item = await repo.addPalletItem(data)
+    await loadData()
+    return item
+  }, [loadData])
+
+  const removePalletItem = useCallback(async (itemId: string) => {
+    const repo = getRepository()
+    await repo.removePalletItem(itemId)
+    await loadData()
+  }, [loadData])
+
   return {
     products,
     brands,
+    pallets,
     isLoading,
-    addProduct, bulkAddProducts, updateProduct, deleteProduct,
+    addProduct, bulkAddProducts, updateProduct, deleteProduct, zeroProductStock,
     addBrand, updateBrand, deleteBrand,
     addStockItem, updateStockItem, deleteStockItem,
+    addPallet, deletePallet, addPalletItem, removePalletItem,
     reload: loadData,
   }
 }

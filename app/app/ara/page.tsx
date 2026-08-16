@@ -2,21 +2,21 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { BottomNav } from '@/components/bottom-nav'
 import { BarcodeScanner } from '@/components/barcode-scanner'
+import { ProductSearchCard } from '@/components/product-search-card'
 import { useAppData } from '@/hooks/use-app-data'
-import { getExpiryInfo, statusConfig, formatDate } from '@/lib/expiry'
-import { Search, Clock, Camera, Package } from 'lucide-react'
+import { getRepository } from '@/lib/repositories/repository.factory'
+import { Search, Camera, Package } from 'lucide-react'
 
 export default function AraPage() {
   const { products, isLoading } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showScanner, setShowScanner] = useState(false)
+  const [palletMap, setPalletMap] = useState<Record<string, { name: string; quantity: number }[]>>({})
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -30,9 +30,9 @@ export default function AraPage() {
         (p.barcode && p.barcode.includes(q))
       )
       .map(product => {
-        const sortedStock = [...(product.stock_items || [])].sort(
-          (a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime()
-        )
+        const sortedStock = [...(product.stock_items || [])]
+          .filter((s) => s.quantity > 0)
+          .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
         return { product, sortedStock, earliest: sortedStock[0] }
       })
       .sort((a, b) => {
@@ -41,6 +41,19 @@ export default function AraPage() {
         return new Date(aDate).getTime() - new Date(bDate).getTime()
       })
   }, [searchQuery, products])
+
+  useEffect(() => {
+    let cancelled = false
+    if (results.length === 0) { setPalletMap({}); return }
+    const repo = getRepository()
+    Promise.all(results.map(async ({ product }) => {
+      const items = await repo.getPalletItemsForProduct(product.id)
+      return [product.id, items.map((i) => ({ name: i.pallet.name, quantity: i.quantity }))] as const
+    })).then((entries) => {
+      if (!cancelled) setPalletMap(Object.fromEntries(entries))
+    })
+    return () => { cancelled = true }
+  }, [results])
 
   const handleScan = (barcode: string) => {
     setSearchQuery(barcode)
@@ -112,69 +125,11 @@ export default function AraPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">{results.length} sonuc bulundu</p>
-            {results.map(({ product, sortedStock, earliest }) => {
-              const info = earliest ? getExpiryInfo(earliest.expiry_date) : null
-              const config = info ? statusConfig[info.status] : statusConfig.safe
-
-              return (
-                <Link key={product.id} href={`/app/urun?id=${product.id}`}>
-                  <Card className={`${config.bg} border ${config.border} cursor-pointer hover:shadow-md transition-shadow`}>
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-foreground text-sm">{product.name}</h3>
-                            {product.brand && (
-                              <span className="text-xs text-muted-foreground">
-                                {product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}
-                              </span>
-                            )}
-                          </div>
-                          {info && (
-                            <Badge className={`${config.badge} text-white text-xs shrink-0`}>
-                              <Clock className="w-3 h-3 mr-1" />{info.label}
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                          {earliest && <span>SKT: {formatDate(earliest.expiry_date)}</span>}
-                          {product.stock_code && <span>Stok: {product.stock_code}</span>}
-                          {product.barcode ? <span>Barkod: {product.barcode}</span> : <Badge variant="outline" className="text-xs">Barkod yok</Badge>}
-                        </div>
-
-                        {sortedStock.length > 0 && (
-                          <div className="space-y-1.5">
-                            {sortedStock.slice(0, 5).map((stock) => {
-                              const sInfo = getExpiryInfo(stock.expiry_date)
-                              const sConfig = statusConfig[sInfo.status]
-                              return (
-                                <div key={stock.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/80">
-                                  <span className="text-xs text-foreground flex-1 min-w-0">SKT: {formatDate(stock.expiry_date)}</span>
-                                  <span className="text-xs text-muted-foreground">Adet: {stock.quantity}</span>
-                                  <Badge className={`${sConfig.badge} text-xs px-1.5 py-0`}>
-                                    {sInfo.label}
-                                  </Badge>
-                                </div>
-                              )
-                            })}
-                            {sortedStock.length > 5 && (
-                              <p className="text-xs text-muted-foreground text-center pt-1">
-                                +{sortedStock.length - 5} kayit daha (detay sayfasinda)
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        {info && info.status !== 'safe' && (
-                          <p className={`text-xs font-medium ${config.text}`}>{info.actionRequired}</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
+            {results.map(({ product }) => (
+              <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block hover:opacity-90 transition-opacity">
+                <ProductSearchCard product={product} palletInfo={palletMap[product.id]} />
+              </Link>
+            ))}
           </div>
         )}
       </div>

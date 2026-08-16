@@ -16,22 +16,37 @@ interface DeleteDialogProps {
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
   productName: string
+  title?: string
+  description?: React.ReactNode
+  confirmLabel?: string
 }
 
-export function DeleteDialog({ open, onOpenChange, onConfirm, productName }: DeleteDialogProps) {
+export function DeleteDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  productName,
+  title = 'Ürünü Sil',
+  description,
+  confirmLabel = 'Sil',
+}: DeleteDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Ürünü Sil</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            <span className="font-medium text-foreground">{productName}</span> ürününü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            {description ?? (
+              <>
+                <span className="font-medium text-foreground">{productName}</span> ürününü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>İptal</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Sil
+            {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -14,15 +14,16 @@ interface ProductFormProps {
   onSubmit: (product: Partial<Product> & { expiryDate?: string }) => void
   onCancel: () => void
   initialData?: Product
+  initialBarcode?: string
   brands?: Brand[]
 }
 
-export function ProductForm({ onSubmit, onCancel, initialData, brands = [] }: ProductFormProps) {
+export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, brands = [] }: ProductFormProps) {
   const [showScanner, setShowScanner] = useState(false)
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     stock_code: initialData?.stock_code || '',
-    barcode: initialData?.barcode || '',
+    barcode: initialData?.barcode || initialBarcode || '',
     expiryDate: '',
     brand_id: initialData?.brand_id || '',
     return_accepts: initialData?.return_accepts ?? true,

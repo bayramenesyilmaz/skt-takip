@@ -1,10 +1,12 @@
 import type { IRepository } from '@/lib/repositories/repository.interface'
-import type { Brand, Product, StockItem, ProductWithStock } from '@/lib/types'
+import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems } from '@/lib/types'
 
 const KEYS = {
   brands: 'skt-local-brands',
   products: 'skt-local-products',
   stock: 'skt-local-stock',
+  pallets: 'skt-local-pallets',
+  palletItems: 'skt-local-pallet-items',
 }
 
 function read<T>(key: string): T[] {
@@ -112,5 +114,70 @@ export class LocalRepository implements IRepository {
     const stock = read<StockItem>(KEYS.stock)
     const newItems: StockItem[] = items.map((data) => ({ id: uid(), product_id: data.product_id || '', expiry_date: data.expiry_date || now(), quantity: data.quantity ?? 1, created_at: now(), updated_at: now() }))
     write(KEYS.stock, [...stock, ...newItems]); return newItems
+  }
+
+  async getPallets(): Promise<PalletWithItems[]> {
+    const pallets = read<Pallet>(KEYS.pallets)
+    const items = read<PalletItem>(KEYS.palletItems)
+    const products = read<Product>(KEYS.products)
+    return pallets
+      .map((pl) => ({
+        ...pl,
+        items: items.filter((i) => i.pallet_id === pl.id).map((i) => ({ ...i, product: products.find((p) => p.id === i.product_id) })),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  async getPallet(palletId: string): Promise<PalletWithItems | null> {
+    const pallet = read<Pallet>(KEYS.pallets).find((p) => p.id === palletId)
+    if (!pallet) return null
+    const items = read<PalletItem>(KEYS.palletItems).filter((i) => i.pallet_id === palletId)
+    const products = read<Product>(KEYS.products)
+    return { ...pallet, items: items.map((i) => ({ ...i, product: products.find((p) => p.id === i.product_id) })) }
+  }
+
+  async createPallet(data: Partial<Pallet>): Promise<Pallet> {
+    const pallet: Pallet = { id: uid(), name: data.name || '', created_at: now(), updated_at: now() }
+    const pallets = read<Pallet>(KEYS.pallets); pallets.push(pallet); write(KEYS.pallets, pallets); return pallet
+  }
+
+  async updatePallet(palletId: string, data: Partial<Pallet>): Promise<void> {
+    const pallets = read<Pallet>(KEYS.pallets); const idx = pallets.findIndex((p) => p.id === palletId)
+    if (idx >= 0) { pallets[idx] = { ...pallets[idx], ...data, updated_at: now() }; write(KEYS.pallets, pallets) }
+  }
+
+  async deletePallet(palletId: string): Promise<void> {
+    write(KEYS.pallets, read<Pallet>(KEYS.pallets).filter((p) => p.id !== palletId))
+    write(KEYS.palletItems, read<PalletItem>(KEYS.palletItems).filter((i) => i.pallet_id !== palletId))
+  }
+
+  async addPalletItem(data: { pallet_id: string; product_id: string; quantity?: number }): Promise<PalletItem> {
+    const items = read<PalletItem>(KEYS.palletItems)
+    const existing = items.find((i) => i.pallet_id === data.pallet_id && i.product_id === data.product_id)
+    if (existing) {
+      existing.quantity += data.quantity ?? 1
+      existing.updated_at = now()
+      write(KEYS.palletItems, items)
+      return existing
+    }
+    const item: PalletItem = { id: uid(), pallet_id: data.pallet_id, product_id: data.product_id, quantity: data.quantity ?? 1, created_at: now(), updated_at: now() }
+    items.push(item); write(KEYS.palletItems, items); return item
+  }
+
+  async updatePalletItem(itemId: string, data: Partial<PalletItem>): Promise<void> {
+    const items = read<PalletItem>(KEYS.palletItems); const idx = items.findIndex((i) => i.id === itemId)
+    if (idx >= 0) { items[idx] = { ...items[idx], ...data, updated_at: now() }; write(KEYS.palletItems, items) }
+  }
+
+  async removePalletItem(itemId: string): Promise<void> {
+    write(KEYS.palletItems, read<PalletItem>(KEYS.palletItems).filter((i) => i.id !== itemId))
+  }
+
+  async getPalletItemsForProduct(productId: string): Promise<(PalletItem & { pallet: Pallet })[]> {
+    const items = read<PalletItem>(KEYS.palletItems).filter((i) => i.product_id === productId && i.quantity > 0)
+    const pallets = read<Pallet>(KEYS.pallets)
+    return items
+      .map((i) => ({ ...i, pallet: pallets.find((p) => p.id === i.pallet_id) }))
+      .filter((i): i is PalletItem & { pallet: Pallet } => !!i.pallet)
   }
 }

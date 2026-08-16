@@ -50,3 +50,23 @@ export interface ParsedProduct {
   isValid: boolean
   error?: string
 }
+
+export interface Pallet {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PalletItem {
+  id: string
+  pallet_id: string
+  product_id: string
+  quantity: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PalletWithItems extends Pallet {
+  items?: (PalletItem & { product?: Product })[]
+}
