@@ -30,21 +30,26 @@ export function BarcodeScanner({ onScan, onClose, secondaryAction }: BarcodeScan
         streamRef.current.getTracks().forEach(track => track.stop())
       }
 
+      if (window.isSecureContext === false) {
+        setError('Bu sayfa guvenli (HTTPS) baglanti uzerinden acilmadigi icin kamera kullanilamiyor. Uygulamaya https:// ile erisin.')
+        return
+      }
+
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError('Kamera erişimi desteklenmiyor.')
+        setError('Bu tarayici kamera erisimini desteklemiyor.')
         return
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
+        video: {
           facingMode,
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
       })
-      
+
       streamRef.current = stream
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
@@ -52,7 +57,18 @@ export function BarcodeScanner({ onScan, onClose, secondaryAction }: BarcodeScan
       setError(null)
     } catch (err) {
       console.error('Camera error:', err)
-      setError('Kamera erişimi sağlanamadı. Lütfen kamera izinlerini kontrol edin.')
+      const name = err instanceof DOMException ? err.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
+        setError('Kamera izni reddedildi. Tarayicinizin adres cubugundaki kilit/site bilgisi simgesinden bu sitenin kamera iznini "Izin Ver" olarak degistirip sayfayi yenileyin.')
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setError('Cihazda kullanilabilir bir kamera bulunamadi.')
+      } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+        setError('Kameraya erisilemedi. Kamerayi baska bir uygulama kullaniyor olabilir, o uygulamayi kapatip tekrar deneyin.')
+      } else if (name === 'OverconstrainedError') {
+        setError('Cihazinizin kamerasi istenen ayarlari desteklemiyor.')
+      } else {
+        setError(`Kamera erisimi saglanamadi${name ? ` (${name})` : ''}. Lutfen kamera izinlerini kontrol edin.`)
+      }
     }
   }, [facingMode])
 
