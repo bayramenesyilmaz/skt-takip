@@ -8,17 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { Camera, Package, Hash, Barcode, Calendar, X, Tag } from 'lucide-react'
-import type { Product, Location, Brand } from '@/lib/types'
+import type { Product, Brand } from '@/lib/types'
 
 interface ProductFormProps {
   onSubmit: (product: Partial<Product> & { expiryDate?: string }) => void
   onCancel: () => void
   initialData?: Product
-  locations?: Location[]
   brands?: Brand[]
 }
 
-export function ProductForm({ onSubmit, onCancel, initialData, locations = [], brands = [] }: ProductFormProps) {
+export function ProductForm({ onSubmit, onCancel, initialData, brands = [] }: ProductFormProps) {
   const [showScanner, setShowScanner] = useState(false)
   const [formData, setFormData] = useState({
     name: initialData?.name || '',

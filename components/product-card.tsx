@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Edit, Clock, MapPin } from 'lucide-react'
+import { Trash2, Edit, Clock } from 'lucide-react'
 import { getExpiryInfo, statusConfig, formatDate } from '@/lib/expiry'
 import type { ProductWithStock } from '@/lib/types'
 
@@ -11,13 +11,14 @@ interface ProductCardProps {
   product: ProductWithStock
   onEdit: (product: ProductWithStock) => void
   onDelete: (id: string) => void
-  locationName?: string
   compact?: boolean
   canDelete?: boolean
 }
 
-export function ProductCard({ product, onEdit, onDelete, locationName, compact, canDelete = true }: ProductCardProps) {
-  const earliestStock = product.stock_items?.[0]
+export function ProductCard({ product, onEdit, onDelete, compact, canDelete = true }: ProductCardProps) {
+  const earliestStock = product.stock_items && product.stock_items.length > 0
+    ? [...product.stock_items].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
+    : undefined
   const expiryInfo = earliestStock ? getExpiryInfo(earliestStock.expiry_date) : null
   const config = expiryInfo ? statusConfig[expiryInfo.status] : statusConfig.safe
   const totalQty = product.stock_items?.reduce((sum, s) => sum + s.quantity, 0) || 0
@@ -36,12 +37,11 @@ export function ProductCard({ product, onEdit, onDelete, locationName, compact, 
               {distinctExpiryCount > 1 && <Badge variant="outline" className="text-xs px-1.5 py-0">{distinctExpiryCount} SKT</Badge>}
             </div>
             {product.brand && <span className="text-xs text-muted-foreground mt-1 inline-block">Marka: {product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}</span>}
-            {locationName && <div className="flex items-center gap-1 mt-1.5"><MapPin className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{locationName}</span></div>}
             {expiryInfo && expiryInfo.status !== 'safe' && !compact && <p className={`text-xs font-medium mt-2 ${config.text}`}>{expiryInfo.actionRequired}</p>}
           </div>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => onEdit(product)}><Edit className="w-4 h-4" /></Button>
-            {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onDelete(product.id)}><Trash2 className="w-4 h-4" /></Button>}
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(product) }}><Edit className="w-4 h-4" /></Button>
+            {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(product.id) }}><Trash2 className="w-4 h-4" /></Button>}
           </div>
         </div>
       </CardContent>

@@ -1,8 +1,6 @@
 'use client'
 
 import { useAppData } from '@/hooks/use-app-data'
-import { useAuth } from '@/lib/auth/auth-context'
-import { getStorageMode } from '@/lib/repositories/repository.factory'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,24 +12,15 @@ import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
 
 export default function BrandsPage() {
-  const { profile } = useAuth()
   const { brands, products, addBrand, updateBrand, deleteBrand } = useAppData()
-
   const [mounted, setMounted] = useState(false)
-  const [storageMode, setStorageModeState] = useState<'supabase' | 'local'>('supabase')
-  useEffect(() => { setStorageModeState(getStorageMode()); setMounted(true) }, [])
-
-  const canDelete =
-    profile?.role === 'super_admin' ||
-    profile?.role === 'owner' ||
-    profile?.role === 'branch_manager' ||
-    storageMode === 'local'
+  useEffect(() => { setMounted(true) }, [])
 
   const [newBrandName, setNewBrandName] = useState('')
 
   const productCount = useMemo(() => {
     const m: Record<string, number> = {}
-    products.forEach((p: any) => {
+    products.forEach((p) => {
       if (p.brand_id) m[p.brand_id] = (m[p.brand_id] || 0) + 1
     })
     return m
@@ -39,7 +28,7 @@ export default function BrandsPage() {
 
   const handleAdd = async () => {
     if (!newBrandName.trim()) return
-    await addBrand({ name: newBrandName, returnAccepts: false })
+    await addBrand({ name: newBrandName.trim(), return_accepts: true })
     setNewBrandName('')
   }
 
@@ -75,7 +64,7 @@ export default function BrandsPage() {
           </div>
         </Card>
 
-        {brands.map((brand: any) => (
+        {brands.map((brand) => (
           <Card key={brand.id} className="p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Tag className="w-4 h-4" />
@@ -88,16 +77,14 @@ export default function BrandsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => updateBrand(brand.id, { returnAccepts: !brand.returnAccepts })}
+                onClick={() => updateBrand(brand.id, { return_accepts: !brand.return_accepts })}
               >
                 <RotateCcw className="w-3 h-3 mr-1" />
-                {brand.returnAccepts ? 'Iade Alir' : 'Iade Almaz'}
+                {brand.return_accepts ? 'Iade Alir' : 'Iade Almaz'}
               </Button>
-              {canDelete && (
-                <Button variant="ghost" size="sm" onClick={() => deleteBrand(brand.id)}>
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </Button>
-              )}
+              <Button variant="ghost" size="sm" onClick={() => deleteBrand(brand.id)}>
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </Button>
             </div>
           </Card>
         ))}

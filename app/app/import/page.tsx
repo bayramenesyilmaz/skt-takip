@@ -1,8 +1,6 @@
 'use client'
 
 import { useAppData } from '@/hooks/use-app-data'
-import { useAuth } from '@/lib/auth/auth-context'
-import { getRepository } from '@/lib/repositories/repository.factory'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,9 +24,7 @@ const fieldOptions = [
 ]
 
 export default function ImportPage() {
-  const { profile } = useAuth()
-  const { addProduct, addBrand, brands, addStockItem } = useAppData()
-  const repo = getRepository()
+  const { addProduct, addBrand, brands } = useAppData()
 
   const [step, setStep] = useState<Step>('upload')
   const [rawText, setRawText] = useState('')
@@ -99,15 +95,15 @@ export default function ImportPage() {
       try {
         let brandId = p.brand ? brandMap[p.brand.toLowerCase()] : undefined
         if (p.brand && !brandId) {
-          const newBrand = await addBrand({ name: p.brand, returnAccepts: false })
+          const newBrand = await addBrand({ name: p.brand, return_accepts: true })
           if (newBrand?.id) { brandMap[p.brand.toLowerCase()] = newBrand.id; brandId = newBrand.id }
         }
         await addProduct({
           name: p.name,
-          expiryDate: p.expiryDate || null,
-          stockCode: p.stockCode || null,
-          barcode: p.barcode || null,
-          brandId,
+          expiryDate: p.expiryDate || undefined,
+          stock_code: p.stockCode || undefined,
+          barcode: p.barcode || undefined,
+          brand_id: brandId,
         })
         ok++
       } catch {

@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export default function AddProductPage() {
-  const { locations, brands, addProduct, bulkAddProducts } = useAppData()
+  const { brands, addProduct, bulkAddProducts } = useAppData()
   const [tab, setTab] = useState<'single' | 'bulk'>('single')
 
   return (
@@ -44,7 +44,6 @@ export default function AddProductPage() {
           <ProductForm
             onSubmit={async (data) => { await addProduct(data) }}
             onCancel={() => {}}
-            locations={locations}
             brands={brands}
           />
         ) : (

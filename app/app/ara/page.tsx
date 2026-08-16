@@ -10,11 +10,10 @@ import { BottomNav } from '@/components/bottom-nav'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { useAppData } from '@/hooks/use-app-data'
 import { getExpiryInfo, statusConfig, formatDate } from '@/lib/expiry'
-import { Search, MapPin, Clock, Camera, Package, Layers } from 'lucide-react'
-import type { ProductWithStock, Location } from '@/lib/types'
+import { Search, Clock, Camera, Package } from 'lucide-react'
 
 export default function AraPage() {
-  const { products, locations, isLoading } = useAppData()
+  const { products, isLoading } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showScanner, setShowScanner] = useState(false)
@@ -31,21 +30,17 @@ export default function AraPage() {
         (p.barcode && p.barcode.includes(q))
       )
       .map(product => {
-        const stockWithLocs = (product.stock_items || []).map(s => ({
-          stock: s,
-          location: s.location_id ? locations.find(l => l.id === s.location_id) : undefined,
-          parentLoc: s.location_id ? locations.find(l => l.id === locations.find(x => x.id === s.location_id)?.parent_id) : undefined,
-        }))
-        const earliest = stockWithLocs
-          .sort((a, b) => new Date(a.stock.expiry_date).getTime() - new Date(b.stock.expiry_date).getTime())[0]
-        return { product, stockWithLocs, earliest }
+        const sortedStock = [...(product.stock_items || [])].sort(
+          (a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime()
+        )
+        return { product, sortedStock, earliest: sortedStock[0] }
       })
       .sort((a, b) => {
-        const aDate = a.earliest?.stock.expiry_date || '9999'
-        const bDate = b.earliest?.stock.expiry_date || '9999'
+        const aDate = a.earliest?.expiry_date || '9999'
+        const bDate = b.earliest?.expiry_date || '9999'
         return new Date(aDate).getTime() - new Date(bDate).getTime()
       })
-  }, [searchQuery, products, locations])
+  }, [searchQuery, products])
 
   const handleScan = (barcode: string) => {
     setSearchQuery(barcode)
@@ -67,12 +62,6 @@ export default function AraPage() {
     return <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />
   }
 
-  const formatLoc = (loc: Location | undefined, parent: Location | undefined) => {
-    if (!loc) return 'Lokasyon yok'
-    const name = parent ? `${parent.name} / ${loc.name}` : loc.name
-    return loc.type === 'palet' ? `${name} (Kat ${loc.level})` : name
-  }
-
   return (
     <main className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
@@ -83,7 +72,7 @@ export default function AraPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">Urun Ara</h1>
-              <p className="text-xs text-muted-foreground">Nerede oldugunu bul</p>
+              <p className="text-xs text-muted-foreground">Isim, stok kodu veya barkodla bul</p>
             </div>
           </div>
 
@@ -113,9 +102,6 @@ export default function AraPage() {
             <p className="text-sm text-muted-foreground">
               Stok kodu, barkod veya urun adiyla arayabilirsiniz
             </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Barkod okuttugunuzda urunun tum lokasyonlari gosterilir
-            </p>
           </div>
         ) : results.length === 0 ? (
           <div className="text-center py-12">
@@ -126,10 +112,9 @@ export default function AraPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">{results.length} sonuc bulundu</p>
-            {results.map(({ product, stockWithLocs, earliest }) => {
-              const info = earliest ? getExpiryInfo(earliest.stock.expiry_date) : null
+            {results.map(({ product, sortedStock, earliest }) => {
+              const info = earliest ? getExpiryInfo(earliest.expiry_date) : null
               const config = info ? statusConfig[info.status] : statusConfig.safe
-              const distinctLocs = new Set(stockWithLocs.map(s => s.stock.location_id).filter(Boolean))
 
               return (
                 <Link key={product.id} href={`/app/urun?id=${product.id}`}>
@@ -153,36 +138,33 @@ export default function AraPage() {
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                          {earliest?.stock && <span>SKT: {formatDate(earliest.stock.expiry_date)}</span>}
+                          {earliest && <span>SKT: {formatDate(earliest.expiry_date)}</span>}
                           {product.stock_code && <span>Stok: {product.stock_code}</span>}
-                          {product.barcode && <span>Barkod: {product.barcode}</span>}
-                          <Badge variant="outline" className="text-xs">{distinctLocs.size} lokasyon</Badge>
+                          {product.barcode ? <span>Barkod: {product.barcode}</span> : <Badge variant="outline" className="text-xs">Barkod yok</Badge>}
                         </div>
 
-                        {/* Show all locations */}
-                        <div className="space-y-1.5">
-                          {stockWithLocs.slice(0, 5).map(({ stock, location, parentLoc }, idx) => {
-                            const sInfo = getExpiryInfo(stock.expiry_date)
-                            const sConfig = statusConfig[sInfo.status]
-                            return (
-                              <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-background/80">
-                                <MapPin className={`w-3.5 h-3.5 shrink-0 ${location ? 'text-primary' : 'text-muted-foreground'}`} />
-                                <span className="text-xs text-foreground flex-1 min-w-0 truncate">
-                                  {formatLoc(location, parentLoc)}
-                                </span>
-                                <span className="text-xs text-muted-foreground">Adet: {stock.quantity}</span>
-                                <Badge className={`${sConfig.badge} text-xs px-1.5 py-0`}>
-                                  {sInfo.label}
-                                </Badge>
-                              </div>
-                            )
-                          })}
-                          {stockWithLocs.length > 5 && (
-                            <p className="text-xs text-muted-foreground text-center pt-1">
-                              +{stockWithLocs.length - 5} lokasyon daha (detay sayfasinda)
-                            </p>
-                          )}
-                        </div>
+                        {sortedStock.length > 0 && (
+                          <div className="space-y-1.5">
+                            {sortedStock.slice(0, 5).map((stock) => {
+                              const sInfo = getExpiryInfo(stock.expiry_date)
+                              const sConfig = statusConfig[sInfo.status]
+                              return (
+                                <div key={stock.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/80">
+                                  <span className="text-xs text-foreground flex-1 min-w-0">SKT: {formatDate(stock.expiry_date)}</span>
+                                  <span className="text-xs text-muted-foreground">Adet: {stock.quantity}</span>
+                                  <Badge className={`${sConfig.badge} text-xs px-1.5 py-0`}>
+                                    {sInfo.label}
+                                  </Badge>
+                                </div>
+                              )
+                            })}
+                            {sortedStock.length > 5 && (
+                              <p className="text-xs text-muted-foreground text-center pt-1">
+                                +{sortedStock.length - 5} kayit daha (detay sayfasinda)
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                         {info && info.status !== 'safe' && (
                           <p className={`text-xs font-medium ${config.text}`}>{info.actionRequired}</p>

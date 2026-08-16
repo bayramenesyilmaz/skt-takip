@@ -3,37 +3,29 @@
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useAppData } from '@/hooks/use-app-data'
-import { useAuth } from '@/lib/auth/auth-context'
-import { getStorageMode } from '@/lib/repositories/repository.factory'
-import { getExpiryInfo, statusConfig } from '@/lib/expiry'
+import { getExpiryInfo } from '@/lib/expiry'
 import { ProductCard } from '@/components/product-card'
 import { ProductForm } from '@/components/product-form'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, ListOrdered, Filter, Package, Tag, ChevronRight } from 'lucide-react'
+import { Search, ListOrdered, Package, Tag } from 'lucide-react'
 import type { ProductWithStock, ExpiryStatus } from '@/lib/types'
 
 type StatusFilter = 'all' | ExpiryStatus
 
 export default function ListePage() {
-  const { profile } = useAuth()
-  const { products, locations, brands, addProduct, updateProduct, deleteProduct } = useAppData()
+  const { products, brands, addProduct, updateProduct, deleteProduct } = useAppData()
   const [mounted, setMounted] = useState(false)
-  const storageMode = getStorageMode()
 
   useEffect(() => { setMounted(true) }, [])
-
-  const canDelete = profile?.role === 'super_admin' || profile?.role === 'owner' || profile?.role === 'branch_manager' || storageMode === 'local'
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [brandFilter, setBrandFilter] = useState<string>('all')
-  const [locationFilter, setLocationFilter] = useState<string>('all')
   const [formOpen, setFormOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductWithStock | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
@@ -61,12 +53,6 @@ export default function ListePage() {
       result = result.filter(p => p.brand_id === brandFilter)
     }
 
-    if (locationFilter !== 'all') {
-      result = result.filter(p =>
-        p.stock_items?.some(s => s.location_id === locationFilter)
-      )
-    }
-
     if (statusFilter !== 'all') {
       result = result.filter(p => {
         const earliest = getEarliestExpiry(p)
@@ -80,7 +66,7 @@ export default function ListePage() {
       const bDate = getEarliestExpiry(b) || '9999'
       return new Date(aDate).getTime() - new Date(bDate).getTime()
     })
-  }, [products, search, statusFilter, brandFilter, locationFilter])
+  }, [products, search, statusFilter, brandFilter])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: products.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
@@ -120,14 +106,6 @@ export default function ListePage() {
     { key: 'safe', label: 'Guvenli' },
   ]
 
-  const getLocationName = (locId?: string) => {
-    if (!locId) return undefined
-    const loc = locations.find(l => l.id === locId)
-    if (!loc) return undefined
-    const parent = loc.parent_id ? locations.find(l => l.id === loc.parent_id) : undefined
-    return parent ? `${parent.name} / ${loc.name}` : loc.name
-  }
-
   if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -144,7 +122,6 @@ export default function ListePage() {
             onSubmit={handleFormSubmit}
             onCancel={() => { setFormOpen(false); setEditingProduct(null) }}
             initialData={editingProduct || undefined}
-            locations={locations}
             brands={brands}
           />
         </div>
@@ -179,38 +156,18 @@ export default function ListePage() {
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <Select value={brandFilter} onValueChange={setBrandFilter}>
-              <SelectTrigger className="h-9 bg-muted/50 flex-1">
-                <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tum Markalar</SelectItem>
-                {brands.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="h-9 bg-muted/50 flex-1">
-                <Filter className="w-3.5 h-3.5 mr-1 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tum Lokasyonlar</SelectItem>
-                {locations.map((l) => {
-                  const parent = l.parent_id ? locations.find(p => p.id === l.parent_id) : undefined
-                  return (
-                    <SelectItem key={l.id} value={l.id}>
-                      {parent ? `${parent.name} / ${l.name}` : l.name}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={brandFilter} onValueChange={setBrandFilter}>
+            <SelectTrigger className="h-9 bg-muted/50 w-full">
+              <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tum Markalar</SelectItem>
+              {brands.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </header>
 
@@ -233,7 +190,7 @@ export default function ListePage() {
             <Package className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <h3 className="font-semibold text-foreground mb-1">Urun Bulunamadi</h3>
             <p className="text-sm text-muted-foreground">
-              {search || statusFilter !== 'all' || brandFilter !== 'all' || locationFilter !== 'all'
+              {search || statusFilter !== 'all' || brandFilter !== 'all'
                 ? 'Filtrelere uyan urun yok.'
                 : 'Henuz urun eklenmemis.'}
             </p>
@@ -245,9 +202,7 @@ export default function ListePage() {
                 <ProductCard
                   product={product}
                   onEdit={(p) => { setEditingProduct(p); setFormOpen(true) }}
-                  onDelete={(p) => setDeleteTarget(p)}
-                  canDelete={canDelete}
-                  locationName={getLocationName(product.stock_items?.[0]?.location_id)}
+                  onDelete={() => setDeleteTarget(product)}
                   compact
                 />
               </Link>
