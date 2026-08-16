@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ListOrdered, Plus, Search, ScanBarcode, Settings } from 'lucide-react'
+import { Home, ListOrdered, Barcode, Search, ScanBarcode, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -36,7 +36,7 @@ export function BottomNav() {
           {renderItems(navItems.slice(0, 2))}
           <Link href="/app/ekle" className="flex flex-col items-center gap-0.5 -mt-5">
             <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
-              <Plus className="w-6 h-6 text-primary-foreground" />
+              <Barcode className="w-6 h-6 text-primary-foreground" />
             </div>
             <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
           </Link>
