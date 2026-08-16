@@ -7,9 +7,10 @@ import { X, Camera, SwitchCamera } from 'lucide-react'
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void
   onClose: () => void
+  secondaryAction?: { label: string; onClick: () => void }
 }
 
-export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
+export function BarcodeScanner({ onScan, onClose, secondaryAction }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [error, setError] = useState<string | null>(null)
@@ -189,12 +190,17 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
           )}
         </div>
 
-        <div className="p-4 bg-card border-t border-border">
+        <div className="p-4 bg-card border-t border-border space-y-2">
           <p className="text-xs text-muted-foreground text-center">
-            {isMounted && typeof window !== 'undefined' && 'BarcodeDetector' in window 
+            {isMounted && typeof window !== 'undefined' && 'BarcodeDetector' in window
               ? 'Otomatik barkod algılama aktif'
               : 'Tarayıcınız barkod algılamayı desteklemiyor. Manuel giriş yapabilirsiniz.'}
           </p>
+          {secondaryAction && (
+            <Button variant="outline" className="w-full" onClick={secondaryAction.onClick}>
+              {secondaryAction.label}
+            </Button>
+          )}
         </div>
       </div>
     </div>

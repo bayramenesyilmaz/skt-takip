@@ -1,4 +1,4 @@
-import type { Brand, Product, StockItem, ProductWithStock } from '@/lib/types'
+import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems } from '@/lib/types'
 
 export interface IRepository {
   getBrands(): Promise<Brand[]>
@@ -18,4 +18,14 @@ export interface IRepository {
   updateStockItem(stockId: string, data: Partial<StockItem>): Promise<void>
   deleteStockItem(stockId: string): Promise<void>
   bulkCreateStockItems(items: Partial<StockItem>[]): Promise<StockItem[]>
+
+  getPallets(): Promise<PalletWithItems[]>
+  getPallet(palletId: string): Promise<PalletWithItems | null>
+  createPallet(data: Partial<Pallet>): Promise<Pallet>
+  updatePallet(palletId: string, data: Partial<Pallet>): Promise<void>
+  deletePallet(palletId: string): Promise<void>
+  addPalletItem(data: { pallet_id: string; product_id: string; quantity?: number }): Promise<PalletItem>
+  updatePalletItem(itemId: string, data: Partial<PalletItem>): Promise<void>
+  removePalletItem(itemId: string): Promise<void>
+  getPalletItemsForProduct(productId: string): Promise<(PalletItem & { pallet: Pallet })[]>
 }

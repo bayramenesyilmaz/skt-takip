@@ -96,7 +96,7 @@ export default function BrandsPage() {
         )}
       </main>
 
-      <BottomNav onAddClick={() => {}} />
+      <BottomNav />
     </div>
   )
 }

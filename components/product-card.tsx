@@ -16,12 +16,13 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onEdit, onDelete, compact, canDelete = true }: ProductCardProps) {
-  const earliestStock = product.stock_items && product.stock_items.length > 0
-    ? [...product.stock_items].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
+  const activeStock = (product.stock_items || []).filter((s) => s.quantity > 0)
+  const earliestStock = activeStock.length > 0
+    ? [...activeStock].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
     : undefined
   const expiryInfo = earliestStock ? getExpiryInfo(earliestStock.expiry_date) : null
   const config = expiryInfo ? statusConfig[expiryInfo.status] : statusConfig.safe
-  const totalQty = product.stock_items?.reduce((sum, s) => sum + s.quantity, 0) || 0
+  const totalQty = product.total_quantity ?? product.stock_items?.reduce((sum, s) => sum + s.quantity, 0) ?? 0
   const distinctExpiryCount = new Set(product.stock_items?.map((s) => s.expiry_date)).size
 
   return (
@@ -33,7 +34,11 @@ export function ProductCard({ product, onEdit, onDelete, compact, canDelete = tr
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {expiryInfo && <Badge className={`${config.badge} text-xs px-2 py-0`}><Clock className="w-3 h-3 mr-1" />{expiryInfo.label}</Badge>}
               {earliestStock && <span className="text-xs text-muted-foreground">SKT: {formatDate(earliestStock.expiry_date)}</span>}
-              {totalQty > 0 && <span className="text-xs text-muted-foreground">Stok: {totalQty}</span>}
+              {totalQty > 0 ? (
+                <span className="text-xs text-muted-foreground">Stok: {totalQty}</span>
+              ) : (
+                <Badge variant="destructive" className="text-xs px-1.5 py-0">Stok: 0</Badge>
+              )}
               {distinctExpiryCount > 1 && <Badge variant="outline" className="text-xs px-1.5 py-0">{distinctExpiryCount} SKT</Badge>}
             </div>
             {product.brand && <span className="text-xs text-muted-foreground mt-1 inline-block">Marka: {product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}</span>}

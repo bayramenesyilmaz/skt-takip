@@ -4,7 +4,7 @@ import { useAppData } from '@/hooks/use-app-data'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Tag, ScanBarcode, Info, Trash2, WifiOff } from 'lucide-react'
+import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Info, Trash2, WifiOff } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
@@ -18,6 +18,11 @@ export default function SettingsPage() {
 
   const missingBarcodeCount = useMemo(
     () => products.filter((p) => !p.barcode || !p.barcode.trim()).length,
+    [products]
+  )
+
+  const zeroStockCount = useMemo(
+    () => products.filter((p) => (p.total_quantity ?? 0) === 0).length,
     [products]
   )
 
@@ -75,6 +80,13 @@ export default function SettingsPage() {
               <span className="flex items-center gap-2"><ScanBarcode className="w-4 h-4" /> Barkodsuz Urunler</span>
               {missingBarcodeCount > 0 && <span className="text-xs font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">{missingBarcodeCount}</span>}
             </Link>
+            <Link href="/app/stok-sifir" className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
+              <span className="flex items-center gap-2"><PackageX className="w-4 h-4" /> Stok Sifir Urunler</span>
+              {zeroStockCount > 0 && <span className="text-xs font-medium text-red-600 bg-red-500/10 px-2 py-0.5 rounded-full">{zeroStockCount}</span>}
+            </Link>
+            <Link href="/app/paletler" className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50">
+              <Layers className="w-4 h-4" /> Paletler
+            </Link>
           </div>
         </Card>
 
@@ -95,7 +107,7 @@ export default function SettingsPage() {
         </Card>
       </main>
 
-      <BottomNav onAddClick={() => {}} />
+      <BottomNav />
     </div>
   )
 }

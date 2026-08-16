@@ -9,7 +9,7 @@ import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Upload, RefreshCw, ScanBarcode, ArrowRight } from 'lucide-react'
+import { Upload, RefreshCw, ScanBarcode, PackageX, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo } from 'react'
 import type { ProductWithStock } from '@/lib/types'
@@ -22,8 +22,9 @@ export default function AppHomePage() {
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
 
   const getEarliestStock = (p: ProductWithStock) => {
-    if (!p.stock_items || p.stock_items.length === 0) return null
-    return [...p.stock_items].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
+    const active = (p.stock_items || []).filter((s) => s.quantity > 0)
+    if (active.length === 0) return null
+    return [...active].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
   }
 
   const urgentProducts = useMemo(() => {
@@ -37,6 +38,11 @@ export default function AppHomePage() {
 
   const missingBarcodeCount = useMemo(
     () => products.filter((p) => !p.barcode || !p.barcode.trim()).length,
+    [products]
+  )
+
+  const zeroStockCount = useMemo(
+    () => products.filter((p) => (p.total_quantity ?? 0) === 0).length,
     [products]
   )
 
@@ -103,6 +109,25 @@ export default function AppHomePage() {
           </Link>
         )}
 
+        {zeroStockCount > 0 && (
+          <Link href="/app/stok-sifir">
+            <Card className="p-4 border-red-500/30 bg-red-500/5 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+                    <PackageX className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{zeroStockCount} urun stok sifir</p>
+                    <p className="text-xs text-muted-foreground">SKT girerek geri getirin ya da kalici silin</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+            </Card>
+          </Link>
+        )}
+
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">Acil Urunler</h2>
@@ -158,7 +183,7 @@ export default function AppHomePage() {
         productName={deleteTarget?.name || ''}
       />
 
-      <BottomNav onAddClick={() => { setEditingProduct(null); setFormOpen(true) }} />
+      <BottomNav />
     </div>
   )
 }

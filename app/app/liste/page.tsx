@@ -10,15 +10,16 @@ import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, ListOrdered, Package, Tag } from 'lucide-react'
+import { Search, ListOrdered, Package, Tag, PackageX, ArrowRight } from 'lucide-react'
 import type { ProductWithStock, ExpiryStatus } from '@/lib/types'
 
 type StatusFilter = 'all' | ExpiryStatus
 
 export default function ListePage() {
-  const { products, brands, addProduct, updateProduct, deleteProduct } = useAppData()
+  const { products, brands, addProduct, updateProduct, zeroProductStock } = useAppData()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -31,14 +32,18 @@ export default function ListePage() {
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
 
   const getEarliestExpiry = (p: ProductWithStock) => {
-    if (!p.stock_items || p.stock_items.length === 0) return null
-    return p.stock_items
+    const active = (p.stock_items || []).filter((s) => s.quantity > 0)
+    if (active.length === 0) return null
+    return active
       .map((s) => s.expiry_date)
       .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
   }
 
+  const activeProducts = useMemo(() => products.filter((p) => (p.total_quantity ?? 0) > 0), [products])
+  const zeroStockCount = products.length - activeProducts.length
+
   const filtered = useMemo(() => {
-    let result = [...products]
+    let result = [...activeProducts]
 
     if (search) {
       const q = search.toLowerCase()
@@ -66,11 +71,11 @@ export default function ListePage() {
       const bDate = getEarliestExpiry(b) || '9999'
       return new Date(aDate).getTime() - new Date(bDate).getTime()
     })
-  }, [products, search, statusFilter, brandFilter])
+  }, [activeProducts, search, statusFilter, brandFilter])
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: products.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
-    for (const p of products) {
+    const c: Record<string, number> = { all: activeProducts.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
+    for (const p of activeProducts) {
       const earliest = getEarliestExpiry(p)
       if (earliest) {
         const info = getExpiryInfo(earliest)
@@ -78,7 +83,7 @@ export default function ListePage() {
       }
     }
     return c
-  }, [products])
+  }, [activeProducts])
 
   const handleFormSubmit = async (data: any) => {
     if (editingProduct) {
@@ -90,9 +95,9 @@ export default function ListePage() {
     setEditingProduct(null)
   }
 
-  const handleDelete = async () => {
+  const handleZeroStock = async () => {
     if (deleteTarget) {
-      await deleteProduct(deleteTarget.id)
+      await zeroProductStock(deleteTarget.id)
       setDeleteTarget(null)
     }
   }
@@ -172,6 +177,20 @@ export default function ListePage() {
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-3">
+        {zeroStockCount > 0 && (
+          <Link href="/app/stok-sifir">
+            <Card className="p-3 mb-3 border-red-500/30 bg-red-500/5 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <PackageX className="w-4 h-4 text-red-600" />
+                  <p className="text-sm font-medium">{zeroStockCount} urun stok sifir</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+            </Card>
+          </Link>
+        )}
+
         <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 scrollbar-hide">
           {filters.map((f) => (
             <button key={f.key} onClick={() => setStatusFilter(f.key)}>
@@ -211,13 +230,20 @@ export default function ListePage() {
         )}
       </div>
 
-      <BottomNav onAddClick={() => { setEditingProduct(null); setFormOpen(true) }} />
+      <BottomNav />
 
       <DeleteDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        onConfirm={handleDelete}
+        onConfirm={handleZeroStock}
         productName={deleteTarget?.name || ''}
+        title="Stogu Sifirla"
+        description={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> urununun stogu sifirlanacak ve &quot;Stok Sifir&quot; listesine tasinacak. Oradan kalici olarak silebilir ya da yeni SKT girerek geri getirebilirsiniz.
+          </>
+        }
+        confirmLabel="Stogu Sifirla"
       />
     </main>
   )

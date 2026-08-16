@@ -266,7 +266,7 @@ export default function ImportPage() {
         )}
       </main>
 
-      <BottomNav onAddClick={() => {}} />
+      <BottomNav />
     </div>
   )
 }
