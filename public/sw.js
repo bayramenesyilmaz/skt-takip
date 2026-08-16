@@ -1,31 +1,23 @@
-const CACHE_NAME = 'skt-takip-v2';
-const urlsToCache = [
-  '/',
-  '/liste',
-  '/ara',
-  '/lokasyonlar',
-  '/ayarlar',
+const CACHE_NAME = 'skt-takip-v3';
+const STATIC_ASSETS = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png'
 ];
 
-// Install event - cache resources
+// Install event - pre-cache static assets, activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Opened cache');
-        return cache.addAll(urlsToCache);
-      })
+      .then((cache) => cache.addAll(STATIC_ASSETS))
       .catch((err) => {
-        console.log('[SW] Cache failed:', err);
+        console.log('[SW] Precache failed:', err);
       })
   );
   self.skipWaiting();
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches, take control immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -42,50 +34,42 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event:
+// - Page navigations (HTML): network-first so users always get the latest build,
+//   falling back to cache only when offline.
+// - Everything else (JS/CSS/images, which Next.js content-hashes per build):
+//   cache-first for speed, since a given hashed filename never changes content.
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
-  
-  // Skip chrome-extension and other non-http requests
   if (!event.request.url.startsWith('http')) return;
-  
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached response if found
-        if (response) {
-          // Fetch in background to update cache
-          fetch(event.request)
-            .then((networkResponse) => {
-              if (networkResponse && networkResponse.status === 200) {
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, networkResponse);
-                });
-              }
-            })
-            .catch(() => {});
-          return response;
-        }
-        
-        // Fetch from network
-        return fetch(event.request)
-          .then((networkResponse) => {
-            // Cache successful responses
-            if (networkResponse && networkResponse.status === 200) {
-              const responseToCache = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Return offline page for navigation requests
-            if (event.request.mode === 'navigate') {
-              return caches.match('/');
-            }
-          });
-      })
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => undefined);
+    })
   );
 });
