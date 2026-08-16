@@ -26,7 +26,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="tr">
+    <html lang="tr" className="bg-background">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>

@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ListOrdered, Plus, Search, MapPin, Settings } from 'lucide-react'
+import { Home, ListOrdered, Plus, Search, MapPin, Settings, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/app', icon: Home, label: 'Ana Sayfa' },
   { href: '/app/liste', icon: ListOrdered, label: 'Liste' },
   { href: '/app/ara', icon: Search, label: 'Ara' },
+  { href: '/app/hizli', icon: Zap, label: 'Hizli' },
   { href: '/app/lokasyonlar', icon: MapPin, label: 'Lokasyon' },
   { href: '/app/ayarlar', icon: Settings, label: 'Ayarlar' },
 ]
@@ -37,7 +38,7 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-pb">
       <div className="max-w-lg mx-auto">
         <div className="flex items-center justify-around py-1">
-          {renderItems(navItems.slice(0, 2))}
+          {renderItems(navItems.slice(0, 3))}
           {onAddClick ? (
             <button onClick={onAddClick} className="flex flex-col items-center gap-0.5 -mt-5">
               <div className="w-12 h-12 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center transition-transform active:scale-95">
@@ -53,7 +54,7 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
               <span className="text-[10px] font-medium text-muted-foreground">Ekle</span>
             </Link>
           )}
-          {renderItems(navItems.slice(2))}
+          {renderItems(navItems.slice(3))}
         </div>
       </div>
     </nav>
