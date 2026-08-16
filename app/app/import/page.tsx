@@ -14,8 +14,10 @@ import { useState, useMemo } from 'react'
 
 type Step = 'upload' | 'map' | 'review' | 'import'
 
+const SKIP_VALUE = '__skip__'
+
 const fieldOptions = [
-  { value: '', label: 'Atla' },
+  { value: SKIP_VALUE, label: 'Atla' },
   { value: 'name', label: 'Urun Adi' },
   { value: 'expiryDate', label: 'Son Kullanma' },
   { value: 'stockCode', label: 'Stok Kodu' },
@@ -32,8 +34,56 @@ export default function ImportPage() {
   const [headers, setHeaders] = useState<string[]>([])
   const [rows, setRows] = useState<string[][]>([])
   const [mapping, setMapping] = useState<Record<string, string>>({})
+  const [jsonMode, setJsonMode] = useState(false)
+  const [jsonProducts, setJsonProducts] = useState<Record<string, string>[]>([])
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: number; fail: number } | null>(null)
+
+  const extractProductsArray = (data: any): any[] | null => {
+    if (Array.isArray(data)) return data
+    if (data && typeof data === 'object') {
+      if (Array.isArray(data.products)) return data.products
+      if (Array.isArray(data.urunler)) return data.urunler
+    }
+    return null
+  }
+
+  const normalizeJsonProduct = (raw: any): Record<string, string> => {
+    const brand = typeof raw.brand === 'string' ? raw.brand : raw.brand?.name || raw.marka || ''
+    return {
+      name: raw.name || raw.urunAdi || raw.ad || '',
+      expiryDate: raw.expiryDate || raw.expiry_date || raw.sktTarihi || '',
+      stockCode: raw.stockCode || raw.stock_code || raw.stokKodu || '',
+      barcode: raw.barcode || raw.barkod || '',
+      brand,
+    }
+  }
+
+  const tryParseJSON = (text: string): Record<string, string>[] | null => {
+    let data: any
+    try {
+      data = JSON.parse(text)
+    } catch {
+      return null
+    }
+    const arr = extractProductsArray(data)
+    if (!arr) return null
+    return arr.map(normalizeJsonProduct)
+  }
+
+  const processText = (text: string) => {
+    const parsedJson = tryParseJSON(text)
+    if (parsedJson) {
+      setJsonMode(true)
+      setHeaders([])
+      setRows([])
+      setJsonProducts(parsedJson)
+    } else {
+      setJsonMode(false)
+      setJsonProducts([])
+      parseText(text)
+    }
+  }
 
   const handleFile = (file: File) => {
     setFileName(file.name)
@@ -41,7 +91,7 @@ export default function ImportPage() {
     reader.onload = (e) => {
       const text = String(e.target?.result || '')
       setRawText(text)
-      parseText(text)
+      processText(text)
     }
     reader.readAsText(file)
   }
@@ -68,19 +118,20 @@ export default function ImportPage() {
 
   const handlePaste = (text: string) => {
     setRawText(text)
-    if (text.trim()) parseText(text)
+    if (text.trim()) processText(text)
   }
 
   const parsedProducts = useMemo(() => {
+    if (jsonMode) return jsonProducts
     return rows.map((row) => {
       const obj: Record<string, string> = {}
       headers.forEach((h, i) => {
         const field = mapping[h]
-        if (field) obj[field] = row[i] || ''
+        if (field && field !== SKIP_VALUE) obj[field] = row[i] || ''
       })
       return obj
     })
-  }, [rows, headers, mapping])
+  }, [jsonMode, jsonProducts, rows, headers, mapping])
 
   const validProducts = parsedProducts.filter((p) => p.name)
   const invalidProducts = parsedProducts.filter((p) => !p.name)
@@ -133,17 +184,22 @@ export default function ImportPage() {
             <Label>Dosya Yukle veya Yapistir</Label>
             <Input
               type="file"
-              accept=".csv,.txt"
+              accept=".csv,.txt,.json"
               onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             />
             {fileName && <p className="text-xs text-gray-500 flex items-center gap-1"><FileText className="w-3 h-3" />{fileName}</p>}
             <textarea
               className="w-full border rounded p-2 text-sm h-32 font-mono"
-              placeholder="Veya veriyi buraya yapistirin..."
+              placeholder="Veya veriyi buraya yapistirin (CSV veya JSON)..."
               value={rawText}
               onChange={(e) => handlePaste(e.target.value)}
             />
-            <Button disabled={!rawText.trim()} onClick={() => setStep('map')}>
+            {jsonMode && (
+              <p className="text-xs text-emerald-600 flex items-center gap-1">
+                <Check className="w-3 h-3" /> JSON dosyasi algilandi, {jsonProducts.length} kayit bulundu
+              </p>
+            )}
+            <Button disabled={!rawText.trim()} onClick={() => setStep(jsonMode ? 'review' : 'map')}>
               Devam <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Card>
@@ -155,7 +211,7 @@ export default function ImportPage() {
             {headers.map((h) => (
               <div key={h} className="flex items-center gap-2">
                 <span className="text-sm w-32 truncate">{h}</span>
-                <Select value={mapping[h] || ''} onValueChange={(v) => setMapping({ ...mapping, [h]: v })}>
+                <Select value={mapping[h] || SKIP_VALUE} onValueChange={(v) => setMapping({ ...mapping, [h]: v })}>
                   <SelectTrigger className="flex-1"><SelectValue placeholder="Atla" /></SelectTrigger>
                   <SelectContent>
                     {fieldOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
