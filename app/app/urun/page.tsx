@@ -12,7 +12,8 @@ import { getRepository } from '@/lib/repositories/repository.factory'
 import { useAuth } from '@/lib/auth/auth-context'
 import { getExpiryInfo, formatDate, statusConfig } from '@/lib/expiry'
 import { DeleteDialog } from '@/components/delete-dialog'
-import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, MapPin } from 'lucide-react'
+import { BarcodeScanner } from '@/components/barcode-scanner'
+import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, MapPin, Minus, Check, Pencil, ScanLine, RotateCcw, X } from 'lucide-react'
 import type { ProductWithStock, StockItem, Location } from '@/lib/types'
 
 function ProductDetailContent() {
@@ -26,6 +27,9 @@ function ProductDetailContent() {
   const [showAddStock, setShowAddStock] = useState(false)
   const [deleteStockTarget, setDeleteStockTarget] = useState<StockItem | null>(null)
   const [newStock, setNewStock] = useState({ expiry_date: '', location_id: '', quantity: '1' })
+  const [editStockId, setEditStockId] = useState<string | null>(null)
+  const [editQty, setEditQty] = useState(0)
+  const [showScanner, setShowScanner] = useState(false)
 
   const orgId = organization?.id || 'local'
   const branchId = profile?.branch_id
@@ -75,6 +79,27 @@ function ProductDetailContent() {
     loadData()
   }
 
+  const startEditQty = (stock: StockItem) => {
+    setEditStockId(stock.id)
+    setEditQty(stock.quantity)
+  }
+
+  const handleSaveQty = async () => {
+    if (!editStockId) return
+    const repo = getRepository()
+    await repo.updateStockItem(editStockId, { quantity: Math.max(0, editQty) })
+    setEditStockId(null)
+    loadData()
+  }
+
+  const handleAssignBarcode = async (barcode: string) => {
+    if (!product) return
+    const repo = getRepository()
+    await repo.updateProduct(product.id, { barcode })
+    setShowScanner(false)
+    loadData()
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -92,6 +117,10 @@ function ProductDetailContent() {
         <p className="text-muted-foreground">Urun bulunamadi</p>
       </div>
     )
+  }
+
+  if (showScanner) {
+    return <BarcodeScanner onScan={handleAssignBarcode} onClose={() => setShowScanner(false)} />
   }
 
   const stockItems = product.stock_items || []
@@ -121,7 +150,13 @@ function ProductDetailContent() {
                 <h2 className="font-semibold text-foreground">{product.name}</h2>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   {product.stock_code && <span className="text-xs text-muted-foreground">Stok: {product.stock_code}</span>}
-                  {product.barcode && <span className="text-xs text-muted-foreground">Barkod: {product.barcode}</span>}
+                  {product.barcode ? (
+                    <span className="text-xs text-muted-foreground">Barkod: {product.barcode}</span>
+                  ) : (
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowScanner(true)}>
+                      <ScanLine className="w-3.5 h-3.5 mr-1" />Barkod Ekle
+                    </Button>
+                  )}
                 </div>
                 {product.brand && (
                   <div className="flex items-center gap-1 mt-2"><Tag className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}</span></div>
@@ -192,10 +227,21 @@ function ProductDetailContent() {
                             )}
                             {info.status !== 'safe' && <p className={`text-xs font-medium mt-1.5 ${config.text}`}>{info.actionRequired}</p>}
                           </div>
-                          <div className="flex gap-1">
-                            {stock.quantity > 0 && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleZeroStock(stock)} title="Stogu sifirla">Sifirla</Button>}
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteStockTarget(stock)}><Trash2 className="w-4 h-4" /></Button>
-                          </div>
+                          {editStockId === stock.id ? (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setEditQty((q) => Math.max(0, q - 1))}><Minus className="w-4 h-4" /></Button>
+                              <Input type="number" value={editQty} onChange={(e) => setEditQty(parseInt(e.target.value) || 0)} className="h-8 w-14 text-center px-1" min="0" />
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setEditQty((q) => q + 1)}><Plus className="w-4 h-4" /></Button>
+                              <Button size="icon" className="h-8 w-8" onClick={handleSaveQty} title="Kaydet"><Check className="w-4 h-4" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditStockId(null)} title="Iptal"><X className="w-4 h-4" /></Button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEditQty(stock)} title="Adet guncelle"><Pencil className="w-4 h-4" /></Button>
+                              {stock.quantity > 0 && <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleZeroStock(stock)} title="Stogu sifirla"><RotateCcw className="w-3.5 h-3.5 mr-1" />Sifirla</Button>}
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteStockTarget(stock)}><Trash2 className="w-4 h-4" /></Button>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

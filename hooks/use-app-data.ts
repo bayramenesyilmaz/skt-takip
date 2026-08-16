@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth/auth-context'
 import { getRepository, getStorageMode } from '@/lib/repositories/repository.factory'
 import { supabase } from '@/lib/supabase/client'
-import type { Product, Location, Brand, StockItem, ProductWithStock, ProfileLocation } from '@/lib/types'
+import type { Product, Location, Brand, StockItem, ProductWithStock, ParsedProduct } from '@/lib/types'
 
 export function useAppData() {
   const { profile, organization } = useAuth()
@@ -30,7 +30,7 @@ export function useAppData() {
         .eq('profile_id', profile.id)
       if (error) throw error
       if (data) {
-        setAssignedLocationIds(new Set(data.map((pl: ProfileLocation) => pl.location_id)))
+        setAssignedLocationIds(new Set(data.map((pl: { location_id: string }) => pl.location_id)))
       }
     } catch (err) {
       console.error('Failed to load assigned locations:', err)
@@ -76,6 +76,30 @@ export function useAppData() {
     if (expiryDate) {
       await repo.createStockItem({ org_id: orgId, branch_id: branchId, product_id: created.id, expiry_date: expiryDate, quantity: 1 } as any)
     }
+    loadData()
+  }, [orgId, branchId, loadData])
+
+  const bulkAddProducts = useCallback(async (items: ParsedProduct[]) => {
+    if (items.length === 0) return
+    const repo = getRepository()
+    const created = await repo.bulkCreateProducts(
+      items.map((it) => ({
+        name: it.name,
+        stock_code: it.stockCode || undefined,
+        barcode: it.barcode || undefined,
+        org_id: orgId,
+        branch_id: branchId,
+        return_accepts: true,
+      })),
+    )
+    const stockItems = created
+      .map((p, i) =>
+        items[i]?.expiryDate
+          ? { org_id: orgId, branch_id: branchId, product_id: p.id, expiry_date: items[i].expiryDate, quantity: 1 }
+          : null,
+      )
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+    if (stockItems.length > 0) await repo.bulkCreateStockItems(stockItems as Partial<StockItem>[])
     loadData()
   }, [orgId, branchId, loadData])
 
@@ -166,7 +190,7 @@ export function useAppData() {
     brands,
     assignedLocationIds,
     isLoading,
-    addProduct, updateProduct, deleteProduct,
+    addProduct, updateProduct, deleteProduct, bulkAddProducts,
     addLocation, deleteLocation,
     addBrand, updateBrand, deleteBrand,
     addStockItem, updateStockItem, deleteStockItem,

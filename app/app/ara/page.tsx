@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,13 +14,18 @@ import { getExpiryInfo, statusConfig, formatDate } from '@/lib/expiry'
 import { Search, MapPin, Clock, Camera, Package, Layers } from 'lucide-react'
 import type { ProductWithStock, Location } from '@/lib/types'
 
-export default function AraPage() {
+function AraContent() {
   const { products, locations, isLoading } = useAppData()
+  const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showScanner, setShowScanner] = useState(false)
 
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    setMounted(true)
+    const q = searchParams.get('q')
+    if (q) setSearchQuery(q)
+  }, [searchParams])
 
   const results = useMemo(() => {
     if (!searchQuery.trim()) return []
@@ -199,5 +205,13 @@ export default function AraPage() {
 
       <BottomNav />
     </main>
+  )
+}
+
+export default function AraPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <AraContent />
+    </Suspense>
   )
 }
