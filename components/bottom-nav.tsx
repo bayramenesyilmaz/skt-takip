@@ -2,14 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ListOrdered, Barcode, Search, ScanBarcode, Settings } from 'lucide-react'
+import { Home, ListOrdered, Barcode, Search, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/app', icon: Home, label: 'Ana Sayfa' },
   { href: '/app/liste', icon: ListOrdered, label: 'Liste' },
   { href: '/app/ara', icon: Search, label: 'Ara' },
-  { href: '/app/barkodsuz', icon: ScanBarcode, label: 'Barkodsuz' },
   { href: '/app/ayarlar', icon: Settings, label: 'Ayarlar' },
 ]
 

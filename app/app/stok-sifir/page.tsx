@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
 import { BottomNav } from '@/components/bottom-nav'
 import { ProductCard } from '@/components/product-card'
-import { ProductForm } from '@/components/product-form'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,11 +16,10 @@ import { ArrowLeft, PackageX, Search, Plus, Check } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 
 export default function ZeroStockPage() {
-  const { products, brands, addStockItem, updateProduct, deleteProduct } = useAppData()
+  const router = useRouter()
+  const { products, addStockItem, deleteProduct } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [search, setSearch] = useState('')
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<ProductWithStock | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [stockInput, setStockInput] = useState({ expiry_date: '', quantity: '1' })
@@ -46,12 +45,6 @@ export default function ZeroStockPage() {
     }
   }
 
-  const handleFormSubmit = async (data: any) => {
-    if (editingProduct) await updateProduct(editingProduct.id, data)
-    setFormOpen(false)
-    setEditingProduct(null)
-  }
-
   const handleDelete = async () => {
     if (deleteTarget) {
       await deleteProduct(deleteTarget.id)
@@ -64,21 +57,6 @@ export default function ZeroStockPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
-    )
-  }
-
-  if (formOpen) {
-    return (
-      <main className="min-h-screen bg-background">
-        <div className="max-w-lg mx-auto p-4">
-          <ProductForm
-            onSubmit={handleFormSubmit}
-            onCancel={() => { setFormOpen(false); setEditingProduct(null) }}
-            initialData={editingProduct || undefined}
-            brands={brands}
-          />
-        </div>
-      </main>
     )
   }
 
@@ -125,7 +103,7 @@ export default function ZeroStockPage() {
               <div key={product.id}>
                 <ProductCard
                   product={product}
-                  onEdit={(p) => { setEditingProduct(p); setFormOpen(true) }}
+                  onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
                   onDelete={() => setDeleteTarget(product)}
                   compact
                 />

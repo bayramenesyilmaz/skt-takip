@@ -7,31 +7,32 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { useAppData } from '@/hooks/use-app-data'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import { getExpiryInfo, formatDate, statusConfig } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/expiry'
 import { DeleteDialog } from '@/components/delete-dialog'
-import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Barcode, Camera } from 'lucide-react'
-import { BarcodeScanner } from '@/components/barcode-scanner'
+import { ProductForm } from '@/components/product-form'
+import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Pencil, Thermometer } from 'lucide-react'
 import type { ProductWithStock, StockItem } from '@/lib/types'
 
 function ProductDetailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
+  const { brands, shelfLifeTypes, deleteProduct } = useAppData()
   const [product, setProduct] = useState<ProductWithStock | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
   const [showAddStock, setShowAddStock] = useState(false)
   const [deleteStockTarget, setDeleteStockTarget] = useState<StockItem | null>(null)
+  const [deleteProductConfirm, setDeleteProductConfirm] = useState(false)
   const [newStock, setNewStock] = useState({ expiry_date: '', quantity: '1' })
-  const [showScanner, setShowScanner] = useState(false)
-  const [barcodeInput, setBarcodeInput] = useState('')
 
   const loadData = async () => {
     if (!id) { setIsLoading(false); return }
     const repo = getRepository()
     const prod = await repo.getProduct(id)
     setProduct(prod)
-    setBarcodeInput(prod?.barcode || '')
     setIsLoading(false)
   }
 
@@ -68,11 +69,25 @@ function ProductDetailContent() {
     loadData()
   }
 
-  const handleSaveBarcode = async () => {
+  const handleUpdateMeta = async (data: any) => {
     if (!product) return
     const repo = getRepository()
-    await repo.updateProduct(product.id, { barcode: barcodeInput.trim() || undefined })
+    await repo.updateProduct(product.id, {
+      name: data.name,
+      stock_code: data.stock_code,
+      barcode: data.barcode,
+      brand_id: data.brand_id,
+      shelf_life_type_id: data.shelf_life_type_id,
+    })
+    setEditing(false)
     loadData()
+  }
+
+  const handleDeleteProduct = async () => {
+    if (!product) return
+    await deleteProduct(product.id)
+    setDeleteProductConfirm(false)
+    router.push('/app/liste')
   }
 
   if (isLoading) {
@@ -94,10 +109,6 @@ function ProductDetailContent() {
     )
   }
 
-  if (showScanner) {
-    return <BarcodeScanner onScan={(b) => { setBarcodeInput(b); setShowScanner(false) }} onClose={() => setShowScanner(false)} />
-  }
-
   const stockItems = product.stock_items || []
   const distinctExpiryDates = new Set(stockItems.map((s) => s.expiry_date))
 
@@ -111,43 +122,49 @@ function ProductDetailContent() {
               <h1 className="text-lg font-bold text-foreground truncate">{product.name}</h1>
               <p className="text-xs text-muted-foreground">Urun Detayi</p>
             </div>
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setDeleteProductConfirm(true)}>
+              <Trash2 className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Package className="w-6 h-6 text-primary" /></div>
-              <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-foreground">{product.name}</h2>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  {product.stock_code && <span className="text-xs text-muted-foreground">Stok: {product.stock_code}</span>}
-                  {product.barcode && <span className="text-xs text-muted-foreground">Barkod: {product.barcode}</span>}
+        {editing ? (
+          <ProductForm
+            initialData={product}
+            brands={brands}
+            shelfLifeTypes={shelfLifeTypes}
+            onSubmit={handleUpdateMeta}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Package className="w-6 h-6 text-primary" /></div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold text-foreground">{product.name}</h2>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    {product.stock_code && <span className="text-xs text-muted-foreground">Stok: {product.stock_code}</span>}
+                    {product.barcode ? <span className="text-xs text-muted-foreground">Barkod: {product.barcode}</span> : <Badge variant="outline" className="text-xs">Barkod yok</Badge>}
+                  </div>
+                  {product.brand && (
+                    <div className="flex items-center gap-1 mt-2"><Tag className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}</span></div>
+                  )}
+                  {product.shelf_life_type && (
+                    <div className="flex items-center gap-1 mt-1"><Thermometer className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{product.shelf_life_type.name}</span></div>
+                  )}
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline" className="text-xs">{stockItems.length} stok kaydi</Badge>
+                    <Badge variant="outline" className="text-xs">{distinctExpiryDates.size} farkli SKT</Badge>
+                  </div>
                 </div>
-                {product.brand && (
-                  <div className="flex items-center gap-1 mt-2"><Tag className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}</span></div>
-                )}
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline" className="text-xs">{stockItems.length} stok kaydi</Badge>
-                  <Badge variant="outline" className="text-xs">{distinctExpiryDates.size} farkli SKT</Badge>
-                </div>
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil className="w-3.5 h-3.5 mr-1" />Duzenle</Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-3"><Barcode className="w-4 h-4" />Barkod</h3>
-            <div className="flex gap-2">
-              <Input value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)} placeholder="Barkod yok" className="h-10 flex-1" />
-              <Button type="button" variant="secondary" className="h-10 px-3" onClick={() => setShowScanner(true)}><Camera className="w-4 h-4" /></Button>
-              <Button type="button" className="h-10" disabled={barcodeInput === (product.barcode || '')} onClick={handleSaveBarcode}>Kaydet</Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -174,7 +191,7 @@ function ProductDetailContent() {
               {stockItems
                 .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
                 .map((stock) => {
-                  const info = getExpiryInfo(stock.expiry_date)
+                  const info = getExpiryInfo(stock.expiry_date, getThresholds(product.shelf_life_type))
                   const config = statusConfig[info.status]
                   return (
                     <Card key={stock.id} className={`${config.bg} border ${config.border}`}>
@@ -203,6 +220,20 @@ function ProductDetailContent() {
       </div>
 
       <DeleteDialog open={!!deleteStockTarget} onOpenChange={(open) => !open && setDeleteStockTarget(null)} onConfirm={handleDeleteStock} productName={`SKT: ${deleteStockTarget ? formatDate(deleteStockTarget.expiry_date) : ''}`} />
+
+      <DeleteDialog
+        open={deleteProductConfirm}
+        onOpenChange={setDeleteProductConfirm}
+        onConfirm={handleDeleteProduct}
+        productName={product.name}
+        title="Urunu Kalici Olarak Sil"
+        description={
+          <>
+            <span className="font-medium text-foreground">{product.name}</span> urunu ve tum stok kayitlari kalici olarak silinecek. Bu islem geri alinamaz.
+          </>
+        }
+        confirmLabel="Kalici Sil"
+      />
     </main>
   )
 }

@@ -1,25 +1,19 @@
 'use client'
 
 import { useAppData } from '@/hooks/use-app-data'
-import { getExpiryInfo, formatDate } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/expiry'
 import { StatsCards } from '@/components/stats-cards'
-import { ProductForm } from '@/components/product-form'
-import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Upload, RefreshCw, ScanBarcode, PackageX, ArrowRight } from 'lucide-react'
+import { Upload, RefreshCw, ScanBarcode, PackageX, ArrowRight, Clock, Package2 } from 'lucide-react'
 import Link from 'next/link'
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import type { ProductWithStock } from '@/lib/types'
 
 export default function AppHomePage() {
-  const { products, isLoading, addProduct, updateProduct, deleteProduct } = useAppData()
-
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<ProductWithStock | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
+  const { products, isLoading } = useAppData()
 
   const getEarliestStock = (p: ProductWithStock) => {
     const active = (p.stock_items || []).filter((s) => s.quantity > 0)
@@ -31,7 +25,7 @@ export default function AppHomePage() {
     return products
       .map((p) => ({ product: p, stock: getEarliestStock(p) }))
       .filter((x): x is { product: ProductWithStock; stock: NonNullable<ReturnType<typeof getEarliestStock>> } => !!x.stock)
-      .map((x) => ({ ...x, expiry: getExpiryInfo(x.stock.expiry_date) }))
+      .map((x) => ({ ...x, expiry: getExpiryInfo(x.stock.expiry_date, getThresholds(x.product.shelf_life_type)) }))
       .filter((x) => ['expired', 'critical', 'remove'].includes(x.expiry.status))
       .sort((a, b) => a.expiry.daysLeft - b.expiry.daysLeft)
   }, [products])
@@ -46,23 +40,6 @@ export default function AppHomePage() {
     [products]
   )
 
-  const handleFormSubmit = async (data: any) => {
-    if (editingProduct) {
-      await updateProduct(editingProduct.id, data)
-    } else {
-      await addProduct(data)
-    }
-    setFormOpen(false)
-    setEditingProduct(null)
-  }
-
-  const handleDelete = async () => {
-    if (deleteTarget) {
-      await deleteProduct(deleteTarget.id)
-      setDeleteTarget(null)
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -72,22 +49,27 @@ export default function AppHomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="font-semibold text-lg">SKT Takip</h1>
-            <p className="text-xs text-gray-500">{products.length} urun kayitli</p>
+    <main className="min-h-screen bg-background pb-24">
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-lg mx-auto px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Package2 className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold text-foreground">SKT Takip</h1>
+              <p className="text-xs text-muted-foreground">{products.length} urun kayitli</p>
+            </div>
+            <Link href="/app/import">
+              <Button variant="outline" size="sm">
+                <Upload className="w-4 h-4 mr-1" /> Import
+              </Button>
+            </Link>
           </div>
-          <Link href="/app/import">
-            <Button variant="outline" size="sm">
-              <Upload className="w-4 h-4 mr-1" /> Import
-            </Button>
-          </Link>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         <StatsCards products={products} />
 
         {missingBarcodeCount > 0 && (
@@ -128,62 +110,40 @@ export default function AppHomePage() {
           </Link>
         )}
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Acil Urunler</h2>
-            <Link href="/app/liste">
-              <Button variant="ghost" size="sm">
-                Tumunu Gor
-              </Button>
-            </Link>
-          </div>
-          {urgentProducts.length === 0 ? (
-            <p className="text-sm text-gray-500">Acil urun yok.</p>
-          ) : (
-            <div className="space-y-2">
-              {urgentProducts.slice(0, 5).map(({ product, stock, expiry }) => (
-                <Link key={product.id} href={`/app/urun?id=${product.id}`}>
-                  <div className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
-                    <div>
-                      <p className="font-medium text-sm">{product.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(stock.expiry_date)} - {expiry.label}
-                      </p>
-                    </div>
-                    <Badge variant={expiry.status === 'expired' ? 'destructive' : 'secondary'}>
-                      {expiry.daysLeft} gun
-                    </Badge>
-                  </div>
-                </Link>
-              ))}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-foreground flex items-center gap-2"><Clock className="w-4 h-4" />Acil Urunler</h2>
+              <Link href="/app/liste">
+                <Button variant="ghost" size="sm">Tumunu Gor</Button>
+              </Link>
             </div>
-          )}
+            {urgentProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Acil urun yok.</p>
+            ) : (
+              <div className="space-y-2">
+                {urgentProducts.slice(0, 5).map(({ product, stock, expiry }) => (
+                  <Link key={product.id} href={`/app/urun?id=${product.id}`}>
+                    <div className="flex items-center justify-between p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(stock.expiry_date)} - {expiry.label}
+                        </p>
+                      </div>
+                      <Badge className={`${statusConfig[expiry.status].badge} text-white shrink-0`}>
+                        {expiry.daysLeft} gun
+                      </Badge>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
         </Card>
-      </main>
-
-      {formOpen && (
-        <div className="fixed inset-0 z-50 bg-background/95 overflow-y-auto p-4">
-          <div className="max-w-lg mx-auto">
-            <ProductForm
-              onSubmit={handleFormSubmit}
-              onCancel={() => {
-                setFormOpen(false)
-                setEditingProduct(null)
-              }}
-              initialData={editingProduct || undefined}
-            />
-          </div>
-        </div>
-      )}
-
-      <DeleteDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        productName={deleteTarget?.name || ''}
-      />
+      </div>
 
       <BottomNav />
-    </div>
+    </main>
   )
 }

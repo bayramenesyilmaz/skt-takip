@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BarcodeScanner } from '@/components/barcode-scanner'
-import { Camera, Package, Hash, Barcode, Calendar, X, Tag } from 'lucide-react'
-import type { Product, Brand } from '@/lib/types'
+import { Camera, Package, Hash, Barcode, Calendar, X, Tag, Thermometer } from 'lucide-react'
+import type { Product, Brand, ShelfLifeType } from '@/lib/types'
 
 interface ProductFormProps {
   onSubmit: (product: Partial<Product> & { expiryDate?: string }) => void
@@ -16,9 +16,10 @@ interface ProductFormProps {
   initialData?: Product
   initialBarcode?: string
   brands?: Brand[]
+  shelfLifeTypes?: ShelfLifeType[]
 }
 
-export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, brands = [] }: ProductFormProps) {
+export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, brands = [], shelfLifeTypes = [] }: ProductFormProps) {
   const [showScanner, setShowScanner] = useState(false)
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
@@ -26,7 +27,7 @@ export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, b
     barcode: initialData?.barcode || initialBarcode || '',
     expiryDate: '',
     brand_id: initialData?.brand_id || '',
-    return_accepts: initialData?.return_accepts ?? true,
+    shelf_life_type_id: initialData?.shelf_life_type_id || '',
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,7 +38,7 @@ export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, b
       stock_code: formData.stock_code || undefined,
       barcode: formData.barcode || undefined,
       brand_id: formData.brand_id || undefined,
-      return_accepts: formData.return_accepts,
+      shelf_life_type_id: formData.shelf_life_type_id || undefined,
       expiryDate: formData.expiryDate || undefined,
     })
   }
@@ -64,16 +65,17 @@ export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, b
               </Select>
             </div>
           )}
+          {shelfLifeTypes.length > 0 && (
+            <div className="space-y-2"><Label className="text-sm font-medium flex items-center gap-2"><Thermometer className="w-4 h-4 text-muted-foreground" />Raf Omru Tipi</Label>
+              <Select value={formData.shelf_life_type_id || 'none'} onValueChange={(v) => setFormData((p) => ({ ...p, shelf_life_type_id: v === 'none' ? '' : v }))}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Kategori sec (opsiyonel)" /></SelectTrigger>
+                <SelectContent><SelectItem value="none">Kategori yok</SelectItem>{shelfLifeTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2"><Label htmlFor="stock_code" className="text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4 text-muted-foreground" />Stok Kodu</Label><Input id="stock_code" value={formData.stock_code} onChange={(e) => setFormData((p) => ({ ...p, stock_code: e.target.value }))} placeholder="123456" className="h-11" /></div>
             <div className="space-y-2"><Label htmlFor="barcode" className="text-sm font-medium flex items-center gap-2"><Barcode className="w-4 h-4 text-muted-foreground" />Barkod</Label><div className="flex gap-2"><Input id="barcode" value={formData.barcode} onChange={(e) => setFormData((p) => ({ ...p, barcode: e.target.value }))} placeholder="8690..." className="h-11 flex-1" /><Button type="button" variant="secondary" className="h-11 px-3" onClick={() => setShowScanner(true)}><Camera className="w-5 h-5" /></Button></div></div>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div><p className="text-sm font-medium">Iade Alir mi?</p><p className="text-xs text-muted-foreground">Bu marka/urun iade kabul ediyor mu?</p></div>
-            <Select value={formData.return_accepts ? 'yes' : 'no'} onValueChange={(v) => setFormData((p) => ({ ...p, return_accepts: v === 'yes' }))}>
-              <SelectTrigger className="w-24 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="yes">Evet</SelectItem><SelectItem value="no">Hayir</SelectItem></SelectContent>
-            </Select>
           </div>
           <div className="flex gap-3 pt-2"><Button type="button" variant="outline" className="flex-1 h-11" onClick={onCancel}>Iptal</Button><Button type="submit" className="flex-1 h-11">{initialData ? 'Guncelle' : 'Ekle'}</Button></div>
         </form>

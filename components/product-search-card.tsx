@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Clock } from 'lucide-react'
-import { getExpiryInfo, statusConfig, formatDate } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds, statusConfig, formatDate } from '@/lib/expiry'
 import type { ProductWithStock } from '@/lib/types'
 
 interface ProductSearchCardProps {
@@ -12,12 +12,13 @@ interface ProductSearchCardProps {
 }
 
 export function ProductSearchCard({ product, palletInfo }: ProductSearchCardProps) {
+  const thresholds = getThresholds(product.shelf_life_type)
   const sortedStock = [...(product.stock_items || [])]
     .filter((s) => s.quantity > 0)
     .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
   const earliest = sortedStock[0]
   const isZeroStock = (product.total_quantity ?? 0) === 0
-  const info = earliest ? getExpiryInfo(earliest.expiry_date) : null
+  const info = earliest ? getExpiryInfo(earliest.expiry_date, thresholds) : null
   const config = info ? statusConfig[info.status] : statusConfig.safe
 
   return (
@@ -31,6 +32,9 @@ export function ProductSearchCard({ product, palletInfo }: ProductSearchCardProp
                 <span className="text-xs text-muted-foreground">
                   {product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}
                 </span>
+              )}
+              {product.shelf_life_type && (
+                <span className="text-xs text-muted-foreground ml-2">{product.shelf_life_type.name}</span>
               )}
             </div>
             {isZeroStock ? (
@@ -53,7 +57,7 @@ export function ProductSearchCard({ product, palletInfo }: ProductSearchCardProp
           {sortedStock.length > 0 ? (
             <div className="space-y-1.5">
               {sortedStock.slice(0, 5).map((stock) => {
-                const sInfo = getExpiryInfo(stock.expiry_date)
+                const sInfo = getExpiryInfo(stock.expiry_date, thresholds)
                 const sConfig = statusConfig[sInfo.status]
                 return (
                   <div key={stock.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/80">

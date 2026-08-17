@@ -2,22 +2,24 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems } from '@/lib/types'
+import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems, ShelfLifeType } from '@/lib/types'
 
 export function useAppData() {
   const [products, setProducts] = useState<ProductWithStock[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [pallets, setPallets] = useState<PalletWithItems[]>([])
+  const [shelfLifeTypes, setShelfLifeTypes] = useState<ShelfLifeType[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
       const repo = getRepository()
-      const [prods, brnds, plts] = await Promise.all([repo.getProducts(), repo.getBrands(), repo.getPallets()])
+      const [prods, brnds, plts, types] = await Promise.all([repo.getProducts(), repo.getBrands(), repo.getPallets(), repo.getShelfLifeTypes()])
       setProducts(prods)
       setBrands(brnds)
       setPallets(plts)
+      setShelfLifeTypes(types)
     } catch (err) {
       console.error('Failed to load data:', err)
     } finally {
@@ -142,15 +144,44 @@ export function useAppData() {
     await loadData()
   }, [loadData])
 
+  const addShelfLifeType = useCallback(async (data: Partial<ShelfLifeType>) => {
+    const repo = getRepository()
+    const created = await repo.createShelfLifeType(data)
+    await loadData()
+    return created
+  }, [loadData])
+
+  const updateShelfLifeType = useCallback(async (id: string, updates: Partial<ShelfLifeType>) => {
+    const repo = getRepository()
+    await repo.updateShelfLifeType(id, updates)
+    await loadData()
+  }, [loadData])
+
+  const deleteShelfLifeType = useCallback(async (id: string) => {
+    const repo = getRepository()
+    await repo.deleteShelfLifeType(id)
+    await loadData()
+  }, [loadData])
+
+  const bulkAssignShelfLifeType = useCallback(async (productIds: string[], shelfLifeTypeId: string | undefined) => {
+    const repo = getRepository()
+    for (const id of productIds) {
+      await repo.updateProduct(id, { shelf_life_type_id: shelfLifeTypeId })
+    }
+    await loadData()
+  }, [loadData])
+
   return {
     products,
     brands,
     pallets,
+    shelfLifeTypes,
     isLoading,
     addProduct, bulkAddProducts, updateProduct, deleteProduct, zeroProductStock,
     addBrand, updateBrand, deleteBrand,
     addStockItem, updateStockItem, deleteStockItem,
     addPallet, deletePallet, addPalletItem, removePalletItem,
+    addShelfLifeType, updateShelfLifeType, deleteShelfLifeType, bulkAssignShelfLifeType,
     reload: loadData,
   }
 }

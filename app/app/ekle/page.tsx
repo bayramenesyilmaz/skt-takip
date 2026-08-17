@@ -21,9 +21,10 @@ function AddProductContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const prefillBarcode = searchParams.get('barcode') || ''
-  const { products, brands, addProduct, bulkAddProducts, isLoading } = useAppData()
-  const [tab, setTab] = useState<'single' | 'bulk'>('single')
-  const [mode, setMode] = useState<Mode>(prefillBarcode ? 'form' : 'scan')
+  const wantsBulk = searchParams.get('tab') === 'bulk'
+  const { products, brands, shelfLifeTypes, addProduct, bulkAddProducts, isLoading } = useAppData()
+  const [tab, setTab] = useState<'single' | 'bulk'>(wantsBulk ? 'bulk' : 'single')
+  const [mode, setMode] = useState<Mode>(prefillBarcode || wantsBulk ? 'form' : 'scan')
   const [barcode, setBarcode] = useState(prefillBarcode)
   const [existingProduct, setExistingProduct] = useState<ProductWithStock | null>(null)
   const [palletInfo, setPalletInfo] = useState<{ name: string; quantity: number }[]>([])
@@ -140,6 +141,7 @@ function AddProductContent() {
             onSubmit={async (data) => { await addProduct(data); router.push('/app') }}
             onCancel={() => router.push('/app')}
             brands={brands}
+            shelfLifeTypes={shelfLifeTypes}
             initialBarcode={barcode}
           />
         ) : (

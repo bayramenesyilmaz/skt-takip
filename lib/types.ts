@@ -14,7 +14,18 @@ export interface Product {
   stock_code?: string
   barcode?: string
   brand_id?: string
+  shelf_life_type_id?: string
   return_accepts: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ShelfLifeType {
+  id: string
+  name: string
+  critical_days: number
+  remove_days: number
+  campaign_days: number
   created_at: string
   updated_at: string
 }
@@ -37,6 +48,7 @@ export interface ExpiryInfo {
 
 export interface ProductWithStock extends Product {
   brand?: Brand
+  shelf_life_type?: ShelfLifeType
   stock_items?: StockItem[]
   total_quantity?: number
 }
@@ -69,4 +81,23 @@ export interface PalletItem {
 
 export interface PalletWithItems extends Pallet {
   items?: (PalletItem & { product?: Product })[]
+}
+
+export interface BackupData {
+  app: 'skt-takip'
+  schema: 1
+  exportedAt: string
+  brands: Brand[]
+  shelfLifeTypes?: ShelfLifeType[]
+  products: (Product & { stock_items: StockItem[] })[]
+  pallets: (Pallet & { items: PalletItem[] })[]
+}
+
+export interface RestoreResult {
+  brandsAdded: number
+  productsAdded: number
+  stockItemsAdded: number
+  palletsAdded: number
+  palletItemsAdded: number
+  shelfLifeTypesAdded: number
 }

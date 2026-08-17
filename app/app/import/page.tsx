@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppData } from '@/hooks/use-app-data'
+import { getRepository } from '@/lib/repositories/repository.factory'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,11 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Upload, FileText, Check, X, ArrowRight } from 'lucide-react'
+import { ArrowLeft, Upload, FileText, Check, X, ArrowRight, DatabaseBackup } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo } from 'react'
+import type { BackupData, RestoreResult } from '@/lib/types'
 
-type Step = 'upload' | 'map' | 'review' | 'import'
+type Step = 'upload' | 'map' | 'review' | 'restore' | 'done'
 
 const SKIP_VALUE = '__skip__'
 
@@ -36,8 +38,10 @@ export default function ImportPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [jsonMode, setJsonMode] = useState(false)
   const [jsonProducts, setJsonProducts] = useState<Record<string, string>[]>([])
+  const [backupData, setBackupData] = useState<BackupData | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: number; fail: number } | null>(null)
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null)
 
   const extractProductsArray = (data: any): any[] | null => {
     if (Array.isArray(data)) return data
@@ -59,6 +63,16 @@ export default function ImportPage() {
     }
   }
 
+  const tryParseBackup = (text: string): BackupData | null => {
+    try {
+      const data = JSON.parse(text)
+      if (data && data.app === 'skt-takip' && Array.isArray(data.products)) return data as BackupData
+    } catch {
+      // not JSON, ignore
+    }
+    return null
+  }
+
   const tryParseJSON = (text: string): Record<string, string>[] | null => {
     let data: any
     try {
@@ -72,6 +86,14 @@ export default function ImportPage() {
   }
 
   const processText = (text: string) => {
+    const backup = tryParseBackup(text)
+    if (backup) {
+      setBackupData(backup)
+      setJsonMode(false)
+      setJsonProducts([])
+      return
+    }
+    setBackupData(null)
     const parsedJson = tryParseJSON(text)
     if (parsedJson) {
       setJsonMode(true)
@@ -163,17 +185,30 @@ export default function ImportPage() {
     }
     setImportResult({ ok, fail })
     setImporting(false)
-    setStep('import')
+    setStep('done')
+  }
+
+  const handleRestore = async () => {
+    if (!backupData) return
+    setImporting(true)
+    try {
+      const repo = getRepository()
+      const result = await repo.restoreBackup(backupData)
+      setRestoreResult(result)
+    } finally {
+      setImporting(false)
+      setStep('done')
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b sticky top-0 z-10">
+    <div className="min-h-screen bg-background pb-20">
+      <header className="bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/app"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button></Link>
-          <h1 className="font-semibold text-lg">Import</h1>
+          <h1 className="font-semibold text-lg text-foreground">Import</h1>
           <Badge variant="outline" className="ml-auto">
-            {step === 'upload' ? '1/4' : step === 'map' ? '2/4' : step === 'review' ? '3/4' : '4/4'}
+            {step === 'upload' ? '1/3' : step === 'map' ? '2/4' : (step === 'review' || step === 'restore') ? (jsonMode ? '2/3' : '3/4') : (jsonMode || backupData) ? '3/3' : '4/4'}
           </Badge>
         </div>
       </header>
@@ -187,19 +222,24 @@ export default function ImportPage() {
               accept=".csv,.txt,.json"
               onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             />
-            {fileName && <p className="text-xs text-gray-500 flex items-center gap-1"><FileText className="w-3 h-3" />{fileName}</p>}
+            {fileName && <p className="text-xs text-muted-foreground flex items-center gap-1"><FileText className="w-3 h-3" />{fileName}</p>}
             <textarea
-              className="w-full border rounded p-2 text-sm h-32 font-mono"
+              className="w-full border rounded p-2 text-sm h-32 font-mono bg-background"
               placeholder="Veya veriyi buraya yapistirin (CSV veya JSON)..."
               value={rawText}
               onChange={(e) => handlePaste(e.target.value)}
             />
-            {jsonMode && (
+            {backupData && (
+              <p className="text-xs text-emerald-600 flex items-center gap-1">
+                <DatabaseBackup className="w-3 h-3" /> SKT Takip yedek dosyasi algilandi: {backupData.products.length} urun, {backupData.brands.length} marka, {backupData.pallets?.length || 0} palet
+              </p>
+            )}
+            {!backupData && jsonMode && (
               <p className="text-xs text-emerald-600 flex items-center gap-1">
                 <Check className="w-3 h-3" /> JSON dosyasi algilandi, {jsonProducts.length} kayit bulundu
               </p>
             )}
-            <Button disabled={!rawText.trim()} onClick={() => setStep(jsonMode ? 'review' : 'map')}>
+            <Button disabled={!rawText.trim()} onClick={() => setStep(backupData ? 'restore' : jsonMode ? 'review' : 'map')}>
               Devam <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Card>
@@ -236,13 +276,13 @@ export default function ImportPage() {
                 <div key={i} className="text-xs border-b py-1 flex gap-2">
                   <Check className="w-3 h-3 text-green-500" />
                   <span>{p.name}</span>
-                  {p.expiryDate && <span className="text-gray-500">- {p.expiryDate}</span>}
+                  {p.expiryDate && <span className="text-muted-foreground">- {p.expiryDate}</span>}
                 </div>
               ))}
               {invalidProducts.slice(0, 5).map((p, i) => (
                 <div key={i} className="text-xs border-b py-1 flex gap-2">
                   <X className="w-3 h-3 text-red-500" />
-                  <span className="text-gray-400">Isim eksik</span>
+                  <span className="text-muted-foreground">Isim eksik</span>
                 </div>
               ))}
             </div>
@@ -252,16 +292,43 @@ export default function ImportPage() {
           </Card>
         )}
 
-        {step === 'import' && (
+        {step === 'restore' && backupData && (
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <DatabaseBackup className="w-5 h-5 text-primary" />
+              <p className="font-medium">SKT Takip Yedek Dosyasi</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {new Date(backupData.exportedAt).toLocaleString('tr-TR')} tarihinde alinmis bir yedek bulundu. Geri yukleme, mevcut verilerinize eklenir; ayni kayitlar (id) tekrar eklenmez, hicbir sey silinmez. Stok sifir olan urunler de dahil tum kayitlar korunur.
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="secondary">{backupData.products.length} urun</Badge>
+              <Badge variant="secondary">{backupData.brands.length} marka</Badge>
+              <Badge variant="secondary">{backupData.pallets?.length || 0} palet</Badge>
+            </div>
+            <Button disabled={importing} onClick={handleRestore}>
+              {importing ? 'Geri yukleniyor...' : 'Yedekten Geri Yukle'}
+            </Button>
+          </Card>
+        )}
+
+        {step === 'done' && (
           <Card className="p-4 text-center space-y-2">
-            {importResult && (
+            <Check className="w-12 h-12 text-green-500 mx-auto" />
+            {restoreResult ? (
               <>
-                <Check className="w-12 h-12 text-green-500 mx-auto" />
-                <p className="font-medium">Import tamamlandi</p>
-                <p className="text-sm text-gray-500">{importResult.ok} basarili, {importResult.fail} basarisiz</p>
-                <Link href="/app/liste"><Button variant="outline">Listeyi Gor</Button></Link>
+                <p className="font-medium">Yedek geri yuklendi</p>
+                <p className="text-sm text-muted-foreground">
+                  {restoreResult.productsAdded} urun, {restoreResult.brandsAdded} marka, {restoreResult.stockItemsAdded} stok kaydi, {restoreResult.palletsAdded} palet eklendi.
+                </p>
               </>
-            )}
+            ) : importResult ? (
+              <>
+                <p className="font-medium">Import tamamlandi</p>
+                <p className="text-sm text-muted-foreground">{importResult.ok} basarili, {importResult.fail} basarisiz</p>
+              </>
+            ) : null}
+            <Link href="/app/liste"><Button variant="outline">Listeyi Gor</Button></Link>
           </Card>
         )}
       </main>
