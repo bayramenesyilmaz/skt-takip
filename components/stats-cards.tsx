@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertTriangle, AlertCircle, CheckCircle, ShoppingCart, Package } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
-import { getExpiryInfo } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds } from '@/lib/expiry'
 
 interface StatsCardsProps {
   products: ProductWithStock[]
@@ -13,9 +13,10 @@ interface StatsCardsProps {
 export function StatsCards({ products }: StatsCardsProps) {
   const stats = { expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
   for (const p of products) {
+    const thresholds = getThresholds(p.shelf_life_type)
     for (const s of p.stock_items || []) {
       if (s.quantity <= 0) continue
-      const info = getExpiryInfo(s.expiry_date)
+      const info = getExpiryInfo(s.expiry_date, thresholds)
       stats[info.status]++
     }
   }

@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BarcodeScanner } from '@/components/barcode-scanner'
-import { Camera, Package, Hash, Barcode, Calendar, X, Tag } from 'lucide-react'
-import type { Product, Brand } from '@/lib/types'
+import { Camera, Package, Hash, Barcode, Calendar, X, Tag, Thermometer } from 'lucide-react'
+import type { Product, Brand, ShelfLifeType } from '@/lib/types'
 
 interface ProductFormProps {
   onSubmit: (product: Partial<Product> & { expiryDate?: string }) => void
@@ -16,9 +16,10 @@ interface ProductFormProps {
   initialData?: Product
   initialBarcode?: string
   brands?: Brand[]
+  shelfLifeTypes?: ShelfLifeType[]
 }
 
-export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, brands = [] }: ProductFormProps) {
+export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, brands = [], shelfLifeTypes = [] }: ProductFormProps) {
   const [showScanner, setShowScanner] = useState(false)
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
@@ -26,6 +27,7 @@ export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, b
     barcode: initialData?.barcode || initialBarcode || '',
     expiryDate: '',
     brand_id: initialData?.brand_id || '',
+    shelf_life_type_id: initialData?.shelf_life_type_id || '',
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,6 +38,7 @@ export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, b
       stock_code: formData.stock_code || undefined,
       barcode: formData.barcode || undefined,
       brand_id: formData.brand_id || undefined,
+      shelf_life_type_id: formData.shelf_life_type_id || undefined,
       expiryDate: formData.expiryDate || undefined,
     })
   }
@@ -59,6 +62,14 @@ export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, b
               <Select value={formData.brand_id || 'none'} onValueChange={(v) => setFormData((p) => ({ ...p, brand_id: v === 'none' ? '' : v }))}>
                 <SelectTrigger className="h-11"><SelectValue placeholder="Marka sec (opsiyonel)" /></SelectTrigger>
                 <SelectContent><SelectItem value="none">Marka yok</SelectItem>{brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}{!b.return_accepts ? ' (iade almaz)' : ''}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
+          {shelfLifeTypes.length > 0 && (
+            <div className="space-y-2"><Label className="text-sm font-medium flex items-center gap-2"><Thermometer className="w-4 h-4 text-muted-foreground" />Raf Omru Tipi</Label>
+              <Select value={formData.shelf_life_type_id || 'none'} onValueChange={(v) => setFormData((p) => ({ ...p, shelf_life_type_id: v === 'none' ? '' : v }))}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Kategori sec (opsiyonel)" /></SelectTrigger>
+                <SelectContent><SelectItem value="none">Kategori yok</SelectItem>{shelfLifeTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           )}

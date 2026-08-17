@@ -9,17 +9,17 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { useAppData } from '@/hooks/use-app-data'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import { getExpiryInfo, formatDate, statusConfig } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/expiry'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { ProductForm } from '@/components/product-form'
-import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Pencil } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Pencil, Thermometer } from 'lucide-react'
 import type { ProductWithStock, StockItem } from '@/lib/types'
 
 function ProductDetailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
-  const { brands, deleteProduct } = useAppData()
+  const { brands, shelfLifeTypes, deleteProduct } = useAppData()
   const [product, setProduct] = useState<ProductWithStock | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -77,6 +77,7 @@ function ProductDetailContent() {
       stock_code: data.stock_code,
       barcode: data.barcode,
       brand_id: data.brand_id,
+      shelf_life_type_id: data.shelf_life_type_id,
     })
     setEditing(false)
     loadData()
@@ -133,6 +134,7 @@ function ProductDetailContent() {
           <ProductForm
             initialData={product}
             brands={brands}
+            shelfLifeTypes={shelfLifeTypes}
             onSubmit={handleUpdateMeta}
             onCancel={() => setEditing(false)}
           />
@@ -149,6 +151,9 @@ function ProductDetailContent() {
                   </div>
                   {product.brand && (
                     <div className="flex items-center gap-1 mt-2"><Tag className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{product.brand.name}{!product.brand.return_accepts && ' (iade almaz)'}</span></div>
+                  )}
+                  {product.shelf_life_type && (
+                    <div className="flex items-center gap-1 mt-1"><Thermometer className="w-3 h-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{product.shelf_life_type.name}</span></div>
                   )}
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="outline" className="text-xs">{stockItems.length} stok kaydi</Badge>
@@ -186,7 +191,7 @@ function ProductDetailContent() {
               {stockItems
                 .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
                 .map((stock) => {
-                  const info = getExpiryInfo(stock.expiry_date)
+                  const info = getExpiryInfo(stock.expiry_date, getThresholds(product.shelf_life_type))
                   const config = statusConfig[info.status]
                   return (
                     <Card key={stock.id} className={`${config.bg} border ${config.border}`}>

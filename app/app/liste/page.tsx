@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
-import { getExpiryInfo } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds } from '@/lib/expiry'
 import { ProductCard } from '@/components/product-card'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, ListOrdered, Package, Tag, PackageX, ArrowRight, Camera } from 'lucide-react'
+import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, Camera, ListChecks, X } from 'lucide-react'
 import type { ProductWithStock, ExpiryStatus } from '@/lib/types'
 
 type StatusFilter = 'all' | ExpiryStatus
@@ -24,7 +24,7 @@ const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'critical', 'remove', '
 function ListeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { products, brands, zeroProductStock } = useAppData()
+  const { products, brands, shelfLifeTypes, zeroProductStock, bulkAssignShelfLifeType } = useAppData()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -32,9 +32,14 @@ function ListeContent() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [brandFilter, setBrandFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkCategory, setBulkCategory] = useState<string>('')
+  const [applyingBulk, setApplyingBulk] = useState(false)
 
   useEffect(() => {
     if (appliedInitialFilter) return
@@ -43,12 +48,11 @@ function ListeContent() {
     setAppliedInitialFilter(true)
   }, [searchParams, appliedInitialFilter])
 
-  const getEarliestExpiry = (p: ProductWithStock) => {
+  const getProductStatus = (p: ProductWithStock) => {
     const active = (p.stock_items || []).filter((s) => s.quantity > 0)
     if (active.length === 0) return null
-    return active
-      .map((s) => s.expiry_date)
-      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
+    const earliest = active.sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
+    return { date: earliest.expiry_date, info: getExpiryInfo(earliest.expiry_date, getThresholds(p.shelf_life_type)) }
   }
 
   const activeProducts = useMemo(() => products.filter((p) => (p.total_quantity ?? 0) > 0), [products])
@@ -70,29 +74,26 @@ function ListeContent() {
       result = result.filter(p => p.brand_id === brandFilter)
     }
 
+    if (categoryFilter !== 'all') {
+      result = result.filter(p => p.shelf_life_type_id === categoryFilter)
+    }
+
     if (statusFilter !== 'all') {
-      result = result.filter(p => {
-        const earliest = getEarliestExpiry(p)
-        if (!earliest) return false
-        return getExpiryInfo(earliest).status === statusFilter
-      })
+      result = result.filter(p => getProductStatus(p)?.info.status === statusFilter)
     }
 
     return result.sort((a, b) => {
-      const aDate = getEarliestExpiry(a) || '9999'
-      const bDate = getEarliestExpiry(b) || '9999'
+      const aDate = getProductStatus(a)?.date || '9999'
+      const bDate = getProductStatus(b)?.date || '9999'
       return new Date(aDate).getTime() - new Date(bDate).getTime()
     })
-  }, [activeProducts, search, statusFilter, brandFilter])
+  }, [activeProducts, search, statusFilter, brandFilter, categoryFilter])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: activeProducts.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
     for (const p of activeProducts) {
-      const earliest = getEarliestExpiry(p)
-      if (earliest) {
-        const info = getExpiryInfo(earliest)
-        c[info.status]++
-      }
+      const status = getProductStatus(p)
+      if (status) c[status.info.status]++
     }
     return c
   }, [activeProducts])
@@ -101,6 +102,32 @@ function ListeContent() {
     if (deleteTarget) {
       await zeroProductStock(deleteTarget.id)
       setDeleteTarget(null)
+    }
+  }
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const exitSelectMode = () => {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+    setBulkCategory('')
+  }
+
+  const handleApplyBulkCategory = async () => {
+    if (selectedIds.size === 0) return
+    setApplyingBulk(true)
+    try {
+      await bulkAssignShelfLifeType(Array.from(selectedIds), bulkCategory || undefined)
+      exitSelectMode()
+    } finally {
+      setApplyingBulk(false)
     }
   }
 
@@ -131,7 +158,7 @@ function ListeContent() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
+    <main className="min-h-screen bg-background pb-32">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3 mb-3">
@@ -143,6 +170,13 @@ function ListeContent() {
               <p className="text-xs text-muted-foreground">SKT sirasina gore</p>
             </div>
             <Badge variant="secondary" className="text-xs">{products.length}</Badge>
+            <Button
+              variant={selectMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+            >
+              {selectMode ? <X className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
+            </Button>
           </div>
 
           <div className="flex gap-2 mb-2">
@@ -160,18 +194,32 @@ function ListeContent() {
             </Button>
           </div>
 
-          <Select value={brandFilter} onValueChange={setBrandFilter}>
-            <SelectTrigger className="h-9 bg-muted/50 w-full">
-              <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tum Markalar</SelectItem>
-              {brands.map((b) => (
-                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={brandFilter} onValueChange={setBrandFilter}>
+              <SelectTrigger className="h-9 bg-muted/50 flex-1">
+                <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tum Markalar</SelectItem>
+                {brands.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="h-9 bg-muted/50 flex-1">
+                <Thermometer className="w-3.5 h-3.5 mr-1 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tum Raf Omurleri</SelectItem>
+                {shelfLifeTypes.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </header>
 
@@ -208,7 +256,7 @@ function ListeContent() {
             <Package className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <h3 className="font-semibold text-foreground mb-1">Urun Bulunamadi</h3>
             <p className="text-sm text-muted-foreground">
-              {search || statusFilter !== 'all' || brandFilter !== 'all'
+              {search || statusFilter !== 'all' || brandFilter !== 'all' || categoryFilter !== 'all'
                 ? 'Filtrelere uyan urun yok.'
                 : 'Henuz urun eklenmemis.'}
             </p>
@@ -216,18 +264,51 @@ function ListeContent() {
         ) : (
           <div className="space-y-2">
             {filtered.map((product) => (
-              <Link key={product.id} href={`/app/urun?id=${product.id}`}>
-                <ProductCard
-                  product={product}
-                  onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
-                  onDelete={() => setDeleteTarget(product)}
-                  compact
-                />
-              </Link>
+              selectMode ? (
+                <label key={product.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(product.id)}
+                    onChange={() => toggleSelected(product.id)}
+                    className="w-4 h-4 accent-primary shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">{product.shelf_life_type?.name || 'Kategorisiz'}</p>
+                  </div>
+                </label>
+              ) : (
+                <Link key={product.id} href={`/app/urun?id=${product.id}`}>
+                  <ProductCard
+                    product={product}
+                    onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
+                    onDelete={() => setDeleteTarget(product)}
+                    compact
+                  />
+                </Link>
+              )
             ))}
           </div>
         )}
       </div>
+
+      {selectMode && (
+        <div className="fixed bottom-16 left-0 right-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border safe-area-pb">
+          <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-2">
+            <span className="text-xs text-muted-foreground shrink-0">{selectedIds.size} secili</span>
+            <Select value={bulkCategory || 'none'} onValueChange={(v) => setBulkCategory(v === 'none' ? '' : v)}>
+              <SelectTrigger className="h-10 flex-1"><SelectValue placeholder="Raf omru tipi sec" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Kategorisiz yap</SelectItem>
+                {shelfLifeTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" className="h-10" disabled={selectedIds.size === 0 || applyingBulk} onClick={handleApplyBulkCategory}>
+              Uygula
+            </Button>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
 

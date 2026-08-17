@@ -1,6 +1,23 @@
-import type { ExpiryInfo, ExpiryStatus } from '@/lib/types'
+import type { ExpiryInfo, ExpiryStatus, ShelfLifeType } from '@/lib/types'
 
-export function getExpiryInfo(expiryDate: string): ExpiryInfo {
+export interface ExpiryThresholds {
+  criticalDays: number
+  removeDays: number
+  campaignDays: number
+}
+
+export const DEFAULT_THRESHOLDS: ExpiryThresholds = { criticalDays: 3, removeDays: 14, campaignDays: 90 }
+
+export function getThresholds(shelfLifeType?: ShelfLifeType): ExpiryThresholds {
+  if (!shelfLifeType) return DEFAULT_THRESHOLDS
+  return {
+    criticalDays: shelfLifeType.critical_days,
+    removeDays: shelfLifeType.remove_days,
+    campaignDays: shelfLifeType.campaign_days,
+  }
+}
+
+export function getExpiryInfo(expiryDate: string, thresholds: ExpiryThresholds = DEFAULT_THRESHOLDS): ExpiryInfo {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -22,15 +39,15 @@ export function getExpiryInfo(expiryDate: string): ExpiryInfo {
     status = 'expired'
     label = 'Bugün son gün!'
     actionRequired = 'HEMEN RAFTAN KALDIR!'
-  } else if (daysLeft <= 3) {
+  } else if (daysLeft <= thresholds.criticalDays) {
     status = 'critical'
     label = `${daysLeft} gün kaldı`
     actionRequired = 'ACİL: Raftan kaldır!'
-  } else if (daysLeft <= 14) {
+  } else if (daysLeft <= thresholds.removeDays) {
     status = 'remove'
     label = `${daysLeft} gün kaldı`
     actionRequired = 'Raftan kaldırmalın'
-  } else if (daysLeft <= 90) {
+  } else if (daysLeft <= thresholds.campaignDays) {
     status = 'campaign'
     label = `${daysLeft} gün kaldı`
     actionRequired = 'Yetkiliye bildir - Kampanya önerisi'

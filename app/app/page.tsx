@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppData } from '@/hooks/use-app-data'
-import { getExpiryInfo, formatDate, statusConfig } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/expiry'
 import { StatsCards } from '@/components/stats-cards'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,7 @@ export default function AppHomePage() {
     return products
       .map((p) => ({ product: p, stock: getEarliestStock(p) }))
       .filter((x): x is { product: ProductWithStock; stock: NonNullable<ReturnType<typeof getEarliestStock>> } => !!x.stock)
-      .map((x) => ({ ...x, expiry: getExpiryInfo(x.stock.expiry_date) }))
+      .map((x) => ({ ...x, expiry: getExpiryInfo(x.stock.expiry_date, getThresholds(x.product.shelf_life_type)) }))
       .filter((x) => ['expired', 'critical', 'remove'].includes(x.expiry.status))
       .sort((a, b) => a.expiry.daysLeft - b.expiry.daysLeft)
   }, [products])

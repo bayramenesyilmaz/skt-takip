@@ -6,7 +6,7 @@ import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Info, Trash2, WifiOff, Download, RefreshCcw, Settings } from 'lucide-react'
+import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, Info, Trash2, WifiOff, Download, RefreshCcw, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
@@ -129,6 +129,9 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Link href="/app/markalar" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Tag className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Markalar</span>
+              </Link>
+              <Link href="/app/raf-omru" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <Thermometer className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Raf Omru Tipleri</span>
               </Link>
               <Link href="/app/paletler" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Layers className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Paletler</span>

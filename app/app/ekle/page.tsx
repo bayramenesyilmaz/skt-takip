@@ -22,7 +22,7 @@ function AddProductContent() {
   const searchParams = useSearchParams()
   const prefillBarcode = searchParams.get('barcode') || ''
   const wantsBulk = searchParams.get('tab') === 'bulk'
-  const { products, brands, addProduct, bulkAddProducts, isLoading } = useAppData()
+  const { products, brands, shelfLifeTypes, addProduct, bulkAddProducts, isLoading } = useAppData()
   const [tab, setTab] = useState<'single' | 'bulk'>(wantsBulk ? 'bulk' : 'single')
   const [mode, setMode] = useState<Mode>(prefillBarcode || wantsBulk ? 'form' : 'scan')
   const [barcode, setBarcode] = useState(prefillBarcode)
@@ -141,6 +141,7 @@ function AddProductContent() {
             onSubmit={async (data) => { await addProduct(data); router.push('/app') }}
             onCancel={() => router.push('/app')}
             brands={brands}
+            shelfLifeTypes={shelfLifeTypes}
             initialBarcode={barcode}
           />
         ) : (
