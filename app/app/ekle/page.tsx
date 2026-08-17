@@ -21,9 +21,10 @@ function AddProductContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const prefillBarcode = searchParams.get('barcode') || ''
+  const wantsBulk = searchParams.get('tab') === 'bulk'
   const { products, brands, addProduct, bulkAddProducts, isLoading } = useAppData()
-  const [tab, setTab] = useState<'single' | 'bulk'>('single')
-  const [mode, setMode] = useState<Mode>(prefillBarcode ? 'form' : 'scan')
+  const [tab, setTab] = useState<'single' | 'bulk'>(wantsBulk ? 'bulk' : 'single')
+  const [mode, setMode] = useState<Mode>(prefillBarcode || wantsBulk ? 'form' : 'scan')
   const [barcode, setBarcode] = useState(prefillBarcode)
   const [existingProduct, setExistingProduct] = useState<ProductWithStock | null>(null)
   const [palletInfo, setPalletInfo] = useState<{ name: string; quantity: number }[]>([])

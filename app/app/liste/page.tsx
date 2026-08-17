@@ -1,25 +1,30 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
 import { getExpiryInfo } from '@/lib/expiry'
 import { ProductCard } from '@/components/product-card'
-import { ProductForm } from '@/components/product-form'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
+import { BarcodeScanner } from '@/components/barcode-scanner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, ListOrdered, Package, Tag, PackageX, ArrowRight } from 'lucide-react'
+import { Search, ListOrdered, Package, Tag, PackageX, ArrowRight, Camera } from 'lucide-react'
 import type { ProductWithStock, ExpiryStatus } from '@/lib/types'
 
 type StatusFilter = 'all' | ExpiryStatus
 
-export default function ListePage() {
-  const { products, brands, addProduct, updateProduct, zeroProductStock } = useAppData()
+const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'critical', 'remove', 'campaign', 'safe']
+
+function ListeContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { products, brands, zeroProductStock } = useAppData()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -27,9 +32,16 @@ export default function ListePage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [brandFilter, setBrandFilter] = useState<string>('all')
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<ProductWithStock | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
+  const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
+
+  useEffect(() => {
+    if (appliedInitialFilter) return
+    const f = searchParams.get('filter') as StatusFilter | null
+    if (f && VALID_FILTERS.includes(f)) setStatusFilter(f)
+    setAppliedInitialFilter(true)
+  }, [searchParams, appliedInitialFilter])
 
   const getEarliestExpiry = (p: ProductWithStock) => {
     const active = (p.stock_items || []).filter((s) => s.quantity > 0)
@@ -85,16 +97,6 @@ export default function ListePage() {
     return c
   }, [activeProducts])
 
-  const handleFormSubmit = async (data: any) => {
-    if (editingProduct) {
-      await updateProduct(editingProduct.id, data)
-    } else {
-      await addProduct(data)
-    }
-    setFormOpen(false)
-    setEditingProduct(null)
-  }
-
   const handleZeroStock = async () => {
     if (deleteTarget) {
       await zeroProductStock(deleteTarget.id)
@@ -119,18 +121,12 @@ export default function ListePage() {
     )
   }
 
-  if (formOpen) {
+  if (showScanner) {
     return (
-      <main className="min-h-screen bg-background">
-        <div className="max-w-lg mx-auto p-4">
-          <ProductForm
-            onSubmit={handleFormSubmit}
-            onCancel={() => { setFormOpen(false); setEditingProduct(null) }}
-            initialData={editingProduct || undefined}
-            brands={brands}
-          />
-        </div>
-      </main>
+      <BarcodeScanner
+        onScan={(barcode) => { setSearch(barcode); setShowScanner(false) }}
+        onClose={() => setShowScanner(false)}
+      />
     )
   }
 
@@ -159,6 +155,9 @@ export default function ListePage() {
                 className="pl-9 h-10 bg-muted/50"
               />
             </div>
+            <Button variant="secondary" className="h-10 px-3" onClick={() => setShowScanner(true)}>
+              <Camera className="w-4 h-4" />
+            </Button>
           </div>
 
           <Select value={brandFilter} onValueChange={setBrandFilter}>
@@ -193,7 +192,7 @@ export default function ListePage() {
 
         <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 scrollbar-hide">
           {filters.map((f) => (
-            <button key={f.key} onClick={() => setStatusFilter(f.key)}>
+            <button key={f.key} onClick={() => { setStatusFilter(f.key); router.replace('/app/liste') }}>
               <Badge
                 variant={statusFilter === f.key ? 'default' : 'outline'}
                 className="shrink-0 cursor-pointer text-xs"
@@ -220,7 +219,7 @@ export default function ListePage() {
               <Link key={product.id} href={`/app/urun?id=${product.id}`}>
                 <ProductCard
                   product={product}
-                  onEdit={(p) => { setEditingProduct(p); setFormOpen(true) }}
+                  onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
                   onDelete={() => setDeleteTarget(product)}
                   compact
                 />
@@ -246,5 +245,13 @@ export default function ListePage() {
         confirmLabel="Stogu Sifirla"
       />
     </main>
+  )
+}
+
+export default function ListePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <ListeContent />
+    </Suspense>
   )
 }

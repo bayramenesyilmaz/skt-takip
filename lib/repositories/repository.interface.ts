@@ -1,4 +1,4 @@
-import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems } from '@/lib/types'
+import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems, BackupData, RestoreResult } from '@/lib/types'
 
 export interface IRepository {
   getBrands(): Promise<Brand[]>
@@ -28,4 +28,7 @@ export interface IRepository {
   updatePalletItem(itemId: string, data: Partial<PalletItem>): Promise<void>
   removePalletItem(itemId: string): Promise<void>
   getPalletItemsForProduct(productId: string): Promise<(PalletItem & { pallet: Pallet })[]>
+
+  exportBackup(): Promise<BackupData>
+  restoreBackup(data: BackupData): Promise<RestoreResult>
 }

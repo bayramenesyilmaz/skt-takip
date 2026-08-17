@@ -1,5 +1,5 @@
 import type { IRepository } from '@/lib/repositories/repository.interface'
-import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems } from '@/lib/types'
+import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems, BackupData, RestoreResult } from '@/lib/types'
 
 const KEYS = {
   brands: 'skt-local-brands',
@@ -179,5 +179,62 @@ export class LocalRepository implements IRepository {
     return items
       .map((i) => ({ ...i, pallet: pallets.find((p) => p.id === i.pallet_id) }))
       .filter((i): i is PalletItem & { pallet: Pallet } => !!i.pallet)
+  }
+
+  async exportBackup(): Promise<BackupData> {
+    const brands = read<Brand>(KEYS.brands)
+    const products = read<Product>(KEYS.products)
+    const stock = read<StockItem>(KEYS.stock)
+    const pallets = read<Pallet>(KEYS.pallets)
+    const palletItems = read<PalletItem>(KEYS.palletItems)
+    return {
+      app: 'skt-takip',
+      schema: 1,
+      exportedAt: now(),
+      brands,
+      products: products.map((p) => ({ ...p, stock_items: stock.filter((s) => s.product_id === p.id) })),
+      pallets: pallets.map((pl) => ({ ...pl, items: palletItems.filter((i) => i.pallet_id === pl.id) })),
+    }
+  }
+
+  async restoreBackup(data: BackupData): Promise<RestoreResult> {
+    const result: RestoreResult = { brandsAdded: 0, productsAdded: 0, stockItemsAdded: 0, palletsAdded: 0, palletItemsAdded: 0 }
+
+    const brands = read<Brand>(KEYS.brands)
+    const brandIds = new Set(brands.map((b) => b.id))
+    for (const b of data.brands || []) {
+      if (!brandIds.has(b.id)) { brands.push(b); brandIds.add(b.id); result.brandsAdded++ }
+    }
+    write(KEYS.brands, brands)
+
+    const products = read<Product>(KEYS.products)
+    const productIds = new Set(products.map((p) => p.id))
+    const stock = read<StockItem>(KEYS.stock)
+    const stockIds = new Set(stock.map((s) => s.id))
+    for (const p of data.products || []) {
+      const { stock_items, ...productFields } = p
+      if (!productIds.has(p.id)) { products.push(productFields); productIds.add(p.id); result.productsAdded++ }
+      for (const s of stock_items || []) {
+        if (!stockIds.has(s.id)) { stock.push(s); stockIds.add(s.id); result.stockItemsAdded++ }
+      }
+    }
+    write(KEYS.products, products)
+    write(KEYS.stock, stock)
+
+    const pallets = read<Pallet>(KEYS.pallets)
+    const palletIds = new Set(pallets.map((pl) => pl.id))
+    const palletItems = read<PalletItem>(KEYS.palletItems)
+    const palletItemIds = new Set(palletItems.map((i) => i.id))
+    for (const pl of data.pallets || []) {
+      const { items, ...palletFields } = pl
+      if (!palletIds.has(pl.id)) { pallets.push(palletFields); palletIds.add(pl.id); result.palletsAdded++ }
+      for (const i of items || []) {
+        if (!palletItemIds.has(i.id)) { palletItems.push(i); palletItemIds.add(i.id); result.palletItemsAdded++ }
+      }
+    }
+    write(KEYS.pallets, pallets)
+    write(KEYS.palletItems, palletItems)
+
+    return result
   }
 }

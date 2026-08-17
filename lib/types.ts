@@ -70,3 +70,20 @@ export interface PalletItem {
 export interface PalletWithItems extends Pallet {
   items?: (PalletItem & { product?: Product })[]
 }
+
+export interface BackupData {
+  app: 'skt-takip'
+  schema: 1
+  exportedAt: string
+  brands: Brand[]
+  products: (Product & { stock_items: StockItem[] })[]
+  pallets: (Pallet & { items: PalletItem[] })[]
+}
+
+export interface RestoreResult {
+  brandsAdded: number
+  productsAdded: number
+  stockItemsAdded: number
+  palletsAdded: number
+  palletItemsAdded: number
+}
