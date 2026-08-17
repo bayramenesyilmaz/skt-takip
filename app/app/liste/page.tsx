@@ -74,7 +74,9 @@ function ListeContent() {
       result = result.filter(p => p.brand_id === brandFilter)
     }
 
-    if (categoryFilter !== 'all') {
+    if (categoryFilter === 'none') {
+      result = result.filter(p => !p.shelf_life_type_id)
+    } else if (categoryFilter !== 'all') {
       result = result.filter(p => p.shelf_life_type_id === categoryFilter)
     }
 
@@ -118,6 +120,12 @@ function ListeContent() {
     setSelectMode(false)
     setSelectedIds(new Set())
     setBulkCategory('')
+  }
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id))
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allFilteredSelected ? new Set() : new Set(filtered.map((p) => p.id)))
   }
 
   const handleApplyBulkCategory = async () => {
@@ -214,6 +222,7 @@ function ListeContent() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tum Raf Omurleri</SelectItem>
+                <SelectItem value="none">Kategorisiz</SelectItem>
                 {shelfLifeTypes.map((t) => (
                   <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                 ))}
@@ -250,6 +259,20 @@ function ListeContent() {
             </button>
           ))}
         </div>
+
+        {selectMode && filtered.length > 0 && (
+          <label className="flex items-center gap-3 p-3 mb-2 rounded-lg border border-dashed border-border cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 accent-primary shrink-0"
+            />
+            <span className="text-sm font-medium text-foreground">
+              {allFilteredSelected ? 'Tumunun secimini kaldir' : `Tumunu Sec (${filtered.length})`}
+            </span>
+          </label>
+        )}
 
         {filtered.length === 0 ? (
           <div className="text-center py-12">
