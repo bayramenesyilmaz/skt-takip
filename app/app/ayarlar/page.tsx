@@ -3,6 +3,7 @@
 import { useAppData } from '@/hooks/use-app-data'
 import { getRepository } from '@/lib/repositories/repository.factory'
 import { BottomNav } from '@/components/bottom-nav'
+import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,12 +12,15 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
 
+const LAST_BACKUP_KEY = 'skt-last-backup-at'
+
 export default function SettingsPage() {
   const router = useRouter()
   const { products, brands, reload } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -44,19 +48,19 @@ export default function SettingsPage() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      localStorage.setItem(LAST_BACKUP_KEY, Date.now().toString())
     } finally {
       setExporting(false)
     }
   }
 
   const handleResetData = async () => {
-    if (typeof window === 'undefined') return
-    if (!window.confirm('Tum urunler, markalar, stok ve palet kayitlari silinecek. Once yedek almanizi oneririz. Devam edilsin mi?')) return
     localStorage.removeItem('skt-local-products')
     localStorage.removeItem('skt-local-brands')
     localStorage.removeItem('skt-local-stock')
     localStorage.removeItem('skt-local-pallets')
     localStorage.removeItem('skt-local-pallet-items')
+    setResetConfirmOpen(false)
     await reload()
     router.push('/app')
   }
@@ -172,7 +176,7 @@ export default function SettingsPage() {
               <Button variant="outline" size="sm" disabled={exporting} onClick={handleExport}>
                 <Download className="w-4 h-4 mr-1" /> {exporting ? 'Hazirlaniyor...' : 'Disa Aktar (Yedekle)'}
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-500/10" onClick={handleResetData}>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-500/10" onClick={() => setResetConfirmOpen(true)}>
                 <Trash2 className="w-4 h-4 mr-1" /> Verileri Sifirla
               </Button>
             </div>
@@ -191,6 +195,22 @@ export default function SettingsPage() {
       </div>
 
       <BottomNav />
+
+      <DeleteDialog
+        open={resetConfirmOpen}
+        onOpenChange={setResetConfirmOpen}
+        onConfirm={handleResetData}
+        productName=""
+        title="Tum Verileri Sil"
+        description={
+          <>
+            <span className="font-semibold text-destructive">{products.length} urun, {brands.length} marka</span> ve tum stok/palet kayitlari bu cihazdan KALICI olarak silinecek. Bu islem GERI ALINAMAZ.
+            <br /><br />
+            Once yukaridan <span className="font-medium text-foreground">&quot;Disa Aktar (Yedekle)&quot;</span> ile bir yedek almanizi kesinlikle oneririz.
+          </>
+        }
+        confirmLabel="Evet, Tumunu Sil"
+      />
     </main>
   )
 }
