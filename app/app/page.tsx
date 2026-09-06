@@ -7,13 +7,23 @@ import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Upload, RefreshCw, ScanBarcode, PackageX, ArrowRight, Clock, Package2 } from 'lucide-react'
+import { Upload, RefreshCw, ScanBarcode, PackageX, ArrowRight, Clock, Package2, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { ProductWithStock } from '@/lib/types'
+
+const LAST_BACKUP_KEY = 'skt-last-backup-at'
+const BACKUP_REMINDER_DAYS = 7
 
 export default function AppHomePage() {
   const { products, isLoading } = useAppData()
+  const [daysSinceBackup, setDaysSinceBackup] = useState<number | null>(null)
+
+  useEffect(() => {
+    const raw = localStorage.getItem(LAST_BACKUP_KEY)
+    if (!raw) { setDaysSinceBackup(Infinity); return }
+    setDaysSinceBackup(Math.floor((Date.now() - parseInt(raw)) / (1000 * 60 * 60 * 24)))
+  }, [])
 
   const getEarliestStock = (p: ProductWithStock) => {
     const active = (p.stock_items || []).filter((s) => s.quantity > 0)
@@ -71,6 +81,27 @@ export default function AppHomePage() {
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         <StatsCards products={products} />
+
+        {products.length > 0 && daysSinceBackup !== null && daysSinceBackup >= BACKUP_REMINDER_DAYS && (
+          <Link href="/app/ayarlar">
+            <Card className="p-4 border-blue-500/30 bg-blue-500/5 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">
+                      {daysSinceBackup === Infinity ? 'Henuz hic yedek almadiniz' : `Son yedeginiz ${daysSinceBackup} gun once alindi`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Veri kaybini onlemek icin yedek alin</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+            </Card>
+          </Link>
+        )}
 
         {missingBarcodeCount > 0 && (
           <Link href="/app/barkodsuz">

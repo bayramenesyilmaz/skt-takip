@@ -4,17 +4,18 @@ import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
-import { getExpiryInfo, getThresholds } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
 import { ProductCard } from '@/components/product-card'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, Camera, ListChecks, X } from 'lucide-react'
+import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, Camera, ListChecks, X, Share2, Copy, Check } from 'lucide-react'
 import type { ProductWithStock, ExpiryStatus } from '@/lib/types'
 
 type StatusFilter = 'all' | ExpiryStatus
@@ -40,6 +41,9 @@ function ListeContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkCategory, setBulkCategory] = useState<string>('')
   const [applyingBulk, setApplyingBulk] = useState(false)
+  const [shareMode, setShareMode] = useState(false)
+  const [shareQuantities, setShareQuantities] = useState<Record<string, string>>({})
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (appliedInitialFilter) return
@@ -139,6 +143,37 @@ function ListeContent() {
     }
   }
 
+  const selectedProducts = useMemo(
+    () => activeProducts.filter((p) => selectedIds.has(p.id)),
+    [activeProducts, selectedIds]
+  )
+
+  const buildShareMessage = () => {
+    const lines = selectedProducts.map((p) => {
+      const status = getProductStatus(p)
+      const qty = (shareQuantities[p.id] || '').trim()
+      let line = `- ${p.name}`
+      if (status?.date) line += ` (SKT: ${formatDate(status.date)})`
+      if (qty) line += ` - ${qty} adet`
+      return line
+    })
+    return `Kampanya Onerisi:\n${lines.join('\n')}`
+  }
+
+  const handleCopyShare = async () => {
+    try {
+      await navigator.clipboard.writeText(buildShareMessage())
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard unavailable, ignore
+    }
+  }
+
+  const handleWhatsAppShare = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(buildShareMessage())}`, '_blank')
+  }
+
   const filters: { key: StatusFilter; label: string }[] = [
     { key: 'all', label: 'Tumu' },
     { key: 'expired', label: 'Gecti' },
@@ -162,6 +197,59 @@ function ListeContent() {
         onScan={(barcode) => { setSearch(barcode); setShowScanner(false) }}
         onClose={() => setShowScanner(false)}
       />
+    )
+  }
+
+  if (shareMode) {
+    return (
+      <main className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShareMode(false)}><X className="w-5 h-5" /></Button>
+            <div className="flex-1">
+              <h1 className="text-lg font-bold text-foreground">Paylas</h1>
+              <p className="text-xs text-muted-foreground">{selectedProducts.length} urun secili - istege bagli adet girin</p>
+            </div>
+          </div>
+        </header>
+
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-2">
+          {selectedProducts.map((p) => {
+            const status = getProductStatus(p)
+            return (
+              <Card key={p.id}>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                    {status?.date && <p className="text-xs text-muted-foreground">SKT: {formatDate(status.date)}</p>}
+                  </div>
+                  <div className="w-28 shrink-0 space-y-1">
+                    <Label className="text-xs">Adet (opsiyonel)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="-"
+                      value={shareQuantities[p.id] || ''}
+                      onChange={(e) => setShareQuantities((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                      className="h-9"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1 h-11" onClick={handleCopyShare}>
+              {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+              {copied ? 'Kopyalandi' : 'Kopyala'}
+            </Button>
+            <Button className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700" onClick={handleWhatsAppShare}>
+              <Share2 className="w-4 h-4 mr-1" />WhatsApp'ta Paylas
+            </Button>
+          </div>
+        </div>
+      </main>
     )
   }
 
@@ -249,7 +337,7 @@ function ListeContent() {
 
         <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 scrollbar-hide">
           {filters.map((f) => (
-            <button key={f.key} onClick={() => { setStatusFilter(f.key); router.replace('/app/liste') }}>
+            <button key={f.key} onClick={() => setStatusFilter(f.key)}>
               <Badge
                 variant={statusFilter === f.key ? 'default' : 'outline'}
                 className="shrink-0 cursor-pointer text-xs"
@@ -317,17 +405,28 @@ function ListeContent() {
 
       {selectMode && (
         <div className="fixed bottom-16 left-0 right-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border safe-area-pb">
-          <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-2">
-            <span className="text-xs text-muted-foreground shrink-0">{selectedIds.size} secili</span>
-            <Select value={bulkCategory || 'none'} onValueChange={(v) => setBulkCategory(v === 'none' ? '' : v)}>
-              <SelectTrigger className="h-10 flex-1"><SelectValue placeholder="Raf omru tipi sec" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Kategorisiz yap</SelectItem>
-                {shelfLifeTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button size="sm" className="h-10" disabled={selectedIds.size === 0 || applyingBulk} onClick={handleApplyBulkCategory}>
-              Uygula
+          <div className="max-w-lg mx-auto px-4 py-2 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground shrink-0">{selectedIds.size} secili</span>
+              <Select value={bulkCategory || 'none'} onValueChange={(v) => setBulkCategory(v === 'none' ? '' : v)}>
+                <SelectTrigger className="h-10 flex-1"><SelectValue placeholder="Raf omru tipi sec" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Kategorisiz yap</SelectItem>
+                  {shelfLifeTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button size="sm" className="h-10" disabled={selectedIds.size === 0 || applyingBulk} onClick={handleApplyBulkCategory}>
+                Uygula
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-9"
+              disabled={selectedIds.size === 0}
+              onClick={() => setShareMode(true)}
+            >
+              <Share2 className="w-3.5 h-3.5 mr-1" />Secilenleri Paylas ({selectedIds.size})
             </Button>
           </div>
         </div>

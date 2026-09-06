@@ -12,7 +12,7 @@ import { getRepository } from '@/lib/repositories/repository.factory'
 import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/expiry'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { ProductForm } from '@/components/product-form'
-import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Pencil, Thermometer } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Pencil, Thermometer, Check, X } from 'lucide-react'
 import type { ProductWithStock, StockItem } from '@/lib/types'
 
 function ProductDetailContent() {
@@ -27,6 +27,8 @@ function ProductDetailContent() {
   const [deleteStockTarget, setDeleteStockTarget] = useState<StockItem | null>(null)
   const [deleteProductConfirm, setDeleteProductConfirm] = useState(false)
   const [newStock, setNewStock] = useState({ expiry_date: '', quantity: '1' })
+  const [editingStockId, setEditingStockId] = useState<string | null>(null)
+  const [editStock, setEditStock] = useState({ expiry_date: '', quantity: '1' })
 
   const loadData = async () => {
     if (!id) { setIsLoading(false); return }
@@ -66,6 +68,23 @@ function ProductDetailContent() {
   const handleZeroStock = async (stock: StockItem) => {
     const repo = getRepository()
     await repo.updateStockItem(stock.id, { quantity: 0 })
+    loadData()
+  }
+
+  const startEditStock = (stock: StockItem) => {
+    setEditingStockId(stock.id)
+    setEditStock({ expiry_date: stock.expiry_date, quantity: String(stock.quantity) })
+  }
+
+  const handleSaveStockEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingStockId || !editStock.expiry_date) return
+    const repo = getRepository()
+    await repo.updateStockItem(editingStockId, {
+      expiry_date: editStock.expiry_date,
+      quantity: parseInt(editStock.quantity) || 0,
+    })
+    setEditingStockId(null)
     loadData()
   }
 
@@ -193,23 +212,38 @@ function ProductDetailContent() {
                 .map((stock) => {
                   const info = getExpiryInfo(stock.expiry_date, getThresholds(product.shelf_life_type))
                   const config = statusConfig[info.status]
+                  const isEditing = editingStockId === stock.id
                   return (
                     <Card key={stock.id} className={`${config.bg} border ${config.border}`}>
                       <CardContent className="p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className={`${config.badge} text-xs`}><Clock className="w-3 h-3 mr-1" />{info.label}</Badge>
-                              <span className="text-xs text-muted-foreground">SKT: {formatDate(stock.expiry_date)}</span>
-                              <Badge variant="outline" className="text-xs">Adet: {stock.quantity}</Badge>
+                        {isEditing ? (
+                          <form onSubmit={handleSaveStockEdit} className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1"><Label className="text-xs">Son Kullanma Tarihi *</Label><Input type="date" value={editStock.expiry_date} onChange={(e) => setEditStock({ ...editStock, expiry_date: e.target.value })} className="h-10" required /></div>
+                              <div className="space-y-1"><Label className="text-xs">Adet</Label><Input type="number" value={editStock.quantity} onChange={(e) => setEditStock({ ...editStock, quantity: e.target.value })} className="h-10" min="0" /></div>
                             </div>
-                            {info.status !== 'safe' && <p className={`text-xs font-medium mt-1.5 ${config.text}`}>{info.actionRequired}</p>}
+                            <div className="flex gap-2">
+                              <Button type="submit" size="sm" className="flex-1"><Check className="w-3.5 h-3.5 mr-1" />Kaydet</Button>
+                              <Button type="button" size="sm" variant="outline" onClick={() => setEditingStockId(null)}><X className="w-3.5 h-3.5 mr-1" />Iptal</Button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className={`${config.badge} text-xs`}><Clock className="w-3 h-3 mr-1" />{info.label}</Badge>
+                                <span className="text-xs text-muted-foreground">SKT: {formatDate(stock.expiry_date)}</span>
+                                <Badge variant="outline" className="text-xs">Adet: {stock.quantity}</Badge>
+                              </div>
+                              {info.status !== 'safe' && <p className={`text-xs font-medium mt-1.5 ${config.text}`}>{info.actionRequired}</p>}
+                            </div>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => startEditStock(stock)} title="Duzenle"><Pencil className="w-4 h-4" /></Button>
+                              {stock.quantity > 0 && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleZeroStock(stock)} title="Stogu sifirla">Sifirla</Button>}
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteStockTarget(stock)}><Trash2 className="w-4 h-4" /></Button>
+                            </div>
                           </div>
-                          <div className="flex gap-1">
-                            {stock.quantity > 0 && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleZeroStock(stock)} title="Stogu sifirla">Sifirla</Button>}
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteStockTarget(stock)}><Trash2 className="w-4 h-4" /></Button>
-                          </div>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
                   )
