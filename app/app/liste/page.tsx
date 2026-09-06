@@ -153,6 +153,8 @@ function ListeContent() {
       const status = getProductStatus(p)
       const qty = (shareQuantities[p.id] || '').trim()
       let line = `- ${p.name}`
+      if (p.stock_code) line += ` | Stok Kodu: ${p.stock_code}`
+      if (p.barcode) line += ` | Barkod: ${p.barcode}`
       if (status?.date) line += ` (SKT: ${formatDate(status.date)})`
       if (qty) line += ` - ${qty} adet`
       return line
@@ -221,6 +223,13 @@ function ListeContent() {
                 <CardContent className="p-3 flex items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                    {(p.stock_code || p.barcode) && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {p.stock_code && <>Stok Kodu: {p.stock_code}</>}
+                        {p.stock_code && p.barcode && ' | '}
+                        {p.barcode && <>Barkod: {p.barcode}</>}
+                      </p>
+                    )}
                     {status?.date && <p className="text-xs text-muted-foreground">SKT: {formatDate(status.date)}</p>}
                   </div>
                   <div className="w-28 shrink-0 space-y-1">
