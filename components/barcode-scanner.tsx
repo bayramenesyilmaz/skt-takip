@@ -14,14 +14,11 @@ interface BarcodeScannerProps {
 
 const NO_RESULT_TIMEOUT_MS = 7000
 
-// EAN-13/EAN-8 are fixed-length symbologies. If the camera frame clips the
-// barcode's trailing edge (e.g. the right quiet zone falls outside the
-// captured row), zxing's digit-decode loop can exit one digit short yet
-// still produce a result that passes its own checksum check purely by
-// numeric coincidence, silently returning a barcode missing its last digit.
-// Rejecting any result whose length doesn't match its symbology's fixed
-// length costs nothing (the continuous scan loop just tries the next
-// frame) and eliminates this class of truncated read.
+// Defense in depth: EAN-13/EAN-8 are fixed-length symbologies, so any
+// result reported under one of these formats but with the wrong digit
+// count is malformed (e.g. a clipped camera frame) and must not be
+// accepted. Rejecting it costs nothing - the continuous scan loop just
+// tries the next frame.
 const EXPECTED_LENGTH: Partial<Record<number, number>> = {
   [BarcodeFormat.EAN_13]: 13,
   [BarcodeFormat.EAN_8]: 8,
@@ -74,7 +71,6 @@ export function BarcodeScanner({ onScan, onClose, secondaryAction }: BarcodeScan
         BarcodeFormat.EAN_13,
         BarcodeFormat.EAN_8,
         BarcodeFormat.UPC_E,
-        BarcodeFormat.CODE_128,
       ])
       hints.set(DecodeHintType.TRY_HARDER, true)
 
