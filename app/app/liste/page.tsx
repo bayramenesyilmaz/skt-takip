@@ -409,7 +409,7 @@ function ListeContent() {
                   </div>
                 </label>
               ) : (
-                <Link key={product.id} href={`/app/urun?id=${product.id}`}>
+                <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block">
                   <ProductCard
                     product={product}
                     onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}

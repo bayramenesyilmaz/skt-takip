@@ -83,7 +83,7 @@ export default function AppHomePage() {
         <StatsCards products={products} />
 
         {products.length > 0 && daysSinceBackup !== null && daysSinceBackup >= BACKUP_REMINDER_DAYS && (
-          <Link href="/app/ayarlar">
+          <Link href="/app/ayarlar" className="block">
             <Card className="p-4 border-blue-500/30 bg-blue-500/5 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export default function AppHomePage() {
         )}
 
         {missingBarcodeCount > 0 && (
-          <Link href="/app/barkodsuz">
+          <Link href="/app/barkodsuz" className="block">
             <Card className="p-4 border-amber-500/30 bg-amber-500/5 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -123,7 +123,7 @@ export default function AppHomePage() {
         )}
 
         {zeroStockCount > 0 && (
-          <Link href="/app/stok-sifir">
+          <Link href="/app/stok-sifir" className="block">
             <Card className="p-4 border-red-500/30 bg-red-500/5 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -154,7 +154,7 @@ export default function AppHomePage() {
             ) : (
               <div className="space-y-2">
                 {urgentProducts.slice(0, 5).map(({ product, stock, expiry }) => (
-                  <Link key={product.id} href={`/app/urun?id=${product.id}`}>
+                  <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block">
                     <div className="flex items-center justify-between p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                       <div className="min-w-0">
                         <p className="font-medium text-sm text-foreground truncate">{product.name}</p>
