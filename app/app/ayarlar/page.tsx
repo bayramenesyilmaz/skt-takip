@@ -17,7 +17,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings } from 'lucide-react'
+import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings, Smartphone } from 'lucide-react'
+import { useInstallPrompt } from '@/lib/context/install-prompt-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
@@ -29,6 +30,7 @@ const SHARE_HINT_SHOWN_KEY = 'skt-share-hint-shown'
 export default function SettingsPage() {
   const router = useRouter()
   const { products, brands, reload } = useAppData()
+  const { canInstall, isStandalone, promptInstall } = useInstallPrompt()
   const [mounted, setMounted] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
@@ -169,6 +171,29 @@ export default function SettingsPage() {
               <h2 className="font-semibold text-foreground text-sm">Depolama</h2>
             </div>
             <p className="text-xs text-muted-foreground">Veriler yalnizca bu cihazda, tarayici hafizasinda saklanir. Internet veya hesap gerekmez.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Smartphone className="w-4 h-4 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground text-sm">Ana Ekrana Ekle</h2>
+            </div>
+            {isStandalone ? (
+              <p className="text-xs text-muted-foreground">Uygulama zaten ana ekrana yuklu.</p>
+            ) : canInstall ? (
+              <>
+                <p className="text-xs text-muted-foreground mb-3">Uygulamayi ana ekraniniza ekleyip tam ekran ve cevrimdisi kullanabilirsiniz.</p>
+                <Button variant="outline" size="sm" onClick={promptInstall}>
+                  <Smartphone className="w-4 h-4 mr-1" /> Ana Ekrana Ekle
+                </Button>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Tarayiciniz otomatik yuklemeyi desteklemiyor. iPhone&apos;da Safari&apos;de Paylas simgesine, Android&apos;de Chrome menusune dokunup &quot;Ana Ekrana Ekle&quot; secenegini kullanabilirsiniz.
+              </p>
+            )}
           </CardContent>
         </Card>
 
