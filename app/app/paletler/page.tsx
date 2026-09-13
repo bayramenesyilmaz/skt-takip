@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useAppData } from '@/hooks/use-app-data'
 import { BottomNav } from '@/components/bottom-nav'
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Layers, Plus, Package, Trash2 } from 'lucide-react'
+import { ArrowLeft, Layers, Plus, Package, Trash2, Search } from 'lucide-react'
 import type { PalletWithItems } from '@/lib/types'
 
 export default function PalletsPage() {
@@ -18,8 +18,15 @@ export default function PalletsPage() {
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<PalletWithItems | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => { setMounted(true) }, [])
+
+  const filteredPallets = useMemo(() => {
+    if (!search.trim()) return pallets
+    const q = search.toLowerCase()
+    return pallets.filter((p) => p.name.toLowerCase().includes(q))
+  }, [pallets, search])
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -75,6 +82,18 @@ export default function PalletsPage() {
               <Plus className="w-4 h-4 mr-1" />Ekle
             </Button>
           </div>
+
+          {pallets.length > 0 && (
+            <div className="relative mt-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Palet ara..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 bg-muted/50"
+              />
+            </div>
+          )}
         </div>
       </header>
 
@@ -85,9 +104,15 @@ export default function PalletsPage() {
             <h3 className="font-semibold text-foreground mb-1">Palet Yok</h3>
             <p className="text-sm text-muted-foreground">Yukaridan yeni bir palet olusturun.</p>
           </div>
+        ) : filteredPallets.length === 0 ? (
+          <div className="text-center py-12">
+            <Search className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+            <h3 className="font-semibold text-foreground mb-1">Palet Bulunamadi</h3>
+            <p className="text-sm text-muted-foreground">Aramanla eslesen palet yok.</p>
+          </div>
         ) : (
           <div className="space-y-2">
-            {pallets.map((pallet) => {
+            {filteredPallets.map((pallet) => {
               const itemCount = pallet.items?.length || 0
               const totalQty = pallet.items?.reduce((s, i) => s + i.quantity, 0) || 0
               return (

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useAppData } from '@/hooks/use-app-data'
 import { formatDate } from '@/lib/expiry'
+import { buildReturnShareMessage } from '@/lib/share'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { BottomNav } from '@/components/bottom-nav'
 import { DeleteDialog } from '@/components/delete-dialog'
@@ -13,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, ListChecks, Tag, Package } from 'lucide-react'
+import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, ListChecks, Tag, Package, Copy, Check, Share2 } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 
 export default function IadePage() {
@@ -33,6 +34,7 @@ export default function IadePage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -103,6 +105,26 @@ export default function IadePage() {
   const exitSelectMode = () => {
     setSelectMode(false)
     setSelectedIds(new Set())
+  }
+
+  const selectedRecords = useMemo(
+    () => filteredRecords.filter((r) => selectedIds.has(r.id)),
+    [filteredRecords, selectedIds]
+  )
+
+  const handleCopyShare = async () => {
+    try {
+      await navigator.clipboard.writeText(buildReturnShareMessage(selectedRecords))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard unavailable, ignore
+    }
+  }
+
+  const handleWhatsAppShare = () => {
+    const message = buildReturnShareMessage(selectedRecords)
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
   }
 
   const handleDeleteOne = async () => {
@@ -299,7 +321,25 @@ export default function IadePage() {
 
       {selectMode && (
         <div className="fixed bottom-16 left-0 right-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border safe-area-pb">
-          <div className="max-w-lg mx-auto px-4 py-3">
+          <div className="max-w-lg mx-auto px-4 py-2 space-y-2">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-10"
+                disabled={selectedIds.size === 0}
+                onClick={handleCopyShare}
+              >
+                {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                {copied ? 'Kopyalandi' : 'Kopyala'}
+              </Button>
+              <Button
+                className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-700"
+                disabled={selectedIds.size === 0}
+                onClick={handleWhatsAppShare}
+              >
+                <Share2 className="w-4 h-4 mr-1" />WhatsApp&apos;ta Paylas
+              </Button>
+            </div>
             <Button
               variant="outline"
               className="w-full h-10 text-destructive border-destructive/30 hover:bg-destructive/10"

@@ -46,7 +46,7 @@ export function ProductForm({ onSubmit, onCancel, initialData, initialBarcode, b
   if (showScanner) return <BarcodeScanner onScan={(b) => { setFormData((p) => ({ ...p, barcode: b })); setShowScanner(false) }} onClose={() => setShowScanner(false)} />
 
   return (
-    <Card className="border-0 shadow-lg">
+    <Card className="border-0 shadow-lg py-6">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold flex items-center gap-2"><Package className="w-5 h-5 text-primary" />{initialData ? 'Urunu Duzenle' : 'Yeni Urun Ekle'}</CardTitle>

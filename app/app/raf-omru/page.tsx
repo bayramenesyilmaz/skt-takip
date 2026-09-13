@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Thermometer, Plus, Trash2, Save } from 'lucide-react'
+import { ArrowLeft, Thermometer, Plus, Trash2, Save, Search } from 'lucide-react'
 import type { ShelfLifeType } from '@/lib/types'
 
 interface RowState {
@@ -32,6 +32,7 @@ export default function ShelfLifeTypesPage() {
   const [deleteTarget, setDeleteTarget] = useState<ShelfLifeType | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -52,6 +53,12 @@ export default function ShelfLifeTypesPage() {
     })
     return m
   }, [products])
+
+  const filteredShelfLifeTypes = useMemo(() => {
+    if (!search.trim()) return shelfLifeTypes
+    const q = search.toLowerCase()
+    return shelfLifeTypes.filter((t) => t.name.toLowerCase().includes(q))
+  }, [shelfLifeTypes, search])
 
   const handleSave = async (id: string) => {
     const row = rows[id]
@@ -115,6 +122,18 @@ export default function ShelfLifeTypesPage() {
             </div>
             <Badge variant="secondary" className="text-xs">{shelfLifeTypes.length}</Badge>
           </div>
+
+          {shelfLifeTypes.length > 0 && (
+            <div className="relative mt-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Kategori ara..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 bg-muted/50"
+              />
+            </div>
+          )}
         </div>
       </header>
 
@@ -144,9 +163,15 @@ export default function ShelfLifeTypesPage() {
             <h3 className="font-semibold text-foreground mb-1">Kategori Yok</h3>
             <p className="text-sm text-muted-foreground">Yukaridan yeni bir raf omru tipi ekleyin.</p>
           </div>
+        ) : filteredShelfLifeTypes.length === 0 ? (
+          <div className="text-center py-12">
+            <Search className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+            <h3 className="font-semibold text-foreground mb-1">Kategori Bulunamadi</h3>
+            <p className="text-sm text-muted-foreground">Aramanla eslesen kategori yok.</p>
+          </div>
         ) : (
           <div className="space-y-2">
-            {shelfLifeTypes.map((t) => {
+            {filteredShelfLifeTypes.map((t) => {
               const row = rows[t.id] || toRowState(t)
               return (
                 <Card key={t.id}>
