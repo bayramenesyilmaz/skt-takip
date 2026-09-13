@@ -355,7 +355,7 @@ function ListeContent() {
           </Link>
         )}
 
-        <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 pr-4 scrollbar-hide">
           {filters.map((f) => (
             <button key={f.key} onClick={() => setStatusFilter(f.key)}>
               <Badge
@@ -409,7 +409,7 @@ function ListeContent() {
                   </div>
                 </label>
               ) : (
-                <Link key={product.id} href={`/app/urun?id=${product.id}`}>
+                <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block">
                   <ProductCard
                     product={product}
                     onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
