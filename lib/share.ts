@@ -1,5 +1,5 @@
 import { formatDate } from '@/lib/expiry'
-import type { ProductWithStock } from '@/lib/types'
+import type { ProductWithStock, ReturnRecordWithProduct } from '@/lib/types'
 
 export function buildShareMessage(
   items: { product: ProductWithStock; date?: string }[],
@@ -15,4 +15,15 @@ export function buildShareMessage(
     return line
   })
   return `Kampanya Onerisi:\n${lines.join('\n')}`
+}
+
+export function buildReturnShareMessage(records: ReturnRecordWithProduct[]): string {
+  const lines = records.map((r) => {
+    let line = `- ${r.product?.name || 'Silinmis urun'}`
+    if (r.product?.brand?.name) line += ` (${r.product.brand.name})`
+    line += ` - ${r.quantity} adet`
+    if (r.note) line += ` | ${r.note}`
+    return line
+  })
+  return `Iade Bildirimi:\n${lines.join('\n')}`
 }
