@@ -83,6 +83,19 @@ export interface PalletWithItems extends Pallet {
   items?: (PalletItem & { product?: Product })[]
 }
 
+export interface ReturnRecord {
+  id: string
+  product_id: string
+  quantity: number
+  note?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ReturnRecordWithProduct extends ReturnRecord {
+  product?: ProductWithStock
+}
+
 export interface BackupData {
   app: 'skt-takip'
   schema: 1
@@ -91,6 +104,7 @@ export interface BackupData {
   shelfLifeTypes?: ShelfLifeType[]
   products: (Product & { stock_items: StockItem[] })[]
   pallets: (Pallet & { items: PalletItem[] })[]
+  returns?: ReturnRecord[]
 }
 
 export interface RestoreResult {
@@ -100,4 +114,5 @@ export interface RestoreResult {
   palletsAdded: number
   palletItemsAdded: number
   shelfLifeTypesAdded: number
+  returnsAdded: number
 }

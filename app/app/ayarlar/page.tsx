@@ -7,10 +7,11 @@ import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, Info, Trash2, WifiOff, Download, RefreshCcw, Settings } from 'lucide-react'
+import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
+import { getExpiryInfo, getThresholds } from '@/lib/expiry'
 
 const LAST_BACKUP_KEY = 'skt-last-backup-at'
 
@@ -33,6 +34,17 @@ export default function SettingsPage() {
     () => products.filter((p) => (p.total_quantity ?? 0) === 0).length,
     [products]
   )
+
+  const campaignCount = useMemo(() => {
+    let count = 0
+    for (const p of products) {
+      const active = (p.stock_items || []).filter((s) => s.quantity > 0)
+      if (active.length === 0) continue
+      const earliest = active.reduce((a, b) => (new Date(a.expiry_date) < new Date(b.expiry_date) ? a : b))
+      if (getExpiryInfo(earliest.expiry_date, getThresholds(p.shelf_life_type)).status === 'campaign') count++
+    }
+    return count
+  }, [products])
 
   const handleExport = async () => {
     setExporting(true)
@@ -139,6 +151,13 @@ export default function SettingsPage() {
               </Link>
               <Link href="/app/paletler" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Layers className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Paletler</span>
+              </Link>
+              <Link href="/app/kampanya" className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <span className="flex items-center gap-2"><ShoppingCart className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Kampanya Urunleri</span></span>
+                {campaignCount > 0 && <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600">{campaignCount}</Badge>}
+              </Link>
+              <Link href="/app/iade" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <Undo2 className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Iade Kayitlari</span>
               </Link>
               <Link href="/app/ekle?tab=bulk" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Layers3 className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Toplu Urun Ekle</span>

@@ -2,24 +2,26 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems, ShelfLifeType } from '@/lib/types'
+import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems, ShelfLifeType, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
 
 export function useAppData() {
   const [products, setProducts] = useState<ProductWithStock[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [pallets, setPallets] = useState<PalletWithItems[]>([])
   const [shelfLifeTypes, setShelfLifeTypes] = useState<ShelfLifeType[]>([])
+  const [returnRecords, setReturnRecords] = useState<ReturnRecordWithProduct[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
       const repo = getRepository()
-      const [prods, brnds, plts, types] = await Promise.all([repo.getProducts(), repo.getBrands(), repo.getPallets(), repo.getShelfLifeTypes()])
+      const [prods, brnds, plts, types, returns] = await Promise.all([repo.getProducts(), repo.getBrands(), repo.getPallets(), repo.getShelfLifeTypes(), repo.getReturnRecords()])
       setProducts(prods)
       setBrands(brnds)
       setPallets(plts)
       setShelfLifeTypes(types)
+      setReturnRecords(returns)
     } catch (err) {
       console.error('Failed to load data:', err)
     } finally {
@@ -171,17 +173,38 @@ export function useAppData() {
     await loadData()
   }, [loadData])
 
+  const addReturnRecord = useCallback(async (data: Partial<ReturnRecord>) => {
+    const repo = getRepository()
+    const created = await repo.createReturnRecord(data)
+    await loadData()
+    return created
+  }, [loadData])
+
+  const deleteReturnRecord = useCallback(async (id: string) => {
+    const repo = getRepository()
+    await repo.deleteReturnRecord(id)
+    await loadData()
+  }, [loadData])
+
+  const bulkDeleteReturnRecords = useCallback(async (ids: string[]) => {
+    const repo = getRepository()
+    await repo.bulkDeleteReturnRecords(ids)
+    await loadData()
+  }, [loadData])
+
   return {
     products,
     brands,
     pallets,
     shelfLifeTypes,
+    returnRecords,
     isLoading,
     addProduct, bulkAddProducts, updateProduct, deleteProduct, zeroProductStock,
     addBrand, updateBrand, deleteBrand,
     addStockItem, updateStockItem, deleteStockItem,
     addPallet, deletePallet, addPalletItem, removePalletItem,
     addShelfLifeType, updateShelfLifeType, deleteShelfLifeType, bulkAssignShelfLifeType,
+    addReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords,
     reload: loadData,
   }
 }

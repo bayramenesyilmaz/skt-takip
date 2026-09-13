@@ -19,6 +19,7 @@ interface DeleteDialogProps {
   title?: string
   description?: React.ReactNode
   confirmLabel?: string
+  confirming?: boolean
 }
 
 export function DeleteDialog({
@@ -29,6 +30,7 @@ export function DeleteDialog({
   title = 'Ürünü Sil',
   description,
   confirmLabel = 'Sil',
+  confirming = false,
 }: DeleteDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -44,9 +46,9 @@ export function DeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>İptal</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            {confirmLabel}
+          <AlertDialogCancel disabled={confirming}>İptal</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} disabled={confirming} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {confirming ? 'İşleniyor...' : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

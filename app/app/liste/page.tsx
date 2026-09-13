@@ -4,7 +4,10 @@ import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
+import { useListeFilters } from '@/lib/context/liste-filters-context'
+import type { StatusFilter } from '@/lib/context/liste-filters-context'
 import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
+import { buildShareMessage } from '@/lib/share'
 import { ProductCard } from '@/components/product-card'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
@@ -16,9 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, Camera, ListChecks, X, Share2, Copy, Check } from 'lucide-react'
-import type { ProductWithStock, ExpiryStatus } from '@/lib/types'
-
-type StatusFilter = 'all' | ExpiryStatus
+import type { ProductWithStock } from '@/lib/types'
 
 const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'critical', 'remove', 'campaign', 'safe']
 
@@ -30,10 +31,7 @@ function ListeContent() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [brandFilter, setBrandFilter] = useState<string>('all')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const { search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter } = useListeFilters()
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
@@ -44,6 +42,7 @@ function ListeContent() {
   const [shareMode, setShareMode] = useState(false)
   const [shareQuantities, setShareQuantities] = useState<Record<string, string>>({})
   const [copied, setCopied] = useState(false)
+  const [zeroing, setZeroing] = useState(false)
 
   useEffect(() => {
     if (appliedInitialFilter) return
@@ -52,15 +51,24 @@ function ListeContent() {
     setAppliedInitialFilter(true)
   }, [searchParams, appliedInitialFilter])
 
-  const getProductStatus = (p: ProductWithStock) => {
-    const active = (p.stock_items || []).filter((s) => s.quantity > 0)
-    if (active.length === 0) return null
-    const earliest = active.sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
-    return { date: earliest.expiry_date, info: getExpiryInfo(earliest.expiry_date, getThresholds(p.shelf_life_type)) }
-  }
-
   const activeProducts = useMemo(() => products.filter((p) => (p.total_quantity ?? 0) > 0), [products])
   const zeroStockCount = products.length - activeProducts.length
+
+  // Compute each product's earliest-active-stock status once and reuse it
+  // everywhere (filtering, sorting, counts, share message) instead of
+  // recomputing it repeatedly per product on every render.
+  const statusById = useMemo(() => {
+    const map = new Map<string, { date: string; info: ReturnType<typeof getExpiryInfo> } | null>()
+    for (const p of activeProducts) {
+      const active = (p.stock_items || []).filter((s) => s.quantity > 0)
+      if (active.length === 0) { map.set(p.id, null); continue }
+      const earliest = [...active].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
+      map.set(p.id, { date: earliest.expiry_date, info: getExpiryInfo(earliest.expiry_date, getThresholds(p.shelf_life_type)) })
+    }
+    return map
+  }, [activeProducts])
+
+  const getProductStatus = (p: ProductWithStock) => statusById.get(p.id) ?? null
 
   const filtered = useMemo(() => {
     let result = [...activeProducts]
@@ -85,29 +93,33 @@ function ListeContent() {
     }
 
     if (statusFilter !== 'all') {
-      result = result.filter(p => getProductStatus(p)?.info.status === statusFilter)
+      result = result.filter(p => statusById.get(p.id)?.info.status === statusFilter)
     }
 
     return result.sort((a, b) => {
-      const aDate = getProductStatus(a)?.date || '9999'
-      const bDate = getProductStatus(b)?.date || '9999'
+      const aDate = statusById.get(a.id)?.date || '9999'
+      const bDate = statusById.get(b.id)?.date || '9999'
       return new Date(aDate).getTime() - new Date(bDate).getTime()
     })
-  }, [activeProducts, search, statusFilter, brandFilter, categoryFilter])
+  }, [activeProducts, search, statusFilter, brandFilter, categoryFilter, statusById])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: activeProducts.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
     for (const p of activeProducts) {
-      const status = getProductStatus(p)
+      const status = statusById.get(p.id)
       if (status) c[status.info.status]++
     }
     return c
-  }, [activeProducts])
+  }, [activeProducts, statusById])
 
   const handleZeroStock = async () => {
-    if (deleteTarget) {
+    if (!deleteTarget) return
+    setZeroing(true)
+    try {
       await zeroProductStock(deleteTarget.id)
       setDeleteTarget(null)
+    } finally {
+      setZeroing(false)
     }
   }
 
@@ -148,23 +160,10 @@ function ListeContent() {
     [activeProducts, selectedIds]
   )
 
-  const buildShareMessage = () => {
-    const lines = selectedProducts.map((p) => {
-      const status = getProductStatus(p)
-      const qty = (shareQuantities[p.id] || '').trim()
-      let line = `- ${p.name}`
-      if (p.stock_code) line += ` | Stok Kodu: ${p.stock_code}`
-      if (p.barcode) line += ` | Barkod: ${p.barcode}`
-      if (status?.date) line += ` (SKT: ${formatDate(status.date)})`
-      if (qty) line += ` - ${qty} adet`
-      return line
-    })
-    return `Kampanya Onerisi:\n${lines.join('\n')}`
-  }
-
   const handleCopyShare = async () => {
     try {
-      await navigator.clipboard.writeText(buildShareMessage())
+      const message = buildShareMessage(selectedProducts.map((p) => ({ product: p, date: getProductStatus(p)?.date })), shareQuantities)
+      await navigator.clipboard.writeText(message)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -173,7 +172,8 @@ function ListeContent() {
   }
 
   const handleWhatsAppShare = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(buildShareMessage())}`, '_blank')
+    const message = buildShareMessage(selectedProducts.map((p) => ({ product: p, date: getProductStatus(p)?.date })), shareQuantities)
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
   }
 
   const filters: { key: StatusFilter; label: string }[] = [
@@ -206,11 +206,22 @@ function ListeContent() {
     return (
       <main className="min-h-screen bg-background pb-24">
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
-          <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShareMode(false)}><X className="w-5 h-5" /></Button>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-foreground">Paylas</h1>
-              <p className="text-xs text-muted-foreground">{selectedProducts.length} urun secili - istege bagli adet girin</p>
+          <div className="max-w-lg mx-auto px-4 py-3">
+            <div className="flex items-center gap-3 mb-3">
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShareMode(false)}><X className="w-5 h-5" /></Button>
+              <div className="flex-1">
+                <h1 className="text-lg font-bold text-foreground">Paylas</h1>
+                <p className="text-xs text-muted-foreground">{selectedProducts.length} urun secili - istege bagli adet girin</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 h-11" onClick={handleCopyShare}>
+                {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                {copied ? 'Kopyalandi' : 'Kopyala'}
+              </Button>
+              <Button className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700" onClick={handleWhatsAppShare}>
+                <Share2 className="w-4 h-4 mr-1" />WhatsApp'ta Paylas
+              </Button>
             </div>
           </div>
         </header>
@@ -455,6 +466,7 @@ function ListeContent() {
           </>
         }
         confirmLabel="Stogu Sifirla"
+        confirming={zeroing}
       />
     </main>
   )
