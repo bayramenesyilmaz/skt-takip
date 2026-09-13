@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Plus, Trash2, Tag, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Tag, RotateCcw, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
 
@@ -16,6 +16,7 @@ export default function BrandsPage() {
   useEffect(() => { setMounted(true) }, [])
 
   const [newBrandName, setNewBrandName] = useState('')
+  const [search, setSearch] = useState('')
 
   const productCount = useMemo(() => {
     const m: Record<string, number> = {}
@@ -24,6 +25,12 @@ export default function BrandsPage() {
     })
     return m
   }, [products])
+
+  const filteredBrands = useMemo(() => {
+    if (!search.trim()) return brands
+    const q = search.toLowerCase()
+    return brands.filter((b) => b.name.toLowerCase().includes(q))
+  }, [brands, search])
 
   const handleAdd = async () => {
     if (!newBrandName.trim()) return
@@ -65,6 +72,18 @@ export default function BrandsPage() {
             />
             <Button className="h-10" disabled={!newBrandName.trim()} onClick={handleAdd}><Plus className="w-4 h-4 mr-1" />Ekle</Button>
           </div>
+
+          {brands.length > 0 && (
+            <div className="relative mt-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Marka ara..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 bg-muted/50"
+              />
+            </div>
+          )}
         </div>
       </header>
 
@@ -75,9 +94,15 @@ export default function BrandsPage() {
             <h3 className="font-semibold text-foreground mb-1">Marka Yok</h3>
             <p className="text-sm text-muted-foreground">Yukaridan yeni bir marka ekleyin.</p>
           </div>
+        ) : filteredBrands.length === 0 ? (
+          <div className="text-center py-12">
+            <Search className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+            <h3 className="font-semibold text-foreground mb-1">Marka Bulunamadi</h3>
+            <p className="text-sm text-muted-foreground">Aramanla eslesen marka yok.</p>
+          </div>
         ) : (
           <div className="space-y-2">
-            {brands.map((brand) => (
+            {filteredBrands.map((brand) => (
               <Card key={brand.id}>
                 <CardContent className="p-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">

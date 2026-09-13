@@ -11,12 +11,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, ShoppingCart, Package, Share2, Copy, Check, X } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ArrowLeft, ShoppingCart, Package, Share2, Copy, Check, X, Search, Tag } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 
 export default function KampanyaPage() {
-  const { products } = useAppData()
+  const { products, brands } = useAppData()
   const [mounted, setMounted] = useState(false)
+  const [search, setSearch] = useState('')
+  const [brandFilter, setBrandFilter] = useState('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [shareMode, setShareMode] = useState(false)
   const [shareQuantities, setShareQuantities] = useState<Record<string, string>>({})
@@ -24,7 +27,7 @@ export default function KampanyaPage() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const campaignProducts = useMemo(() => {
+  const allCampaignProducts = useMemo(() => {
     return products
       .filter((p) => (p.total_quantity ?? 0) > 0)
       .map((p) => {
@@ -37,6 +40,22 @@ export default function KampanyaPage() {
       .filter((x): x is { product: ProductWithStock; date: string; daysLeft: number } => x !== null)
       .sort((a, b) => a.daysLeft - b.daysLeft)
   }, [products])
+
+  const campaignProducts = useMemo(() => {
+    let result = allCampaignProducts
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(({ product: p }) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.stock_code && p.stock_code.toLowerCase().includes(q)) ||
+        (p.barcode && p.barcode.includes(q))
+      )
+    }
+    if (brandFilter !== 'all') {
+      result = result.filter(({ product: p }) => p.brand_id === brandFilter)
+    }
+    return result
+  }, [allCampaignProducts, search, brandFilter])
 
   const allSelected = campaignProducts.length > 0 && campaignProducts.every((x) => selectedIds.has(x.product.id))
 
@@ -153,17 +172,49 @@ export default function KampanyaPage() {
               <h1 className="text-lg font-bold text-foreground">Kampanya Urunleri</h1>
               <p className="text-xs text-muted-foreground">Secip yeticiye bildirin</p>
             </div>
-            <Badge variant="secondary" className="text-xs">{campaignProducts.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{allCampaignProducts.length}</Badge>
           </div>
+
+          {allCampaignProducts.length > 0 && (
+            <div className="flex gap-2 mt-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Urun ara..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-10 bg-muted/50"
+                />
+              </div>
+              <Select value={brandFilter} onValueChange={setBrandFilter}>
+                <SelectTrigger className="h-10 bg-muted/50 w-36 shrink-0">
+                  <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tum Markalar</SelectItem>
+                  {brands.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-4">
-        {campaignProducts.length === 0 ? (
+        {allCampaignProducts.length === 0 ? (
           <div className="text-center py-12">
             <Package className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <h3 className="font-semibold text-foreground mb-1">Kampanya Urunu Yok</h3>
             <p className="text-sm text-muted-foreground">Su anda kampanya durumunda urun bulunmuyor.</p>
+          </div>
+        ) : campaignProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <Search className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+            <h3 className="font-semibold text-foreground mb-1">Urun Bulunamadi</h3>
+            <p className="text-sm text-muted-foreground">Filtrelere uyan kampanya urunu yok.</p>
           </div>
         ) : (
           <>

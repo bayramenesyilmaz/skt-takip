@@ -41,7 +41,7 @@ export function BulkProductAdd({ onAdd, onCancel }: BulkProductAddProps) {
   }
 
   return (
-    <Card className="border-primary/20">
+    <Card className="border-primary/20 py-6">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2"><ClipboardPaste className="w-5 h-5" />Toplu Urun Ekle</CardTitle>
         <p className="text-sm text-muted-foreground">WhatsApp veya mesajdan kopyaladiginiz urunleri asagiya yapistiriniz.</p>
