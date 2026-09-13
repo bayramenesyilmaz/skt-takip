@@ -7,12 +7,24 @@ import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, Info, Trash2, WifiOff, Download, RefreshCcw, Settings } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
+import { getExpiryInfo, getThresholds } from '@/lib/expiry'
 
 const LAST_BACKUP_KEY = 'skt-last-backup-at'
+const SHARE_HINT_SHOWN_KEY = 'skt-share-hint-shown'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -21,6 +33,7 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const [shareHintOpen, setShareHintOpen] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -34,16 +47,43 @@ export default function SettingsPage() {
     [products]
   )
 
-  const handleExport = async () => {
+  const campaignCount = useMemo(() => {
+    let count = 0
+    for (const p of products) {
+      const active = (p.stock_items || []).filter((s) => s.quantity > 0)
+      if (active.length === 0) continue
+      const earliest = active.reduce((a, b) => (new Date(a.expiry_date) < new Date(b.expiry_date) ? a : b))
+      if (getExpiryInfo(earliest.expiry_date, getThresholds(p.shelf_life_type)).status === 'campaign') count++
+    }
+    return count
+  }, [products])
+
+  const performExport = async () => {
     setExporting(true)
     try {
       const repo = getRepository()
       const data = await repo.exportBackup()
+      const fileName = `skt-takip-yedek-${new Date().toISOString().slice(0, 10)}.json`
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+
+      const file = new File([blob], fileName, { type: 'application/json' })
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Yedek Dosyasi' })
+          localStorage.setItem(LAST_BACKUP_KEY, Date.now().toString())
+          return
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            return
+          }
+          console.error('Paylasim basarisiz, klasik indirmeye geciliyor:', err)
+        }
+      }
+
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `skt-takip-yedek-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = fileName
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -52,6 +92,21 @@ export default function SettingsPage() {
     } finally {
       setExporting(false)
     }
+  }
+
+  const handleExport = () => {
+    const hintShown = localStorage.getItem(SHARE_HINT_SHOWN_KEY)
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function' && !hintShown) {
+      setShareHintOpen(true)
+      return
+    }
+    performExport()
+  }
+
+  const handleShareHintConfirm = () => {
+    localStorage.setItem(SHARE_HINT_SHOWN_KEY, '1')
+    setShareHintOpen(false)
+    performExport()
   }
 
   const handleResetData = async () => {
@@ -140,6 +195,13 @@ export default function SettingsPage() {
               <Link href="/app/paletler" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Layers className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Paletler</span>
               </Link>
+              <Link href="/app/kampanya" className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <span className="flex items-center gap-2"><ShoppingCart className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Kampanya Urunleri</span></span>
+                {campaignCount > 0 && <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600">{campaignCount}</Badge>}
+              </Link>
+              <Link href="/app/iade" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <Undo2 className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Iade Kayitlari</span>
+              </Link>
               <Link href="/app/ekle?tab=bulk" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Layers3 className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Toplu Urun Ekle</span>
               </Link>
@@ -211,6 +273,21 @@ export default function SettingsPage() {
         }
         confirmLabel="Evet, Tumunu Sil"
       />
+
+      <AlertDialog open={shareHintOpen} onOpenChange={setShareHintOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Yedek Dosyasini Kaydetme</AlertDialogTitle>
+            <AlertDialogDescription>
+              Acilan paylasim ekraninda <span className="font-medium text-foreground">&quot;Dosyalara Kaydet&quot;</span> secenegini secerek yedek dosyasini cihazinizda saklayabilirsiniz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Iptal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleShareHintConfirm}>Devam Et</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   )
 }

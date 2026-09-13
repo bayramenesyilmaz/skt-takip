@@ -1,4 +1,4 @@
-import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems, ShelfLifeType, BackupData, RestoreResult } from '@/lib/types'
+import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems, ShelfLifeType, BackupData, RestoreResult, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
 
 export interface IRepository {
   getBrands(): Promise<Brand[]>
@@ -36,4 +36,9 @@ export interface IRepository {
   createShelfLifeType(data: Partial<ShelfLifeType>): Promise<ShelfLifeType>
   updateShelfLifeType(id: string, data: Partial<ShelfLifeType>): Promise<void>
   deleteShelfLifeType(id: string): Promise<void>
+
+  getReturnRecords(): Promise<ReturnRecordWithProduct[]>
+  createReturnRecord(data: Partial<ReturnRecord>): Promise<ReturnRecord>
+  deleteReturnRecord(id: string): Promise<void>
+  bulkDeleteReturnRecords(ids: string[]): Promise<void>
 }
