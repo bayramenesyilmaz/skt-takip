@@ -1,6 +1,7 @@
 import React from "react"
 import type { Metadata, Viewport } from 'next'
 import { InstallPrompt } from '@/components/install-prompt'
+import { InstallPromptProvider } from '@/lib/context/install-prompt-context'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -30,8 +31,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="font-sans antialiased">
-        <InstallPrompt />
-        {children}
+        <InstallPromptProvider>
+          <InstallPrompt />
+          {children}
+        </InstallPromptProvider>
       </body>
     </html>
   )

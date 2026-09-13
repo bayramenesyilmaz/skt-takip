@@ -1,9 +1,13 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Package, Barcode, Search, WifiOff, ArrowRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+
+const WELCOME_SEEN_KEY = 'skt-welcome-seen'
 
 const features = [
   { icon: Barcode, title: 'Barkod ile Hizli Islem', description: 'Kamerayla barkod okutarak urun ekle, guncelle ve bul.' },
@@ -13,6 +17,26 @@ const features = [
 ]
 
 export default function HomePage() {
+  const router = useRouter()
+  const [showLanding, setShowLanding] = useState(false)
+
+  useEffect(() => {
+    if (localStorage.getItem(WELCOME_SEEN_KEY)) {
+      router.replace('/app')
+      return
+    }
+    localStorage.setItem(WELCOME_SEEN_KEY, '1')
+    setShowLanding(true)
+  }, [router])
+
+  if (!showLanding) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <section className="max-w-4xl mx-auto px-4 pt-20 pb-12 text-center">
