@@ -39,6 +39,7 @@ export interface IRepository {
 
   getReturnRecords(): Promise<ReturnRecordWithProduct[]>
   createReturnRecord(data: Partial<ReturnRecord>): Promise<ReturnRecord>
+  updateReturnRecord(id: string, data: Partial<ReturnRecord>): Promise<void>
   deleteReturnRecord(id: string): Promise<void>
   bulkDeleteReturnRecords(ids: string[]): Promise<void>
 }

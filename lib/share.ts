@@ -18,12 +18,14 @@ export function buildShareMessage(
 }
 
 export function buildReturnShareMessage(records: ReturnRecordWithProduct[]): string {
-  const lines = records.map((r) => {
+  const entries = records.map((r) => {
     let line = `- ${r.product?.name || 'Silinmis urun'}`
     if (r.product?.brand?.name) line += ` (${r.product.brand.name})`
     line += ` - ${r.quantity} adet`
-    if (r.note) line += ` | ${r.note}`
+    if (r.product?.stock_code) line += `\n  Stok Kodu: ${r.product.stock_code}`
+    if (r.product?.barcode) line += `\n  Barkod: ${r.product.barcode}`
+    if (r.note) line += `\n  ${r.note}`
     return line
   })
-  return `Iade Bildirimi:\n${lines.join('\n')}`
+  return `Iade Bildirimi:\n${entries.join('\n\n')}`
 }

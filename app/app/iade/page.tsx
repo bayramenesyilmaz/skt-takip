@@ -14,11 +14,11 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, ListChecks, Tag, Package, Copy, Check, Share2 } from 'lucide-react'
+import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, Edit, Save, ListChecks, Tag, Package, Copy, Check, Share2 } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 
 export default function IadePage() {
-  const { products, brands, returnRecords, addReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords } = useAppData()
+  const { products, brands, returnRecords, addReturnRecord, updateReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -35,6 +35,10 @@ export default function IadePage() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editQuantity, setEditQuantity] = useState('1')
+  const [editNote, setEditNote] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -125,6 +129,32 @@ export default function IadePage() {
   const handleWhatsAppShare = () => {
     const message = buildReturnShareMessage(selectedRecords)
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+  }
+
+  const startEdit = (r: { id: string; quantity: number; note?: string }) => {
+    setEditingId(r.id)
+    setEditQuantity(String(r.quantity))
+    setEditNote(r.note || '')
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditQuantity('1')
+    setEditNote('')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return
+    setSavingEdit(true)
+    try {
+      await updateReturnRecord(editingId, {
+        quantity: parseInt(editQuantity) || 1,
+        note: editNote.trim() || undefined,
+      })
+      cancelEdit()
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   const handleDeleteOne = async () => {
@@ -296,6 +326,20 @@ export default function IadePage() {
                     {r.note && <p className="text-xs text-muted-foreground italic truncate">{r.note}</p>}
                   </div>
                 </label>
+              ) : editingId === r.id ? (
+                <Card key={r.id} className="border-primary/30">
+                  <CardContent className="p-3 space-y-3">
+                    <p className="text-sm font-medium text-foreground truncate">{r.product?.name || 'Silinmis urun'}</p>
+                    <div className="space-y-1"><Label className="text-xs">Adet</Label><Input type="number" min="1" value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} className="h-10" /></div>
+                    <div className="space-y-1"><Label className="text-xs">Not (opsiyonel)</Label><Input placeholder="orn: son kullanma tarihi gecti" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="h-10" /></div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1 h-10" onClick={cancelEdit} disabled={savingEdit}>Iptal</Button>
+                      <Button className="flex-1 h-10" onClick={handleSaveEdit} disabled={savingEdit}>
+                        <Save className="w-4 h-4 mr-1" />{savingEdit ? 'Kaydediliyor...' : 'Kaydet'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
                 <Card key={r.id}>
                   <CardContent className="p-3 flex items-start justify-between gap-2">
@@ -306,11 +350,23 @@ export default function IadePage() {
                         <Badge variant="outline" className="text-xs">Adet: {r.quantity}</Badge>
                         <span className="text-xs text-muted-foreground">{formatDate(r.created_at)}</span>
                       </div>
+                      {(r.product?.stock_code || r.product?.barcode) && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          {r.product?.stock_code && <>Stok Kodu: {r.product.stock_code}</>}
+                          {r.product?.stock_code && r.product?.barcode && ' | '}
+                          {r.product?.barcode && <>Barkod: {r.product.barcode}</>}
+                        </p>
+                      )}
                       {r.note && <p className="text-xs text-muted-foreground italic mt-1">{r.note}</p>}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setDeleteTarget(r.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => startEdit(r)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(r.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               )
