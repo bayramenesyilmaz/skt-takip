@@ -350,6 +350,15 @@ export class LocalRepository implements IRepository {
   }
 
   async createReturnRecord(data: Partial<ReturnRecord>): Promise<ReturnRecord> {
+    const records = read<ReturnRecord>(KEYS.returns)
+    const existing = data.product_id ? records.find((r) => r.product_id === data.product_id) : undefined
+    if (existing) {
+      existing.quantity += data.quantity ?? 1
+      if (data.note) existing.note = data.note
+      existing.updated_at = now()
+      write(KEYS.returns, records)
+      return existing
+    }
     const record: ReturnRecord = {
       id: uid(),
       product_id: data.product_id || '',
@@ -358,7 +367,15 @@ export class LocalRepository implements IRepository {
       created_at: now(),
       updated_at: now(),
     }
-    const records = read<ReturnRecord>(KEYS.returns); records.push(record); write(KEYS.returns, records); return record
+    records.push(record); write(KEYS.returns, records); return record
+  }
+
+  async updateReturnRecord(id: string, data: Partial<ReturnRecord>): Promise<void> {
+    const records = read<ReturnRecord>(KEYS.returns)
+    const idx = records.findIndex((r) => r.id === id)
+    if (idx === -1) return
+    records[idx] = { ...records[idx], ...data, updated_at: now() }
+    write(KEYS.returns, records)
   }
 
   async deleteReturnRecord(id: string): Promise<void> {

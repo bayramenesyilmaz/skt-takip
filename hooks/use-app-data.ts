@@ -180,6 +180,12 @@ export function useAppData() {
     return created
   }, [loadData])
 
+  const updateReturnRecord = useCallback(async (id: string, data: Partial<ReturnRecord>) => {
+    const repo = getRepository()
+    await repo.updateReturnRecord(id, data)
+    await loadData()
+  }, [loadData])
+
   const deleteReturnRecord = useCallback(async (id: string) => {
     const repo = getRepository()
     await repo.deleteReturnRecord(id)
@@ -204,7 +210,7 @@ export function useAppData() {
     addStockItem, updateStockItem, deleteStockItem,
     addPallet, deletePallet, addPalletItem, removePalletItem,
     addShelfLifeType, updateShelfLifeType, deleteShelfLifeType, bulkAssignShelfLifeType,
-    addReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords,
+    addReturnRecord, updateReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords,
     reload: loadData,
   }
 }
