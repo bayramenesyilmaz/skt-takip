@@ -1,33 +1,30 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import Link from 'next/link'
-import { Package, Barcode, Search, WifiOff, ArrowRight, Check } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { ONBOARDING_SLIDES } from '@/lib/onboarding-slides'
 
 const WELCOME_SEEN_KEY = 'skt-welcome-seen'
 
-const features = [
-  { icon: Barcode, title: 'Barkod ile Hizli Islem', description: 'Kamerayla barkod okutarak urun ekle, guncelle ve bul.' },
-  { icon: Search, title: 'Hizli Urun Bulma', description: 'Isim, stok kodu veya barkodla aninda ara.' },
-  { icon: Package, title: 'SKT Takibi', description: 'Son kullanma tarihine gore otomatik kritik/kampanya uyarilari.' },
-  { icon: WifiOff, title: 'Tamamen Cevrimdisi', description: 'Veritabani veya internet gerekmez, tum veriler cihazinizda saklanir.' },
-]
-
-export default function HomePage() {
+function HomeContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const forceIntro = searchParams.get('intro') === '1'
   const [showLanding, setShowLanding] = useState(false)
+  const [slide, setSlide] = useState(0)
 
   useEffect(() => {
-    if (localStorage.getItem(WELCOME_SEEN_KEY)) {
+    if (!forceIntro && localStorage.getItem(WELCOME_SEEN_KEY)) {
       router.replace('/app')
       return
     }
     localStorage.setItem(WELCOME_SEEN_KEY, '1')
     setShowLanding(true)
-  }, [router])
+  }, [router, forceIntro])
 
   if (!showLanding) {
     return (
@@ -37,60 +34,65 @@ export default function HomePage() {
     )
   }
 
+  const isLast = slide === ONBOARDING_SLIDES.length - 1
+  const current = ONBOARDING_SLIDES[slide]
+  const Icon = current.icon
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <section className="max-w-4xl mx-auto px-4 pt-20 pb-12 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-          <Package className="w-4 h-4" /> SKT Takip Sistemi
+    <main className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="flex justify-end p-4">
+        <Link href="/app"><Button variant="ghost" size="sm">Atla</Button></Link>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-md mx-auto w-full">
+        <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-6">
+          <Icon className="w-10 h-10 text-primary" />
         </div>
-        <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight">
-          Son Kullanma Tarihi<br /><span className="text-primary">Barkodla Hizli Takip</span>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-3 tracking-tight">
+          {current.title}
         </h1>
-        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-          Reyon gorevlileri icin barkod tarayarak urun ekleyip guncelleyebileceginiz, tamamen cihazinizda calisan
-          son kullanma tarihi takip uygulamasi.
+        <p className="text-base text-muted-foreground">
+          {current.description}
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href="/app"><Button size="lg" className="w-full sm:w-auto">Uygulamayi Ac<ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
-        </div>
-      </section>
+      </div>
 
-      <section className="max-w-4xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {features.map((f) => (
-            <Card key={f.title} className="border-border/50">
-              <CardContent className="p-5">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <f.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-1">{f.title}</h3>
-                    <p className="text-sm text-muted-foreground">{f.description}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
+      <div className="flex items-center justify-center gap-2 pb-6">
+        {ONBOARDING_SLIDES.map((_, i) => (
+          <button
+            key={i}
+            aria-label={`Slayt ${i + 1}`}
+            onClick={() => setSlide(i)}
+            className={`h-1.5 rounded-full transition-all ${i === slide ? 'w-6 bg-primary' : 'w-1.5 bg-primary/20'}`}
+          />
+        ))}
+      </div>
 
-      <section className="max-w-4xl mx-auto px-4 py-12">
-        <Card className="border-emerald-500/20 bg-emerald-500/5">
-          <CardContent className="p-6 flex items-start gap-3">
-            <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-foreground">
-              Kayit gerektirmez, reklam yoktur. Tum verileriniz sadece bu cihazda saklanir; internet baglantisi olmadan da calisir.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
-      <footer className="border-t border-border mt-4">
-        <div className="max-w-4xl mx-auto px-4 py-8 text-center">
-          <p className="text-sm text-muted-foreground">SKT Takip &copy; 2026 - Market reyon gorevlileri icin profesyonel takip sistemi</p>
-        </div>
-      </footer>
+      <div className="px-6 pb-10 max-w-md mx-auto w-full flex gap-3">
+        {slide > 0 && (
+          <Button variant="outline" size="lg" className="flex-1" onClick={() => setSlide((s) => s - 1)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />Geri
+          </Button>
+        )}
+        {isLast ? (
+          <Link href="/app" className="flex-1">
+            <Button size="lg" className="w-full">
+              Uygulamayi Ac<Check className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+        ) : (
+          <Button size="lg" className="flex-1" onClick={() => setSlide((s) => s + 1)}>
+            Ileri<ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        )}
+      </div>
     </main>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <HomeContent />
+    </Suspense>
   )
 }

@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, PackageX, Search, Plus, Check } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 
 export default function ZeroStockPage() {
   const router = useRouter()
@@ -74,6 +75,7 @@ export default function ZeroStockPage() {
               <p className="text-xs text-muted-foreground">SKT girerek geri getirin ya da kalici olarak silin</p>
             </div>
             <Badge variant="secondary" className="text-xs">{zeroProducts.length}</Badge>
+            <HowItWorksButton page="stok-sifir" />
           </div>
 
           <div className="relative">

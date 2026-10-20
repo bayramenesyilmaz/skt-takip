@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Layers, Plus, Package, Trash2, Search } from 'lucide-react'
 import type { PalletWithItems } from '@/lib/types'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 
 export default function PalletsPage() {
   const { pallets, addPallet, deletePallet } = useAppData()
@@ -68,6 +69,7 @@ export default function PalletsPage() {
               <p className="text-xs text-muted-foreground">Rayondaki paletleri yonetin</p>
             </div>
             <Badge variant="secondary" className="text-xs">{pallets.length}</Badge>
+            <HowItWorksButton page="paletler" />
           </div>
 
           <div className="flex gap-2">

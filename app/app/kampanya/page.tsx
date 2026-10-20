@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, ShoppingCart, Package, Share2, Copy, Check, X, Search, Tag } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 
 export default function KampanyaPage() {
   const { products, brands } = useAppData()
@@ -173,6 +174,7 @@ export default function KampanyaPage() {
               <p className="text-xs text-muted-foreground">Secip yeticiye bildirin</p>
             </div>
             <Badge variant="secondary" className="text-xs">{allCampaignProducts.length}</Badge>
+            <HowItWorksButton page="kampanya" />
           </div>
 
           {allCampaignProducts.length > 0 && (

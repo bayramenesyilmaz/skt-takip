@@ -10,18 +10,28 @@ import { ProductSearchCard } from '@/components/product-search-card'
 import { useAppData } from '@/hooks/use-app-data'
 import { useAraFilters } from '@/lib/context/ara-filters-context'
 import { useReyon } from '@/lib/context/reyon-context'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { getRepository } from '@/lib/repositories/repository.factory'
+import { AdSlot } from '@/components/ad-slot'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 import { Search, Camera, Package, MapPin } from 'lucide-react'
+
+const PAGE_SIZE = 30
 
 export default function AraPage() {
   const { products, isLoading } = useAppData()
   const { currentReyonId } = useReyon()
   const [mounted, setMounted] = useState(false)
   const { search: searchQuery, setSearch: setSearchQuery, allReyons, setAllReyons } = useAraFilters()
+  const [searchInput, setSearchInput] = useState(searchQuery)
+  const debouncedSearch = useDebouncedValue(searchInput, 200)
   const [showScanner, setShowScanner] = useState(false)
   const [palletMap, setPalletMap] = useState<Record<string, { name: string; quantity: number }[]>>({})
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   useEffect(() => { setMounted(true) }, [])
+  useEffect(() => { setSearchQuery(debouncedSearch) }, [debouncedSearch])
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [searchQuery, allReyons, currentReyonId])
 
   const results = useMemo(() => {
     if (!searchQuery.trim()) return []
@@ -46,20 +56,23 @@ export default function AraPage() {
       })
   }, [searchQuery, products, allReyons, currentReyonId])
 
+  const visibleResults = useMemo(() => results.slice(0, visibleCount), [results, visibleCount])
+
   useEffect(() => {
     let cancelled = false
-    if (results.length === 0) { setPalletMap({}); return }
+    if (visibleResults.length === 0) { setPalletMap({}); return }
     const repo = getRepository()
-    Promise.all(results.map(async ({ product }) => {
+    Promise.all(visibleResults.map(async ({ product }) => {
       const items = await repo.getPalletItemsForProduct(product.id)
       return [product.id, items.map((i) => ({ name: i.pallet.name, quantity: i.quantity }))] as const
     })).then((entries) => {
       if (!cancelled) setPalletMap(Object.fromEntries(entries))
     })
     return () => { cancelled = true }
-  }, [results])
+  }, [visibleResults])
 
   const handleScan = (barcode: string) => {
+    setSearchInput(barcode)
     setSearchQuery(barcode)
     setShowScanner(false)
   }
@@ -87,10 +100,11 @@ export default function AraPage() {
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Search className="w-5 h-5 text-primary" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-lg font-bold text-foreground">Urun Ara</h1>
               <p className="text-xs text-muted-foreground">Isim, stok kodu veya barkodla bul</p>
             </div>
+            <HowItWorksButton page="ara" />
           </div>
 
           <div className="flex gap-2">
@@ -98,8 +112,8 @@ export default function AraPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Urun adi, stok kodu veya barkod..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-9 h-11 bg-muted/50"
                 autoFocus
               />
@@ -141,11 +155,21 @@ export default function AraPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">{results.length} sonuc bulundu</p>
-            {results.map(({ product }) => (
+            {visibleResults.map(({ product }) => (
               <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block hover:opacity-90 transition-opacity">
                 <ProductSearchCard product={product} palletInfo={palletMap[product.id]} />
               </Link>
             ))}
+            {results.length > visibleResults.length && (
+              <Button
+                variant="outline"
+                className="w-full h-10"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              >
+                Daha Fazla Goster ({results.length - visibleResults.length} kaldi)
+              </Button>
+            )}
+            <AdSlot id="ara-bottom" />
           </div>
         )}
       </div>

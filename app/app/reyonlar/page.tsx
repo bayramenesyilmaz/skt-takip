@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Plus, Trash2, MapPin, Search, Check } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 
 export default function ReyonlarPage() {
   const { reyons, products, addReyon, deleteReyon } = useAppData()
@@ -68,6 +69,7 @@ export default function ReyonlarPage() {
               <p className="text-xs text-muted-foreground">Mevcut reyonunuzu secin, yeni reyon ekleyin</p>
             </div>
             <Badge variant="secondary" className="text-xs">{reyons.length}</Badge>
+            <HowItWorksButton page="reyonlar" />
           </div>
 
           <div className="flex gap-2">

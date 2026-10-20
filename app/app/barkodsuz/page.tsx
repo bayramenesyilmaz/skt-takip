@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, ScanBarcode, Camera, Check, Package, Search } from 'lucide-react'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 
 export default function MissingBarcodePage() {
   const { products, updateProduct } = useAppData()
@@ -77,6 +78,7 @@ export default function MissingBarcodePage() {
               <p className="text-xs text-muted-foreground">Barkodu olmayan urunlere hizlica barkod ekleyin</p>
             </div>
             <Badge variant="secondary" className="text-xs">{missingProducts.length}</Badge>
+            <HowItWorksButton page="barkodsuz" />
           </div>
 
           <div className="relative">

@@ -7,7 +7,9 @@ import { useAppData } from '@/hooks/use-app-data'
 import { useListeFilters } from '@/lib/context/liste-filters-context'
 import type { StatusFilter } from '@/lib/context/liste-filters-context'
 import { useReyon } from '@/lib/context/reyon-context'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { AdSlot } from '@/components/ad-slot'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
 import { buildShareMessage } from '@/lib/share'
 import { ProductCard } from '@/components/product-card'
@@ -24,6 +26,7 @@ import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, C
 import type { ProductWithStock } from '@/lib/types'
 
 const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'critical', 'remove', 'campaign', 'safe']
+const PAGE_SIZE = 40
 
 function ListeContent() {
   const router = useRouter()
@@ -35,6 +38,10 @@ function ListeContent() {
   useEffect(() => { setMounted(true) }, [])
 
   const { search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter, reyonFilter, setReyonFilter } = useListeFilters()
+  const [searchInput, setSearchInput] = useState(search)
+  const debouncedSearch = useDebouncedValue(searchInput, 200)
+  useEffect(() => { setSearch(debouncedSearch) }, [debouncedSearch])
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
@@ -112,6 +119,12 @@ function ListeContent() {
       return new Date(aDate).getTime() - new Date(bDate).getTime()
     })
   }, [activeProducts, search, statusFilter, brandFilter, categoryFilter, statusById])
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [search, statusFilter, brandFilter, categoryFilter, reyonFilter])
+
+  const visibleProducts = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: activeProducts.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
@@ -206,7 +219,7 @@ function ListeContent() {
   if (showScanner) {
     return (
       <BarcodeScanner
-        onScan={(barcode) => { setSearch(barcode); setShowScanner(false) }}
+        onScan={(barcode) => { setSearchInput(barcode); setSearch(barcode); setShowScanner(false) }}
         onClose={() => setShowScanner(false)}
       />
     )
@@ -303,6 +316,7 @@ function ListeContent() {
             >
               {selectMode ? <X className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
             </Button>
+            <HowItWorksButton page="liste" />
           </div>
 
           <div className="flex gap-2 mb-2">
@@ -310,8 +324,8 @@ function ListeContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Urun ara..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-9 h-10 bg-muted/50"
               />
             </div>
@@ -422,7 +436,7 @@ function ListeContent() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((product) => (
+            {visibleProducts.map((product) => (
               selectMode ? (
                 <label key={product.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer">
                   <input
@@ -449,6 +463,16 @@ function ListeContent() {
               )
             ))}
           </div>
+        )}
+
+        {filtered.length > visibleProducts.length && (
+          <Button
+            variant="outline"
+            className="w-full h-10 mt-3"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+          >
+            Daha Fazla Goster ({filtered.length - visibleProducts.length} kaldi)
+          </Button>
         )}
 
         {!selectMode && <AdSlot id="liste-bottom" className="mt-3" />}

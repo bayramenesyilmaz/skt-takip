@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, Edit, Save, ListChecks, Tag, Package, Copy, Check, Share2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'
 import type { ProductWithStock, ReturnRecordWithProduct } from '@/lib/types'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 
 function dayLabel(dateStr: string): string {
   const startOfDay = (ms: number) => {
@@ -296,6 +297,7 @@ function IadeContent() {
             >
               {selectMode ? <X className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
             </Button>
+            <HowItWorksButton page="iade" />
           </div>
 
           <div className="flex gap-2 mb-2">
