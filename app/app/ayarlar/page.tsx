@@ -1,12 +1,14 @@
 'use client'
 
 import { useAppData } from '@/hooks/use-app-data'
+import { useReyon } from '@/lib/context/reyon-context'
 import { getRepository } from '@/lib/repositories/repository.factory'
 import { BottomNav } from '@/components/bottom-nav'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings, Smartphone } from 'lucide-react'
+import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings, Smartphone, MapPin, FileSpreadsheet } from 'lucide-react'
 import { useInstallPrompt } from '@/lib/context/install-prompt-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -29,13 +31,15 @@ const SHARE_HINT_SHOWN_KEY = 'skt-share-hint-shown'
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { products, brands, reload } = useAppData()
+  const { products, brands, reyons, reload } = useAppData()
+  const { currentReyonId, setCurrentReyonId } = useReyon()
   const { canInstall, isStandalone, promptInstall } = useInstallPrompt()
   const [mounted, setMounted] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [shareHintOpen, setShareHintOpen] = useState(false)
+  const [exportScopeToReyon, setExportScopeToReyon] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -64,7 +68,7 @@ export default function SettingsPage() {
     setExporting(true)
     try {
       const repo = getRepository()
-      const data = await repo.exportBackup()
+      const data = await repo.exportBackup(exportScopeToReyon && currentReyonId ? currentReyonId : undefined)
       const fileName = `skt-takip-yedek-${new Date().toISOString().slice(0, 10)}.json`
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
 
@@ -209,10 +213,41 @@ export default function SettingsPage() {
 
         <Card>
           <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin className="w-4 h-4 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground text-sm">Reyon</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Veritabani olmadigi icin bu secim yalnizca bu cihazda gecerlidir. Yeni urunler ve disa aktarma bu reyona gore calisir.
+            </p>
+            {reyons.length === 0 ? (
+              <Link href="/app/reyonlar">
+                <Button variant="outline" size="sm"><MapPin className="w-4 h-4 mr-1" /> Reyon Ekle</Button>
+              </Link>
+            ) : (
+              <div className="flex gap-2">
+                <Select value={currentReyonId || 'none'} onValueChange={(v) => setCurrentReyonId(v === 'none' ? null : v)}>
+                  <SelectTrigger className="h-10 flex-1 bg-muted/50"><SelectValue placeholder="Reyon sec" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Reyon Yok</SelectItem>
+                    {reyons.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Link href="/app/reyonlar"><Button variant="outline" className="h-10">Yonet</Button></Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
             <h2 className="font-semibold text-foreground text-sm mb-3">Yonetim</h2>
             <div className="space-y-2">
               <Link href="/app/markalar" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Tag className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Markalar</span>
+              </Link>
+              <Link href="/app/reyonlar" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <MapPin className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Reyonlar</span>
               </Link>
               <Link href="/app/raf-omru" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Thermometer className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Raf Omru Tipleri</span>
@@ -229,6 +264,9 @@ export default function SettingsPage() {
               </Link>
               <Link href="/app/ekle?tab=bulk" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Layers3 className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Toplu Urun Ekle</span>
+              </Link>
+              <Link href="/app/ekle?tab=excel" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <FileSpreadsheet className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Excel ile Toplu Ekle</span>
               </Link>
               <Link href="/app/barkodsuz" className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <span className="flex items-center gap-2"><ScanBarcode className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Barkodsuz Urunler</span></span>
@@ -259,6 +297,17 @@ export default function SettingsPage() {
           <CardContent className="p-4">
             <h2 className="font-semibold mb-1 text-red-600 text-sm">Veriler</h2>
             <p className="text-xs text-muted-foreground mb-3">Silmeden once yedek almanizi oneririz. Yedek dosyasini daha sonra Import ekranindan geri yukleyebilirsiniz.</p>
+            {currentReyonId && (
+              <label className="flex items-center gap-2 mb-3 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={exportScopeToReyon}
+                  onChange={(e) => setExportScopeToReyon(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-primary"
+                />
+                Sadece secili reyonu disa aktar
+              </label>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" disabled={exporting} onClick={handleExport}>
                 <Download className="w-4 h-4 mr-1" /> {exporting ? 'Hazirlaniyor...' : 'Disa Aktar (Yedekle)'}

@@ -4,6 +4,7 @@ import { useAppData } from '@/hooks/use-app-data'
 import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/expiry'
 import { StatsCards } from '@/components/stats-cards'
 import { BottomNav } from '@/components/bottom-nav'
+import { AdSlot } from '@/components/ad-slot'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -172,6 +173,8 @@ export default function AppHomePage() {
             )}
           </CardContent>
         </Card>
+
+        <AdSlot id="dashboard-bottom" className="mt-3" />
       </div>
 
       <BottomNav />

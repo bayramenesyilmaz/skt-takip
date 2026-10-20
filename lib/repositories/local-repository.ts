@@ -1,5 +1,5 @@
 import type { IRepository } from '@/lib/repositories/repository.interface'
-import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems, ShelfLifeType, BackupData, RestoreResult, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
+import type { Brand, Product, StockItem, ProductWithStock, Pallet, PalletItem, PalletWithItems, ShelfLifeType, Reyon, BackupData, RestoreResult, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
 
 const KEYS = {
   brands: 'skt-local-brands',
@@ -9,6 +9,7 @@ const KEYS = {
   palletItems: 'skt-local-pallet-items',
   shelfLifeTypes: 'skt-local-shelf-life-types',
   shelfLifeSeeded: 'skt-local-shelf-life-seeded',
+  reyons: 'skt-local-reyonlar',
   returns: 'skt-local-returns',
 }
 
@@ -66,6 +67,7 @@ export class LocalRepository implements IRepository {
     const stock = read<StockItem>(KEYS.stock)
     const brands = read<Brand>(KEYS.brands)
     const shelfLifeTypes = read<ShelfLifeType>(KEYS.shelfLifeTypes)
+    const reyons = read<Reyon>(KEYS.reyons)
 
     const stockByProduct = new Map<string, StockItem[]>()
     for (const s of stock) {
@@ -75,12 +77,14 @@ export class LocalRepository implements IRepository {
     }
     const brandById = new Map(brands.map((b) => [b.id, b]))
     const shelfLifeTypeById = new Map(shelfLifeTypes.map((t) => [t.id, t]))
+    const reyonById = new Map(reyons.map((r) => [r.id, r]))
 
     return products.map((p) => {
       const items = stockByProduct.get(p.id) || []
       const brand = p.brand_id ? brandById.get(p.brand_id) : undefined
       const shelfLifeType = p.shelf_life_type_id ? shelfLifeTypeById.get(p.shelf_life_type_id) : undefined
-      return { ...p, brand, shelf_life_type: shelfLifeType, stock_items: items, total_quantity: items.reduce((sum, s) => sum + s.quantity, 0) } as ProductWithStock
+      const reyon = p.reyon_id ? reyonById.get(p.reyon_id) : undefined
+      return { ...p, brand, shelf_life_type: shelfLifeType, reyon, stock_items: items, total_quantity: items.reduce((sum, s) => sum + s.quantity, 0) } as ProductWithStock
     }).sort((a, b) => a.name.localeCompare(b.name))
   }
 
@@ -90,11 +94,12 @@ export class LocalRepository implements IRepository {
     const stock = read<StockItem>(KEYS.stock).filter((s) => s.product_id === productId)
     const brand = read<Brand>(KEYS.brands).find((b) => b.id === product.brand_id)
     const shelfLifeType = read<ShelfLifeType>(KEYS.shelfLifeTypes).find((t) => t.id === product.shelf_life_type_id)
-    return { ...product, brand, shelf_life_type: shelfLifeType, stock_items: stock, total_quantity: stock.reduce((sum, s) => sum + s.quantity, 0) } as ProductWithStock
+    const reyon = read<Reyon>(KEYS.reyons).find((r) => r.id === product.reyon_id)
+    return { ...product, brand, shelf_life_type: shelfLifeType, reyon, stock_items: stock, total_quantity: stock.reduce((sum, s) => sum + s.quantity, 0) } as ProductWithStock
   }
 
   async createProduct(data: Partial<Product>): Promise<Product> {
-    const product: Product = { id: uid(), name: data.name || '', stock_code: data.stock_code, barcode: data.barcode, brand_id: data.brand_id, shelf_life_type_id: data.shelf_life_type_id, return_accepts: data.return_accepts ?? true, created_at: now(), updated_at: now() }
+    const product: Product = { id: uid(), name: data.name || '', stock_code: data.stock_code, barcode: data.barcode, brand_id: data.brand_id, shelf_life_type_id: data.shelf_life_type_id, reyon_id: data.reyon_id, return_accepts: data.return_accepts ?? true, created_at: now(), updated_at: now() }
     const products = read<Product>(KEYS.products); products.push(product); write(KEYS.products, products); return product
   }
 
@@ -110,7 +115,7 @@ export class LocalRepository implements IRepository {
 
   async bulkCreateProducts(items: Partial<Product>[]): Promise<Product[]> {
     const products = read<Product>(KEYS.products)
-    const newProducts: Product[] = items.map((data) => ({ id: uid(), name: data.name || '', stock_code: data.stock_code, barcode: data.barcode, brand_id: data.brand_id, shelf_life_type_id: data.shelf_life_type_id, return_accepts: data.return_accepts ?? true, created_at: now(), updated_at: now() }))
+    const newProducts: Product[] = items.map((data) => ({ id: uid(), name: data.name || '', stock_code: data.stock_code, barcode: data.barcode, brand_id: data.brand_id, shelf_life_type_id: data.shelf_life_type_id, reyon_id: data.reyon_id, return_accepts: data.return_accepts ?? true, created_at: now(), updated_at: now() }))
     write(KEYS.products, [...products, ...newProducts]); return newProducts
   }
 
@@ -130,6 +135,11 @@ export class LocalRepository implements IRepository {
 
   async deleteStockItem(stockId: string): Promise<void> {
     write(KEYS.stock, read<StockItem>(KEYS.stock).filter((s) => s.id !== stockId))
+  }
+
+  async clearProductStock(productId: string): Promise<void> {
+    write(KEYS.stock, read<StockItem>(KEYS.stock).filter((s) => s.product_id !== productId))
+    write(KEYS.palletItems, read<PalletItem>(KEYS.palletItems).filter((i) => i.product_id !== productId))
   }
 
   async bulkCreateStockItems(items: Partial<StockItem>[]): Promise<StockItem[]> {
@@ -212,13 +222,16 @@ export class LocalRepository implements IRepository {
       .filter((i): i is PalletItem & { pallet: Pallet } => !!i.pallet)
   }
 
-  async exportBackup(): Promise<BackupData> {
+  async exportBackup(reyonId?: string): Promise<BackupData> {
     const brands = read<Brand>(KEYS.brands)
-    const products = read<Product>(KEYS.products)
-    const stock = read<StockItem>(KEYS.stock)
+    const allProducts = read<Product>(KEYS.products)
+    const products = reyonId ? allProducts.filter((p) => p.reyon_id === reyonId) : allProducts
+    const productIds = new Set(products.map((p) => p.id))
+    const stock = read<StockItem>(KEYS.stock).filter((s) => productIds.has(s.product_id))
     const pallets = read<Pallet>(KEYS.pallets)
-    const palletItems = read<PalletItem>(KEYS.palletItems)
+    const palletItems = read<PalletItem>(KEYS.palletItems).filter((i) => productIds.has(i.product_id))
     const shelfLifeTypes = read<ShelfLifeType>(KEYS.shelfLifeTypes)
+    const reyons = read<Reyon>(KEYS.reyons)
 
     const stockByProduct = new Map<string, StockItem[]>()
     for (const s of stock) {
@@ -232,6 +245,9 @@ export class LocalRepository implements IRepository {
       if (list) list.push(i)
       else itemsByPallet.set(i.pallet_id, [i])
     }
+    const palletsWithItems = pallets
+      .map((pl) => ({ ...pl, items: itemsByPallet.get(pl.id) || [] }))
+      .filter((pl) => !reyonId || pl.items.length > 0)
 
     return {
       app: 'skt-takip',
@@ -239,14 +255,15 @@ export class LocalRepository implements IRepository {
       exportedAt: now(),
       brands,
       shelfLifeTypes,
+      reyons,
       products: products.map((p) => ({ ...p, stock_items: stockByProduct.get(p.id) || [] })),
-      pallets: pallets.map((pl) => ({ ...pl, items: itemsByPallet.get(pl.id) || [] })),
-      returns: read<ReturnRecord>(KEYS.returns),
+      pallets: palletsWithItems,
+      returns: read<ReturnRecord>(KEYS.returns).filter((r) => !reyonId || productIds.has(r.product_id)),
     }
   }
 
   async restoreBackup(data: BackupData): Promise<RestoreResult> {
-    const result: RestoreResult = { brandsAdded: 0, productsAdded: 0, stockItemsAdded: 0, palletsAdded: 0, palletItemsAdded: 0, shelfLifeTypesAdded: 0, returnsAdded: 0 }
+    const result: RestoreResult = { brandsAdded: 0, productsAdded: 0, stockItemsAdded: 0, palletsAdded: 0, palletItemsAdded: 0, shelfLifeTypesAdded: 0, reyonsAdded: 0, returnsAdded: 0 }
 
     const brands = read<Brand>(KEYS.brands)
     const brandIds = new Set(brands.map((b) => b.id))
@@ -261,6 +278,13 @@ export class LocalRepository implements IRepository {
       if (!shelfLifeTypeIds.has(t.id)) { shelfLifeTypes.push(t); shelfLifeTypeIds.add(t.id); result.shelfLifeTypesAdded++ }
     }
     write(KEYS.shelfLifeTypes, shelfLifeTypes)
+
+    const reyons = read<Reyon>(KEYS.reyons)
+    const reyonIds = new Set(reyons.map((r) => r.id))
+    for (const r of data.reyons || []) {
+      if (!reyonIds.has(r.id)) { reyons.push(r); reyonIds.add(r.id); result.reyonsAdded++ }
+    }
+    write(KEYS.reyons, reyons)
 
     const products = read<Product>(KEYS.products)
     const productIds = new Set(products.map((p) => p.id))
@@ -340,6 +364,30 @@ export class LocalRepository implements IRepository {
     if (changed) write(KEYS.products, products)
   }
 
+  async getReyons(): Promise<Reyon[]> {
+    return read<Reyon>(KEYS.reyons).sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  async createReyon(data: Partial<Reyon>): Promise<Reyon> {
+    const reyon: Reyon = { id: uid(), name: data.name || '', created_at: now(), updated_at: now() }
+    const reyons = read<Reyon>(KEYS.reyons); reyons.push(reyon); write(KEYS.reyons, reyons); return reyon
+  }
+
+  async updateReyon(id: string, data: Partial<Reyon>): Promise<void> {
+    const reyons = read<Reyon>(KEYS.reyons); const idx = reyons.findIndex((r) => r.id === id)
+    if (idx >= 0) { reyons[idx] = { ...reyons[idx], ...data, updated_at: now() }; write(KEYS.reyons, reyons) }
+  }
+
+  async deleteReyon(id: string): Promise<void> {
+    write(KEYS.reyons, read<Reyon>(KEYS.reyons).filter((r) => r.id !== id))
+    const products = read<Product>(KEYS.products)
+    let changed = false
+    for (const p of products) {
+      if (p.reyon_id === id) { p.reyon_id = undefined; p.updated_at = now(); changed = true }
+    }
+    if (changed) write(KEYS.products, products)
+  }
+
   async getReturnRecords(): Promise<ReturnRecordWithProduct[]> {
     const records = read<ReturnRecord>(KEYS.returns)
     const products = await this.getProducts()
@@ -350,15 +398,6 @@ export class LocalRepository implements IRepository {
   }
 
   async createReturnRecord(data: Partial<ReturnRecord>): Promise<ReturnRecord> {
-    const records = read<ReturnRecord>(KEYS.returns)
-    const existing = data.product_id ? records.find((r) => r.product_id === data.product_id) : undefined
-    if (existing) {
-      existing.quantity += data.quantity ?? 1
-      if (data.note) existing.note = data.note
-      existing.updated_at = now()
-      write(KEYS.returns, records)
-      return existing
-    }
     const record: ReturnRecord = {
       id: uid(),
       product_id: data.product_id || '',
@@ -367,7 +406,7 @@ export class LocalRepository implements IRepository {
       created_at: now(),
       updated_at: now(),
     }
-    records.push(record); write(KEYS.returns, records); return record
+    const records = read<ReturnRecord>(KEYS.returns); records.push(record); write(KEYS.returns, records); return record
   }
 
   async updateReturnRecord(id: string, data: Partial<ReturnRecord>): Promise<void> {

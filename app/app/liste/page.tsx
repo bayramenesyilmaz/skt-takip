@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
 import { useListeFilters } from '@/lib/context/liste-filters-context'
 import type { StatusFilter } from '@/lib/context/liste-filters-context'
+import { useReyon } from '@/lib/context/reyon-context'
+import { AdSlot } from '@/components/ad-slot'
 import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
 import { buildShareMessage } from '@/lib/share'
 import { ProductCard } from '@/components/product-card'
@@ -18,7 +20,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, Camera, ListChecks, X, Share2, Copy, Check } from 'lucide-react'
+import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, Camera, ListChecks, X, Share2, Copy, Check, MapPin } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 
 const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'critical', 'remove', 'campaign', 'safe']
@@ -26,12 +28,13 @@ const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'critical', 'remove', '
 function ListeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { products, brands, shelfLifeTypes, zeroProductStock, bulkAssignShelfLifeType } = useAppData()
+  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType } = useAppData()
+  const { currentReyonId } = useReyon()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
-  const { search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter } = useListeFilters()
+  const { search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter, reyonFilter, setReyonFilter } = useListeFilters()
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
@@ -51,8 +54,15 @@ function ListeContent() {
     setAppliedInitialFilter(true)
   }, [searchParams, appliedInitialFilter])
 
-  const activeProducts = useMemo(() => products.filter((p) => (p.total_quantity ?? 0) > 0), [products])
-  const zeroStockCount = products.length - activeProducts.length
+  const reyonScopedProducts = useMemo(() => {
+    if (reyonFilter === 'all') return products
+    const targetReyonId = reyonFilter === 'current' ? currentReyonId : reyonFilter
+    if (!targetReyonId) return products
+    return products.filter((p) => p.reyon_id === targetReyonId)
+  }, [products, reyonFilter, currentReyonId])
+
+  const activeProducts = useMemo(() => reyonScopedProducts.filter((p) => (p.total_quantity ?? 0) > 0), [reyonScopedProducts])
+  const zeroStockCount = reyonScopedProducts.length - activeProducts.length
 
   // Compute each product's earliest-active-stock status once and reuse it
   // everywhere (filtering, sorting, counts, share message) instead of
@@ -285,7 +295,7 @@ function ListeContent() {
               <h1 className="text-lg font-bold text-foreground">Tum Urunler</h1>
               <p className="text-xs text-muted-foreground">SKT sirasina gore</p>
             </div>
-            <Badge variant="secondary" className="text-xs">{products.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{reyonScopedProducts.length}</Badge>
             <Button
               variant={selectMode ? 'default' : 'outline'}
               size="sm"
@@ -337,6 +347,24 @@ function ListeContent() {
               </SelectContent>
             </Select>
           </div>
+
+          {reyons.length > 0 && (
+            <div className="flex gap-2 mt-2">
+              <Select value={reyonFilter} onValueChange={setReyonFilter}>
+                <SelectTrigger className="h-9 bg-muted/50 flex-1">
+                  <MapPin className="w-3.5 h-3.5 mr-1 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Mevcut Reyon</SelectItem>
+                  <SelectItem value="all">Tum Reyonlar</SelectItem>
+                  {reyons.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </header>
 
@@ -387,7 +415,7 @@ function ListeContent() {
             <Package className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <h3 className="font-semibold text-foreground mb-1">Urun Bulunamadi</h3>
             <p className="text-sm text-muted-foreground">
-              {search || statusFilter !== 'all' || brandFilter !== 'all' || categoryFilter !== 'all'
+              {search || statusFilter !== 'all' || brandFilter !== 'all' || categoryFilter !== 'all' || reyonFilter !== 'all'
                 ? 'Filtrelere uyan urun yok.'
                 : 'Henuz urun eklenmemis.'}
             </p>
@@ -414,6 +442,7 @@ function ListeContent() {
                     product={product}
                     onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
                     onDelete={() => setDeleteTarget(product)}
+                    onReturn={(p) => router.push(`/app/iade?productId=${p.id}`)}
                     compact
                   />
                 </Link>
@@ -421,6 +450,8 @@ function ListeContent() {
             ))}
           </div>
         )}
+
+        {!selectMode && <AdSlot id="liste-bottom" className="mt-3" />}
       </div>
 
       {selectMode && (
