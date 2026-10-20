@@ -214,6 +214,14 @@ export function useAppData() {
     await loadData()
   }, [loadData])
 
+  const bulkAssignReyon = useCallback(async (productIds: string[], reyonId: string | undefined) => {
+    const repo = getRepository()
+    for (const id of productIds) {
+      await repo.updateProduct(id, { reyon_id: reyonId })
+    }
+    await loadData()
+  }, [loadData])
+
   const deleteReyon = useCallback(async (id: string) => {
     const repo = getRepository()
     await repo.deleteReyon(id)
@@ -258,7 +266,7 @@ export function useAppData() {
     addStockItem, updateStockItem, deleteStockItem,
     addPallet, deletePallet, addPalletItem, removePalletItem,
     addShelfLifeType, updateShelfLifeType, deleteShelfLifeType, bulkAssignShelfLifeType,
-    addReyon, updateReyon, deleteReyon,
+    addReyon, updateReyon, deleteReyon, bulkAssignReyon,
     addReturnRecord, updateReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords,
     reload: loadData,
   }

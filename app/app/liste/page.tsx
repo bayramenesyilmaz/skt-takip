@@ -31,7 +31,7 @@ const PAGE_SIZE = 40
 function ListeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType } = useAppData()
+  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType, bulkAssignReyon } = useAppData()
   const { currentReyonId } = useReyon()
   const [mounted, setMounted] = useState(false)
 
@@ -48,7 +48,9 @@ function ListeContent() {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkCategory, setBulkCategory] = useState<string>('')
+  const [bulkReyon, setBulkReyon] = useState<string>('')
   const [applyingBulk, setApplyingBulk] = useState(false)
+  const [applyingBulkReyon, setApplyingBulkReyon] = useState(false)
   const [shareMode, setShareMode] = useState(false)
   const [shareQuantities, setShareQuantities] = useState<Record<string, string>>({})
   const [copied, setCopied] = useState(false)
@@ -159,6 +161,7 @@ function ListeContent() {
     setSelectMode(false)
     setSelectedIds(new Set())
     setBulkCategory('')
+    setBulkReyon('')
   }
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id))
@@ -175,6 +178,17 @@ function ListeContent() {
       exitSelectMode()
     } finally {
       setApplyingBulk(false)
+    }
+  }
+
+  const handleApplyBulkReyon = async () => {
+    if (selectedIds.size === 0) return
+    setApplyingBulkReyon(true)
+    try {
+      await bulkAssignReyon(Array.from(selectedIds), bulkReyon || undefined)
+      exitSelectMode()
+    } finally {
+      setApplyingBulkReyon(false)
     }
   }
 
@@ -494,6 +508,21 @@ function ListeContent() {
                 Uygula
               </Button>
             </div>
+            {reyons.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0">{selectedIds.size} secili</span>
+                <Select value={bulkReyon || 'none'} onValueChange={(v) => setBulkReyon(v === 'none' ? '' : v)}>
+                  <SelectTrigger className="h-10 flex-1"><SelectValue placeholder="Reyon sec" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Reyonsuz yap</SelectItem>
+                    {reyons.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" className="h-10" disabled={selectedIds.size === 0 || applyingBulkReyon} onClick={handleApplyBulkReyon}>
+                  Uygula
+                </Button>
+              </div>
+            )}
             <Button
               size="sm"
               variant="outline"
