@@ -11,8 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Package, ScanLine, Trash2, AlertCircle } from 'lucide-react'
-import type { PalletWithItems } from '@/lib/types'
+import type { PalletWithItems, PalletItem, Product } from '@/lib/types'
 import { AdSlot } from '@/components/ad-slot'
+import { DeleteDialog } from '@/components/delete-dialog'
 
 function PalletDetailContent() {
   const router = useRouter()
@@ -23,6 +24,8 @@ function PalletDetailContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [showScanner, setShowScanner] = useState(false)
   const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<(PalletItem & { product?: Product }) | null>(null)
+  const [removing, setRemoving] = useState(false)
 
   const load = async () => {
     if (!id) { setIsLoading(false); return }
@@ -50,9 +53,16 @@ function PalletDetailContent() {
     await load()
   }
 
-  const handleRemoveItem = async (itemId: string) => {
-    await removePalletItem(itemId)
-    await load()
+  const handleRemoveItem = async () => {
+    if (!removeTarget) return
+    setRemoving(true)
+    try {
+      await removePalletItem(removeTarget.id)
+      await load()
+      setRemoveTarget(null)
+    } finally {
+      setRemoving(false)
+    }
   }
 
   if (isLoading) {
@@ -121,11 +131,18 @@ function PalletDetailContent() {
               {pallet.items.map((item) => (
                 <Card key={item.id}>
                   <CardContent className="p-3 flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{item.product?.name || 'Bilinmeyen urun'}</p>
-                      <Badge variant="outline" className="text-xs mt-1">Adet: {item.quantity}</Badge>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                    {item.product ? (
+                      <Link href={`/app/urun?id=${item.product_id}`} className="min-w-0 flex-1 block">
+                        <p className="text-sm font-medium truncate">{item.product.name}</p>
+                        <Badge variant="outline" className="text-xs mt-1">Adet: {item.quantity}</Badge>
+                      </Link>
+                    ) : (
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">Bilinmeyen urun</p>
+                        <Badge variant="outline" className="text-xs mt-1">Adet: {item.quantity}</Badge>
+                      </div>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setRemoveTarget(item)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </CardContent>
@@ -139,6 +156,16 @@ function PalletDetailContent() {
       </div>
 
       <BottomNav />
+
+      <DeleteDialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        onConfirm={handleRemoveItem}
+        productName={removeTarget?.product?.name || 'Bilinmeyen urun'}
+        title="Urunu Paletten Cikar"
+        confirmLabel="Cikar"
+        confirming={removing}
+      />
     </main>
   )
 }

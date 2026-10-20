@@ -89,7 +89,11 @@ function ListeContent() {
 
   const getProductStatus = (p: ProductWithStock) => statusById.get(p.id) ?? null
 
-  const filtered = useMemo(() => {
+  // Arama/marka/kategori filtreleri uygulanmis ama durum (status) filtresi
+  // henuz uygulanmamis taban liste; hem "filtered" hem de durum rozetlerindeki
+  // adetler ("counts") bu tabandan turetiliyor ki rozetler diger filtrelerle
+  // birlikte guncel kalsin.
+  const preStatusFiltered = useMemo(() => {
     let result = [...activeProducts]
 
     if (search) {
@@ -111,16 +115,22 @@ function ListeContent() {
       result = result.filter(p => p.shelf_life_type_id === categoryFilter)
     }
 
+    return result
+  }, [activeProducts, search, brandFilter, categoryFilter])
+
+  const filtered = useMemo(() => {
+    let result = preStatusFiltered
+
     if (statusFilter !== 'all') {
       result = result.filter(p => statusById.get(p.id)?.info.status === statusFilter)
     }
 
-    return result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       const aDate = statusById.get(a.id)?.date || '9999'
       const bDate = statusById.get(b.id)?.date || '9999'
       return new Date(aDate).getTime() - new Date(bDate).getTime()
     })
-  }, [activeProducts, search, statusFilter, brandFilter, categoryFilter, statusById])
+  }, [preStatusFiltered, statusFilter, statusById])
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
@@ -129,13 +139,13 @@ function ListeContent() {
   const visibleProducts = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: activeProducts.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
-    for (const p of activeProducts) {
+    const c: Record<string, number> = { all: preStatusFiltered.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
+    for (const p of preStatusFiltered) {
       const status = statusById.get(p.id)
       if (status) c[status.info.status]++
     }
     return c
-  }, [activeProducts, statusById])
+  }, [preStatusFiltered, statusById])
 
   const handleZeroStock = async () => {
     if (!deleteTarget) return
