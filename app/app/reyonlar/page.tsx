@@ -11,6 +11,7 @@ import { ArrowLeft, Plus, Trash2, MapPin, Search, Check } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 
 export default function ReyonlarPage() {
   const { reyons, products, addReyon, deleteReyon } = useAppData()
@@ -140,6 +141,8 @@ export default function ReyonlarPage() {
             })}
           </div>
         )}
+
+        <AdSlot id="reyonlar-content" className="mt-3" />
       </div>
 
       <BottomNav />

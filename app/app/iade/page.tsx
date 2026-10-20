@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, Edit, Save, ListChecks, Tag, Package, Copy, Check, Share2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'
 import type { ProductWithStock, ReturnRecordWithProduct } from '@/lib/types'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 
 function dayLabel(dateStr: string): string {
   const startOfDay = (ms: number) => {
@@ -511,6 +512,8 @@ function IadeContent() {
             ))}
           </div>
         )}
+
+        {!selectMode && <AdSlot id="iade-content" className="mt-3" />}
       </div>
 
       {selectMode && (

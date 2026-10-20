@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Thermometer, Plus, Trash2, Save, Search } from 'lucide-react'
 import type { ShelfLifeType } from '@/lib/types'
+import { AdSlot } from '@/components/ad-slot'
 
 interface RowState {
   name: string
@@ -201,6 +202,8 @@ export default function ShelfLifeTypesPage() {
             })}
           </div>
         )}
+
+        <AdSlot id="raf-omru-content" className="mt-3" />
       </div>
 
       <DeleteDialog

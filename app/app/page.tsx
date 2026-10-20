@@ -5,6 +5,7 @@ import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/ex
 import { StatsCards } from '@/components/stats-cards'
 import { BottomNav } from '@/components/bottom-nav'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -175,6 +176,7 @@ export default function AppHomePage() {
           </CardContent>
         </Card>
 
+        <AdSlot id="dashboard-content" />
       </div>
 
       <BottomNav />

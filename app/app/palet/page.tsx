@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Package, ScanLine, Trash2, AlertCircle } from 'lucide-react'
 import type { PalletWithItems } from '@/lib/types'
+import { AdSlot } from '@/components/ad-slot'
 
 function PalletDetailContent() {
   const router = useRouter()
@@ -133,6 +134,8 @@ function PalletDetailContent() {
             </div>
           )}
         </div>
+
+        <AdSlot id="palet-detail" />
       </div>
 
       <BottomNav />

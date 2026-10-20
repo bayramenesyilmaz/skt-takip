@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { ArrowLeft, PackageX, Search, Plus, Check } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 
 export default function ZeroStockPage() {
   const router = useRouter()
@@ -160,6 +161,8 @@ export default function ZeroStockPage() {
             ))}
           </div>
         )}
+
+        <AdSlot id="stok-sifir-content" className="mt-3" />
       </div>
 
       <DeleteDialog

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, ShoppingCart, Package, Share2, Copy, Check, X, Search, Tag } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 
 export default function KampanyaPage() {
   const { products, brands } = useAppData()
@@ -253,6 +254,8 @@ export default function KampanyaPage() {
             </div>
           </>
         )}
+
+        <AdSlot id="kampanya-content" className="mt-3" />
       </div>
 
       {selectedIds.size > 0 && (
