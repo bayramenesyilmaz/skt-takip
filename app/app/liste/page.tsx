@@ -333,13 +333,11 @@ function ListeContent() {
               <p className="text-xs text-muted-foreground">SKT sirasina gore</p>
             </div>
             <Badge variant="secondary" className="text-xs">{reyonScopedProducts.length}</Badge>
-            <Button
-              variant={selectMode ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-            >
-              {selectMode ? <X className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
-            </Button>
+            {selectMode && (
+              <Button variant="default" size="sm" onClick={exitSelectMode}>
+                <X className="w-4 h-4" />
+              </Button>
+            )}
             <HowItWorksButton page="liste" />
           </div>
 
@@ -433,6 +431,20 @@ function ListeContent() {
             </button>
           ))}
         </div>
+
+        {!selectMode && filtered.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectMode(true)}
+            className="w-full flex items-center gap-3 p-3 mb-3 rounded-lg border border-dashed border-border hover:bg-muted/50 transition-colors text-left"
+          >
+            <ListChecks className="w-4 h-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Toplu Sec</p>
+              <p className="text-xs text-muted-foreground">Birden fazla urun secip kategori atayin veya paylasin</p>
+            </div>
+          </button>
+        )}
 
         {!selectMode && <AdSlot id="liste-top" className="mb-3" />}
 

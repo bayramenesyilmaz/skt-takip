@@ -291,13 +291,11 @@ function IadeContent() {
               <p className="text-xs text-muted-foreground">Iadeye gonderilenleri takip edin</p>
             </div>
             <Badge variant="secondary" className="text-xs">{returnRecords.length}</Badge>
-            <Button
-              variant={selectMode ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-            >
-              {selectMode ? <X className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
-            </Button>
+            {selectMode && (
+              <Button variant="default" size="sm" onClick={exitSelectMode}>
+                <X className="w-4 h-4" />
+              </Button>
+            )}
             <HowItWorksButton page="iade" />
           </div>
 
@@ -420,6 +418,20 @@ function IadeContent() {
               </CardContent>
             )}
           </Card>
+        )}
+
+        {!selectMode && filteredRecords.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectMode(true)}
+            className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-border hover:bg-muted/50 transition-colors text-left"
+          >
+            <ListChecks className="w-4 h-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Toplu Sec</p>
+              <p className="text-xs text-muted-foreground">Birden fazla kaydi secip silin veya paylasin</p>
+            </div>
+          </button>
         )}
 
         {selectMode && filteredRecords.length > 0 && (
