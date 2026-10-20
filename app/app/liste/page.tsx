@@ -424,6 +424,8 @@ function ListeContent() {
           ))}
         </div>
 
+        {!selectMode && <AdSlot id="liste-top" className="mb-3" />}
+
         {selectMode && filtered.length > 0 && (
           <label className="flex items-center gap-3 p-3 mb-2 rounded-lg border border-dashed border-border cursor-pointer">
             <input
