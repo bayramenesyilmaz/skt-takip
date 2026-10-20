@@ -71,6 +71,28 @@ export function useAppData() {
     return created
   }, [brands, loadData])
 
+  const bulkImportCatalog = useCallback(async (items: ParsedProduct[]) => {
+    const repo = getRepository()
+    const reyonId = getCurrentReyonId()
+    const brandNameToId = new Map(brands.map((b) => [b.name.toLowerCase(), b.id]))
+    for (const item of items) {
+      const key = item.brand?.toLowerCase()
+      if (key && !brandNameToId.has(key)) {
+        const created = await repo.createBrand({ name: item.brand, return_accepts: true })
+        brandNameToId.set(key, created.id)
+      }
+    }
+    const created = await repo.bulkCreateProducts(items.map((item) => ({
+      name: item.name,
+      stock_code: item.stockCode || undefined,
+      barcode: item.barcode || undefined,
+      brand_id: item.brand ? brandNameToId.get(item.brand.toLowerCase()) : undefined,
+      reyon_id: reyonId,
+    })))
+    await loadData()
+    return created
+  }, [brands, loadData])
+
   const updateProduct = useCallback(async (productId: string, updates: Partial<Product>) => {
     const repo = getRepository()
     await repo.updateProduct(productId, updates)
@@ -231,7 +253,7 @@ export function useAppData() {
     reyons,
     returnRecords,
     isLoading,
-    addProduct, bulkAddProducts, updateProduct, deleteProduct, zeroProductStock,
+    addProduct, bulkAddProducts, bulkImportCatalog, updateProduct, deleteProduct, zeroProductStock,
     addBrand, updateBrand, deleteBrand,
     addStockItem, updateStockItem, deleteStockItem,
     addPallet, deletePallet, addPalletItem, removePalletItem,

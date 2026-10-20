@@ -64,7 +64,7 @@ export interface ProductWithStock extends Product {
 
 export interface ParsedProduct {
   name: string
-  expiryDate: string
+  expiryDate?: string
   stockCode?: string
   barcode?: string
   brand?: string

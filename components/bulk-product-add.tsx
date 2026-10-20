@@ -72,7 +72,7 @@ export function BulkProductAdd({ onAdd, onCancel }: BulkProductAddProps) {
                 <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${product.isValid ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <Package className={`w-4 h-4 shrink-0 ${product.isValid ? 'text-emerald-600' : 'text-red-600'}`} />
-                    <div className="min-w-0"><p className="text-sm font-medium truncate">{product.name}</p><p className={`text-xs ${product.isValid ? 'text-muted-foreground' : 'text-red-600'}`}>{product.isValid ? `SKT: ${formatDate(product.expiryDate)}` : product.error}</p></div>
+                    <div className="min-w-0"><p className="text-sm font-medium truncate">{product.name}</p><p className={`text-xs ${product.isValid ? 'text-muted-foreground' : 'text-red-600'}`}>{product.isValid ? `SKT: ${formatDate(product.expiryDate || '')}` : product.error}</p></div>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveProduct(index)}><Trash2 className="w-4 h-4" /></Button>
                 </div>

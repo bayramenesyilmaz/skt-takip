@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings, Smartphone, MapPin } from 'lucide-react'
+import { ArrowLeft, Tag, ScanBarcode, PackageX, Layers, Layers3, Thermometer, ShoppingCart, Undo2, Info, Trash2, WifiOff, Download, RefreshCcw, Settings, Smartphone, MapPin, FileSpreadsheet } from 'lucide-react'
 import { useInstallPrompt } from '@/lib/context/install-prompt-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -264,6 +264,9 @@ export default function SettingsPage() {
               </Link>
               <Link href="/app/ekle?tab=bulk" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <Layers3 className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Toplu Urun Ekle</span>
+              </Link>
+              <Link href="/app/ekle?tab=excel" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <FileSpreadsheet className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Excel ile Toplu Ekle</span>
               </Link>
               <Link href="/app/barkodsuz" className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <span className="flex items-center gap-2"><ScanBarcode className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Barkodsuz Urunler</span></span>

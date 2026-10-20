@@ -7,12 +7,13 @@ import { getRepository } from '@/lib/repositories/repository.factory'
 import { useAppData } from '@/hooks/use-app-data'
 import { ProductForm } from '@/components/product-form'
 import { BulkProductAdd } from '@/components/bulk-product-add'
+import { ExcelBulkImport } from '@/components/excel-bulk-import'
 import { ProductSearchCard } from '@/components/product-search-card'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Package, Layers, ScanLine, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Package, Layers, ScanLine, CheckCircle2, FileSpreadsheet } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 
 type Mode = 'scan' | 'form' | 'exists'
@@ -22,9 +23,10 @@ function AddProductContent() {
   const searchParams = useSearchParams()
   const prefillBarcode = searchParams.get('barcode') || ''
   const wantsBulk = searchParams.get('tab') === 'bulk'
-  const { products, brands, shelfLifeTypes, addProduct, bulkAddProducts, isLoading } = useAppData()
-  const [tab, setTab] = useState<'single' | 'bulk'>(wantsBulk ? 'bulk' : 'single')
-  const [mode, setMode] = useState<Mode>(prefillBarcode || wantsBulk ? 'form' : 'scan')
+  const wantsExcel = searchParams.get('tab') === 'excel'
+  const { products, brands, shelfLifeTypes, addProduct, bulkAddProducts, bulkImportCatalog, isLoading } = useAppData()
+  const [tab, setTab] = useState<'single' | 'bulk' | 'excel'>(wantsExcel ? 'excel' : wantsBulk ? 'bulk' : 'single')
+  const [mode, setMode] = useState<Mode>(prefillBarcode || wantsBulk || wantsExcel ? 'form' : 'scan')
   const [barcode, setBarcode] = useState(prefillBarcode)
   const [existingProduct, setExistingProduct] = useState<ProductWithStock | null>(null)
   const [palletInfo, setPalletInfo] = useState<{ name: string; quantity: number }[]>([])
@@ -124,12 +126,15 @@ function AddProductContent() {
           </Card>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant={tab === 'single' ? 'default' : 'outline'} onClick={() => setTab('single')}>
             <Package className="w-4 h-4 mr-1" /> Tekil
           </Button>
           <Button variant={tab === 'bulk' ? 'default' : 'outline'} onClick={() => setTab('bulk')}>
             <Layers className="w-4 h-4 mr-1" /> Toplu
+          </Button>
+          <Button variant={tab === 'excel' ? 'default' : 'outline'} onClick={() => setTab('excel')}>
+            <FileSpreadsheet className="w-4 h-4 mr-1" /> Excel
           </Button>
           <Button variant="outline" onClick={() => { setBarcode(''); setMode('scan') }}>
             <ScanLine className="w-4 h-4 mr-1" /> Tara
@@ -144,9 +149,15 @@ function AddProductContent() {
             shelfLifeTypes={shelfLifeTypes}
             initialBarcode={barcode}
           />
-        ) : (
+        ) : tab === 'bulk' ? (
           <BulkProductAdd
             onAdd={async (items) => { await bulkAddProducts(items); router.push('/app') }}
+            onCancel={() => router.push('/app')}
+          />
+        ) : (
+          <ExcelBulkImport
+            existingProducts={products}
+            onAdd={async (items) => { await bulkImportCatalog(items); router.push('/app') }}
             onCancel={() => router.push('/app')}
           />
         )}
