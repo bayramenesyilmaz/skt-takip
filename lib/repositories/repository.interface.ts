@@ -17,6 +17,7 @@ export interface IRepository {
   createStockItem(data: Partial<StockItem>): Promise<StockItem>
   updateStockItem(stockId: string, data: Partial<StockItem>): Promise<void>
   deleteStockItem(stockId: string): Promise<void>
+  clearProductStock(productId: string): Promise<void>
   bulkCreateStockItems(items: Partial<StockItem>[]): Promise<StockItem[]>
 
   getPallets(): Promise<PalletWithItems[]>

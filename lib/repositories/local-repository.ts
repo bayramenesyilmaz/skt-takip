@@ -132,6 +132,11 @@ export class LocalRepository implements IRepository {
     write(KEYS.stock, read<StockItem>(KEYS.stock).filter((s) => s.id !== stockId))
   }
 
+  async clearProductStock(productId: string): Promise<void> {
+    write(KEYS.stock, read<StockItem>(KEYS.stock).filter((s) => s.product_id !== productId))
+    write(KEYS.palletItems, read<PalletItem>(KEYS.palletItems).filter((i) => i.product_id !== productId))
+  }
+
   async bulkCreateStockItems(items: Partial<StockItem>[]): Promise<StockItem[]> {
     const stock = read<StockItem>(KEYS.stock)
     const newItems: StockItem[] = items.map((data) => ({ id: uid(), product_id: data.product_id || '', expiry_date: data.expiry_date || now(), quantity: data.quantity ?? 1, created_at: now(), updated_at: now() }))

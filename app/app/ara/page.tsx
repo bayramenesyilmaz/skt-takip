@@ -8,13 +8,14 @@ import { BottomNav } from '@/components/bottom-nav'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { ProductSearchCard } from '@/components/product-search-card'
 import { useAppData } from '@/hooks/use-app-data'
+import { useAraFilters } from '@/lib/context/ara-filters-context'
 import { getRepository } from '@/lib/repositories/repository.factory'
 import { Search, Camera, Package } from 'lucide-react'
 
 export default function AraPage() {
   const { products, isLoading } = useAppData()
   const [mounted, setMounted] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const { search: searchQuery, setSearch: setSearchQuery } = useAraFilters()
   const [showScanner, setShowScanner] = useState(false)
   const [palletMap, setPalletMap] = useState<Record<string, { name: string; quantity: number }[]>>({})
 

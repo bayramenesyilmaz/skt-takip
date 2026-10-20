@@ -112,13 +112,9 @@ export function useAppData() {
 
   const zeroProductStock = useCallback(async (productId: string) => {
     const repo = getRepository()
-    const product = products.find((p) => p.id === productId)
-    const items = product?.stock_items || []
-    for (const item of items) {
-      if (item.quantity > 0) await repo.updateStockItem(item.id, { quantity: 0 })
-    }
+    await repo.clearProductStock(productId)
     await loadData()
-  }, [products, loadData])
+  }, [loadData])
 
   const addPallet = useCallback(async (data: Partial<Pallet>) => {
     const repo = getRepository()
