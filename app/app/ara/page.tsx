@@ -155,6 +155,7 @@ export default function AraPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">{results.length} sonuc bulundu</p>
+            <AdSlot id="ara-top" />
             {visibleResults.map(({ product }) => (
               <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block hover:opacity-90 transition-opacity">
                 <ProductSearchCard product={product} palletInfo={palletMap[product.id]} />
