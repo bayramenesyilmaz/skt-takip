@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
 import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
 import * as XLSX from 'xlsx'
+import { AdSlot } from '@/components/ad-slot'
 
 const LAST_BACKUP_KEY = 'skt-last-backup-at'
 const SHARE_HINT_SHOWN_KEY = 'skt-share-hint-shown'
@@ -390,6 +391,8 @@ export default function SettingsPage() {
             </Link>
           </CardContent>
         </Card>
+
+        <AdSlot id="ayarlar-content" />
       </div>
 
       <BottomNav />

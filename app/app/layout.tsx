@@ -4,7 +4,6 @@ import { ListeFiltersProvider } from '@/lib/context/liste-filters-context'
 import { AraFiltersProvider } from '@/lib/context/ara-filters-context'
 import { QuickActionsFab } from '@/components/quick-actions-fab'
 import { ReyonStatusBar } from '@/components/reyon-status-bar'
-import { GlobalAdBanner } from '@/components/global-ad-banner'
 
 export default function AppSectionLayout({ children }: { children: ReactNode }) {
   return (
@@ -13,7 +12,6 @@ export default function AppSectionLayout({ children }: { children: ReactNode }) 
         <AraFiltersProvider>
           <ReyonStatusBar />
           {children}
-          <GlobalAdBanner />
           <QuickActionsFab />
         </AraFiltersProvider>
       </ListeFiltersProvider>

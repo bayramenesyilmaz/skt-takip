@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Plus, Trash2, Tag, RotateCcw, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
+import { AdSlot } from '@/components/ad-slot'
 
 export default function BrandsPage() {
   const { brands, products, addBrand, updateBrand, deleteBrand } = useAppData()
@@ -130,6 +131,8 @@ export default function BrandsPage() {
             ))}
           </div>
         )}
+
+        <AdSlot id="markalar-content" className="mt-3" />
       </div>
 
       <BottomNav />

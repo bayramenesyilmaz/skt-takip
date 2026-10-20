@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Layers, Plus, Package, Trash2, Search } from 'lucide-react'
 import type { PalletWithItems } from '@/lib/types'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 
 export default function PalletsPage() {
   const { pallets, addPallet, deletePallet } = useAppData()
@@ -138,6 +139,8 @@ export default function PalletsPage() {
             })}
           </div>
         )}
+
+        <AdSlot id="paletler-content" className="mt-3" />
       </div>
 
       <DeleteDialog

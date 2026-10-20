@@ -13,6 +13,7 @@ import { useReyon } from '@/lib/context/reyon-context'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { getRepository } from '@/lib/repositories/repository.factory'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 import { Search, Camera, Package, MapPin } from 'lucide-react'
 
 const PAGE_SIZE = 30
@@ -168,6 +169,7 @@ export default function AraPage() {
                 Daha Fazla Goster ({results.length - visibleResults.length} kaldi)
               </Button>
             )}
+            <AdSlot id="ara-content" />
           </div>
         )}
       </div>

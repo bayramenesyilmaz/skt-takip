@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, ScanBarcode, Camera, Check, Package, Search } from 'lucide-react'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { AdSlot } from '@/components/ad-slot'
 
 export default function MissingBarcodePage() {
   const { products, updateProduct } = useAppData()
@@ -138,6 +139,8 @@ export default function MissingBarcodePage() {
             ))}
           </div>
         )}
+
+        <AdSlot id="barkodsuz-content" className="mt-3" />
       </div>
 
       <BottomNav />

@@ -12,6 +12,7 @@ import { getRepository } from '@/lib/repositories/repository.factory'
 import { getExpiryInfo, getThresholds, formatDate, statusConfig } from '@/lib/expiry'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { ProductForm } from '@/components/product-form'
+import { AdSlot } from '@/components/ad-slot'
 import { ArrowLeft, Trash2, Plus, Tag, Package, Clock, Pencil, Thermometer, Check, X } from 'lucide-react'
 import type { ProductWithStock, StockItem } from '@/lib/types'
 
@@ -251,6 +252,8 @@ function ProductDetailContent() {
             </div>
           )}
         </div>
+
+        <AdSlot id="urun-detail" />
       </div>
 
       <DeleteDialog open={!!deleteStockTarget} onOpenChange={(open) => !open && setDeleteStockTarget(null)} onConfirm={handleDeleteStock} productName={`SKT: ${deleteStockTarget ? formatDate(deleteStockTarget.expiry_date) : ''}`} />
