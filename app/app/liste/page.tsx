@@ -7,6 +7,7 @@ import { useAppData } from '@/hooks/use-app-data'
 import { useListeFilters } from '@/lib/context/liste-filters-context'
 import type { StatusFilter } from '@/lib/context/liste-filters-context'
 import { useReyon } from '@/lib/context/reyon-context'
+import { AdSlot } from '@/components/ad-slot'
 import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
 import { buildShareMessage } from '@/lib/share'
 import { ProductCard } from '@/components/product-card'
@@ -449,6 +450,8 @@ function ListeContent() {
             ))}
           </div>
         )}
+
+        {!selectMode && <AdSlot id="liste-bottom" className="mt-3" />}
       </div>
 
       {selectMode && (
