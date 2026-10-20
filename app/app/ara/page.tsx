@@ -12,7 +12,6 @@ import { useAraFilters } from '@/lib/context/ara-filters-context'
 import { useReyon } from '@/lib/context/reyon-context'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import { AdSlot } from '@/components/ad-slot'
 import { HowItWorksButton } from '@/components/how-it-works-button'
 import { Search, Camera, Package, MapPin } from 'lucide-react'
 
@@ -169,7 +168,6 @@ export default function AraPage() {
                 Daha Fazla Goster ({results.length - visibleResults.length} kaldi)
               </Button>
             )}
-            <AdSlot id="ara-bottom" />
           </div>
         )}
       </div>
