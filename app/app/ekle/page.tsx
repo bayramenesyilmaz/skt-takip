@@ -8,6 +8,7 @@ import { useAppData } from '@/hooks/use-app-data'
 import { ProductForm } from '@/components/product-form'
 import { BulkProductAdd } from '@/components/bulk-product-add'
 import { ExcelBulkImport } from '@/components/excel-bulk-import'
+import { HowItWorksButton } from '@/components/how-it-works-button'
 import { ProductSearchCard } from '@/components/product-search-card'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { BottomNav } from '@/components/bottom-nav'
@@ -113,7 +114,8 @@ function AddProductContent() {
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/app"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button></Link>
-          <h1 className="font-semibold text-lg">Urun Ekle</h1>
+          <h1 className="font-semibold text-lg flex-1">Urun Ekle</h1>
+          <HowItWorksButton page="ekle" />
         </div>
       </header>
 

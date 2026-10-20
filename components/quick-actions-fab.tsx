@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Layers, Undo2, ScanBarcode, PackageX, ShoppingCart, Zap, X } from 'lucide-react'
+import { Layers, Layers3, Undo2, ScanBarcode, PackageX, ShoppingCart, MapPin, Zap, X } from 'lucide-react'
 
 const quickLinks = [
   { href: '/app/kampanya', label: 'Kampanya Urunleri', icon: ShoppingCart },
@@ -10,6 +10,8 @@ const quickLinks = [
   { href: '/app/barkodsuz', label: 'Barkodsuz Urunler', icon: ScanBarcode },
   { href: '/app/iade', label: 'Iade Kayitlari', icon: Undo2 },
   { href: '/app/paletler', label: 'Paletler', icon: Layers },
+  { href: '/app/reyonlar', label: 'Reyonlar', icon: MapPin },
+  { href: '/app/ekle?tab=bulk', label: 'Toplu Urun Ekle', icon: Layers3 },
 ]
 
 export function QuickActionsFab() {

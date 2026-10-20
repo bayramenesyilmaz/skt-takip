@@ -24,7 +24,8 @@ import { useInstallPrompt } from '@/lib/context/install-prompt-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
-import { getExpiryInfo, getThresholds } from '@/lib/expiry'
+import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
+import * as XLSX from 'xlsx'
 
 const LAST_BACKUP_KEY = 'skt-last-backup-at'
 const SHARE_HINT_SHOWN_KEY = 'skt-share-hint-shown'
@@ -95,6 +96,61 @@ export default function SettingsPage() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       localStorage.setItem(LAST_BACKUP_KEY, Date.now().toString())
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const performExcelExport = async () => {
+    setExporting(true)
+    try {
+      const repo = getRepository()
+      const data = await repo.exportBackup(exportScopeToReyon && currentReyonId ? currentReyonId : undefined)
+      const brandById = new Map(data.brands.map((b) => [b.id, b]))
+      const reyonById = new Map((data.reyons || []).map((r) => [r.id, r]))
+
+      const rows = data.products.map((p) => {
+        const activeStock = (p.stock_items || []).filter((s) => s.quantity > 0)
+        const totalQty = activeStock.reduce((sum, s) => sum + s.quantity, 0)
+        const sortedDates = [...activeStock].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
+        return {
+          'Urun Adi': p.name,
+          'Stok Kodu': p.stock_code || '',
+          'Barkod': p.barcode || '',
+          'Marka': p.brand_id ? brandById.get(p.brand_id)?.name || '' : '',
+          'Reyon': p.reyon_id ? reyonById.get(p.reyon_id)?.name || '' : '',
+          'Toplam Stok': totalQty,
+          'En Yakin SKT': sortedDates[0] ? formatDate(sortedDates[0].expiry_date) : '',
+          'SKT Sayisi': sortedDates.length,
+        }
+      })
+
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.json_to_sheet(rows)
+      XLSX.utils.book_append_sheet(wb, ws, 'Urunler')
+      const fileName = `skt-takip-urunler-${new Date().toISOString().slice(0, 10)}.xlsx`
+      const buffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+
+      const file = new File([blob], fileName, { type: blob.type })
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Urun Listesi' })
+          return
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') return
+          console.error('Paylasim basarisiz, klasik indirmeye geciliyor:', err)
+        }
+      }
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } finally {
       setExporting(false)
     }
@@ -310,7 +366,10 @@ export default function SettingsPage() {
             )}
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" disabled={exporting} onClick={handleExport}>
-                <Download className="w-4 h-4 mr-1" /> {exporting ? 'Hazirlaniyor...' : 'Disa Aktar (Yedekle)'}
+                <Download className="w-4 h-4 mr-1" /> {exporting ? 'Hazirlaniyor...' : 'JSON Olarak Disa Aktar (Yedekle)'}
+              </Button>
+              <Button variant="outline" size="sm" disabled={exporting} onClick={performExcelExport}>
+                <FileSpreadsheet className="w-4 h-4 mr-1" /> {exporting ? 'Hazirlaniyor...' : 'Excel Olarak Disa Aktar'}
               </Button>
               <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-500/10" onClick={() => setResetConfirmOpen(true)}>
                 <Trash2 className="w-4 h-4 mr-1" /> Verileri Sifirla
@@ -321,11 +380,14 @@ export default function SettingsPage() {
 
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <Info className="w-4 h-4 text-muted-foreground" />
               <h2 className="font-semibold text-foreground text-sm">Uygulama Bilgisi</h2>
             </div>
-            <p className="text-xs text-muted-foreground">Versiyon 4.0.0 - Yerel PWA</p>
+            <p className="text-xs text-muted-foreground mb-3">Versiyon 4.0.0 - Yerel PWA</p>
+            <Link href="/?intro=1">
+              <Button variant="outline" size="sm">Tanitimi Yeniden Izle</Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -342,7 +404,7 @@ export default function SettingsPage() {
           <>
             <span className="font-semibold text-destructive">{products.length} urun, {brands.length} marka</span> ve tum stok/palet kayitlari bu cihazdan KALICI olarak silinecek. Bu islem GERI ALINAMAZ.
             <br /><br />
-            Once yukaridan <span className="font-medium text-foreground">&quot;Disa Aktar (Yedekle)&quot;</span> ile bir yedek almanizi kesinlikle oneririz.
+            Once yukaridan <span className="font-medium text-foreground">&quot;JSON Olarak Disa Aktar (Yedekle)&quot;</span> ile bir yedek almanizi kesinlikle oneririz.
           </>
         }
         confirmLabel="Evet, Tumunu Sil"
