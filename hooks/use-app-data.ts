@@ -2,13 +2,20 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems, ShelfLifeType, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
+import { CURRENT_REYON_KEY } from '@/lib/context/reyon-context'
+import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems, ShelfLifeType, Reyon, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
+
+function getCurrentReyonId(): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  return localStorage.getItem(CURRENT_REYON_KEY) || undefined
+}
 
 export function useAppData() {
   const [products, setProducts] = useState<ProductWithStock[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [pallets, setPallets] = useState<PalletWithItems[]>([])
   const [shelfLifeTypes, setShelfLifeTypes] = useState<ShelfLifeType[]>([])
+  const [reyons, setReyons] = useState<Reyon[]>([])
   const [returnRecords, setReturnRecords] = useState<ReturnRecordWithProduct[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -16,11 +23,12 @@ export function useAppData() {
     setIsLoading(true)
     try {
       const repo = getRepository()
-      const [prods, brnds, plts, types, returns] = await Promise.all([repo.getProducts(), repo.getBrands(), repo.getPallets(), repo.getShelfLifeTypes(), repo.getReturnRecords()])
+      const [prods, brnds, plts, types, reyonList, returns] = await Promise.all([repo.getProducts(), repo.getBrands(), repo.getPallets(), repo.getShelfLifeTypes(), repo.getReyons(), repo.getReturnRecords()])
       setProducts(prods)
       setBrands(brnds)
       setPallets(plts)
       setShelfLifeTypes(types)
+      setReyons(reyonList)
       setReturnRecords(returns)
     } catch (err) {
       console.error('Failed to load data:', err)
@@ -36,7 +44,7 @@ export function useAppData() {
   const addProduct = useCallback(async (product: Partial<Product> & { expiryDate?: string }) => {
     const repo = getRepository()
     const { expiryDate, ...productData } = product
-    const created = await repo.createProduct(productData)
+    const created = await repo.createProduct({ reyon_id: getCurrentReyonId(), ...productData })
     if (expiryDate) {
       await repo.createStockItem({ product_id: created.id, expiry_date: expiryDate, quantity: 1 })
     }
@@ -47,11 +55,13 @@ export function useAppData() {
   const bulkAddProducts = useCallback(async (items: ParsedProduct[]) => {
     const repo = getRepository()
     const brandNameToId = new Map(brands.map((b) => [b.name.toLowerCase(), b.id]))
+    const reyonId = getCurrentReyonId()
     const created = await repo.bulkCreateProducts(items.map((item) => ({
       name: item.name,
       stock_code: item.stockCode || undefined,
       barcode: item.barcode || undefined,
       brand_id: item.brand ? brandNameToId.get(item.brand.toLowerCase()) : undefined,
+      reyon_id: reyonId,
     })))
     const stockItems = items
       .map((item, i) => ({ product_id: created[i].id, expiry_date: item.expiryDate, quantity: 1 }))
@@ -169,6 +179,25 @@ export function useAppData() {
     await loadData()
   }, [loadData])
 
+  const addReyon = useCallback(async (data: Partial<Reyon>) => {
+    const repo = getRepository()
+    const created = await repo.createReyon(data)
+    await loadData()
+    return created
+  }, [loadData])
+
+  const updateReyon = useCallback(async (id: string, updates: Partial<Reyon>) => {
+    const repo = getRepository()
+    await repo.updateReyon(id, updates)
+    await loadData()
+  }, [loadData])
+
+  const deleteReyon = useCallback(async (id: string) => {
+    const repo = getRepository()
+    await repo.deleteReyon(id)
+    await loadData()
+  }, [loadData])
+
   const addReturnRecord = useCallback(async (data: Partial<ReturnRecord>) => {
     const repo = getRepository()
     const created = await repo.createReturnRecord(data)
@@ -199,6 +228,7 @@ export function useAppData() {
     brands,
     pallets,
     shelfLifeTypes,
+    reyons,
     returnRecords,
     isLoading,
     addProduct, bulkAddProducts, updateProduct, deleteProduct, zeroProductStock,
@@ -206,6 +236,7 @@ export function useAppData() {
     addStockItem, updateStockItem, deleteStockItem,
     addPallet, deletePallet, addPalletItem, removePalletItem,
     addShelfLifeType, updateShelfLifeType, deleteShelfLifeType, bulkAssignShelfLifeType,
+    addReyon, updateReyon, deleteReyon,
     addReturnRecord, updateReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords,
     reload: loadData,
   }

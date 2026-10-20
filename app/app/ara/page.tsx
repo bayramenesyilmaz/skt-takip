@@ -9,13 +9,15 @@ import { BarcodeScanner } from '@/components/barcode-scanner'
 import { ProductSearchCard } from '@/components/product-search-card'
 import { useAppData } from '@/hooks/use-app-data'
 import { useAraFilters } from '@/lib/context/ara-filters-context'
+import { useReyon } from '@/lib/context/reyon-context'
 import { getRepository } from '@/lib/repositories/repository.factory'
-import { Search, Camera, Package } from 'lucide-react'
+import { Search, Camera, Package, MapPin } from 'lucide-react'
 
 export default function AraPage() {
   const { products, isLoading } = useAppData()
+  const { currentReyonId } = useReyon()
   const [mounted, setMounted] = useState(false)
-  const { search: searchQuery, setSearch: setSearchQuery } = useAraFilters()
+  const { search: searchQuery, setSearch: setSearchQuery, allReyons, setAllReyons } = useAraFilters()
   const [showScanner, setShowScanner] = useState(false)
   const [palletMap, setPalletMap] = useState<Record<string, { name: string; quantity: number }[]>>({})
 
@@ -25,6 +27,7 @@ export default function AraPage() {
     if (!searchQuery.trim()) return []
     const q = searchQuery.toLowerCase()
     return products
+      .filter(p => allReyons || !currentReyonId || p.reyon_id === currentReyonId)
       .filter(p =>
         p.name.toLowerCase().includes(q) ||
         (p.stock_code && p.stock_code.toLowerCase().includes(q)) ||
@@ -41,7 +44,7 @@ export default function AraPage() {
         const bDate = b.earliest?.expiry_date || '9999'
         return new Date(aDate).getTime() - new Date(bDate).getTime()
       })
-  }, [searchQuery, products])
+  }, [searchQuery, products, allReyons, currentReyonId])
 
   useEffect(() => {
     let cancelled = false
@@ -105,6 +108,18 @@ export default function AraPage() {
               <Camera className="w-5 h-5" />
             </Button>
           </div>
+
+          {currentReyonId && (
+            <button
+              type="button"
+              onClick={() => setAllReyons(!allReyons)}
+              className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              {allReyons ? 'Tum Reyonlarda araniyor' : 'Mevcut reyonda araniyor'}
+              <span className="underline">{allReyons ? 'Mevcut Reyon' : 'Tum Reyonlar'}</span>
+            </button>
+          )}
         </div>
       </header>
 

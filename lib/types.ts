@@ -8,6 +8,13 @@ export interface Brand {
   updated_at: string
 }
 
+export interface Reyon {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Product {
   id: string
   name: string
@@ -15,6 +22,7 @@ export interface Product {
   barcode?: string
   brand_id?: string
   shelf_life_type_id?: string
+  reyon_id?: string
   return_accepts: boolean
   created_at: string
   updated_at: string
@@ -49,6 +57,7 @@ export interface ExpiryInfo {
 export interface ProductWithStock extends Product {
   brand?: Brand
   shelf_life_type?: ShelfLifeType
+  reyon?: Reyon
   stock_items?: StockItem[]
   total_quantity?: number
 }
@@ -102,6 +111,7 @@ export interface BackupData {
   exportedAt: string
   brands: Brand[]
   shelfLifeTypes?: ShelfLifeType[]
+  reyons?: Reyon[]
   products: (Product & { stock_items: StockItem[] })[]
   pallets: (Pallet & { items: PalletItem[] })[]
   returns?: ReturnRecord[]
@@ -114,5 +124,6 @@ export interface RestoreResult {
   palletsAdded: number
   palletItemsAdded: number
   shelfLifeTypesAdded: number
+  reyonsAdded: number
   returnsAdded: number
 }
