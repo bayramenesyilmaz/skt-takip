@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Edit, Clock } from 'lucide-react'
+import { Trash2, Edit, Clock, Undo2 } from 'lucide-react'
 import { getExpiryInfo, getThresholds, statusConfig, formatDate } from '@/lib/expiry'
 import type { ProductWithStock } from '@/lib/types'
 
@@ -11,11 +11,12 @@ interface ProductCardProps {
   product: ProductWithStock
   onEdit: (product: ProductWithStock) => void
   onDelete: (id: string) => void
+  onReturn?: (product: ProductWithStock) => void
   compact?: boolean
   canDelete?: boolean
 }
 
-export function ProductCard({ product, onEdit, onDelete, compact, canDelete = true }: ProductCardProps) {
+export function ProductCard({ product, onEdit, onDelete, onReturn, compact, canDelete = true }: ProductCardProps) {
   const activeStock = (product.stock_items || []).filter((s) => s.quantity > 0)
   const earliestStock = activeStock.length > 0
     ? [...activeStock].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
@@ -46,6 +47,7 @@ export function ProductCard({ product, onEdit, onDelete, compact, canDelete = tr
             {expiryInfo && expiryInfo.status !== 'safe' && !compact && <p className={`text-xs font-medium mt-2 ${config.text}`}>{expiryInfo.actionRequired}</p>}
           </div>
           <div className="flex gap-1">
+            {onReturn && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReturn(product) }}><Undo2 className="w-4 h-4" /></Button>}
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(product) }}><Edit className="w-4 h-4" /></Button>
             {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(product.id) }}><Trash2 className="w-4 h-4" /></Button>}
           </div>

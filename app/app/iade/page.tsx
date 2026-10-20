@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
 import { formatDate } from '@/lib/expiry'
 import { buildReturnShareMessage } from '@/lib/share'
@@ -14,10 +15,25 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, Edit, Save, ListChecks, Tag, Package, Copy, Check, Share2 } from 'lucide-react'
-import type { ProductWithStock } from '@/lib/types'
+import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, Edit, Save, ListChecks, Tag, Package, Copy, Check, Share2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'
+import type { ProductWithStock, ReturnRecordWithProduct } from '@/lib/types'
 
-export default function IadePage() {
+function dayLabel(dateStr: string): string {
+  const startOfDay = (ms: number) => {
+    const d = new Date(ms)
+    d.setHours(0, 0, 0, 0)
+    return d.getTime()
+  }
+  const target = startOfDay(new Date(dateStr).getTime())
+  const today = startOfDay(Date.now())
+  const yesterday = today - 24 * 60 * 60 * 1000
+  if (target === today) return 'Bugun'
+  if (target === yesterday) return 'Dun'
+  return formatDate(dateStr)
+}
+
+function IadeContent() {
+  const searchParams = useSearchParams()
   const { products, brands, returnRecords, addReturnRecord, updateReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
@@ -27,7 +43,9 @@ export default function IadePage() {
   const [quantity, setQuantity] = useState('1')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [prefillChecked, setPrefillChecked] = useState(false)
 
+  const [listSearch, setListSearch] = useState('')
   const [brandFilter, setBrandFilter] = useState('all')
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -39,8 +57,26 @@ export default function IadePage() {
   const [editQuantity, setEditQuantity] = useState('1')
   const [editNote, setEditNote] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [showTotals, setShowTotals] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (prefillChecked) return
+    const pid = searchParams.get('productId')
+    if (pid) {
+      const match = products.find((p) => p.id === pid)
+      if (match) {
+        setSelectedProduct(match)
+        setSearchQuery(match.name)
+        setPrefillChecked(true)
+      } else if (products.length > 0) {
+        setPrefillChecked(true)
+      }
+    } else {
+      setPrefillChecked(true)
+    }
+  }, [searchParams, products, prefillChecked])
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim() || selectedProduct) return []
@@ -87,9 +123,46 @@ export default function IadePage() {
   }
 
   const filteredRecords = useMemo(() => {
-    if (brandFilter === 'all') return returnRecords
-    return returnRecords.filter((r) => r.product?.brand_id === brandFilter)
-  }, [returnRecords, brandFilter])
+    let result = returnRecords
+    if (brandFilter !== 'all') result = result.filter((r) => r.product?.brand_id === brandFilter)
+    if (listSearch.trim()) {
+      const q = listSearch.toLowerCase()
+      result = result.filter((r) =>
+        (r.product?.name || '').toLowerCase().includes(q) ||
+        (r.product?.barcode && r.product.barcode.includes(q)) ||
+        (r.product?.stock_code && r.product.stock_code.toLowerCase().includes(q))
+      )
+    }
+    return result
+  }, [returnRecords, brandFilter, listSearch])
+
+  const dayGroups = useMemo(() => {
+    const groups: { label: string; records: ReturnRecordWithProduct[] }[] = []
+    const indexByLabel = new Map<string, number>()
+    for (const r of filteredRecords) {
+      const label = dayLabel(r.created_at)
+      if (!indexByLabel.has(label)) {
+        indexByLabel.set(label, groups.length)
+        groups.push({ label, records: [] })
+      }
+      groups[indexByLabel.get(label)!].records.push(r)
+    }
+    return groups
+  }, [filteredRecords])
+
+  const totalsByProduct = useMemo(() => {
+    const map = new Map<string, { name: string; brand?: string; total: number; recordCount: number }>()
+    for (const r of filteredRecords) {
+      const existing = map.get(r.product_id)
+      if (existing) {
+        existing.total += r.quantity
+        existing.recordCount += 1
+      } else {
+        map.set(r.product_id, { name: r.product?.name || 'Silinmis urun', brand: r.product?.brand?.name, total: r.quantity, recordCount: 1 })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total)
+  }, [filteredRecords])
 
   const allSelected = filteredRecords.length > 0 && filteredRecords.every((r) => selectedIds.has(r.id))
 
@@ -104,6 +177,17 @@ export default function IadePage() {
 
   const toggleSelectAll = () => {
     setSelectedIds(allSelected ? new Set() : new Set(filteredRecords.map((r) => r.id)))
+  }
+
+  const toggleSelectGroup = (groupRecords: ReturnRecordWithProduct[]) => {
+    const ids = groupRecords.map((r) => r.id)
+    const allIn = ids.every((id) => selectedIds.has(id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allIn) ids.forEach((id) => next.delete(id))
+      else ids.forEach((id) => next.add(id))
+      return next
+    })
   }
 
   const exitSelectMode = () => {
@@ -214,6 +298,18 @@ export default function IadePage() {
             </Button>
           </div>
 
+          <div className="flex gap-2 mb-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Kayitlarda ara..."
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                className="pl-9 h-9 bg-muted/50"
+              />
+            </div>
+          </div>
+
           <Select value={brandFilter} onValueChange={setBrandFilter}>
             <SelectTrigger className="h-9 bg-muted/50 w-full">
               <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
@@ -295,6 +391,34 @@ export default function IadePage() {
           </CardContent>
         </Card>
 
+        {filteredRecords.length > 0 && (
+          <Card>
+            <button type="button" className="w-full text-left" onClick={() => setShowTotals((v) => !v)}>
+              <CardContent className="p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Toplam Adetler</span>
+                  <Badge variant="outline" className="text-xs">{totalsByProduct.length} urun</Badge>
+                </div>
+                {showTotals ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </CardContent>
+            </button>
+            {showTotals && (
+              <CardContent className="p-3 pt-0 space-y-1.5">
+                {totalsByProduct.map((t) => (
+                  <div key={t.name + t.brand} className="flex items-center justify-between gap-2 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <span className="truncate block">{t.name}</span>
+                      {t.brand && <span className="text-xs text-muted-foreground">{t.brand}</span>}
+                    </div>
+                    <Badge variant="secondary" className="text-xs shrink-0">{t.total} adet{t.recordCount > 1 ? ` (${t.recordCount} kayit)` : ''}</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            )}
+          </Card>
+        )}
+
         {selectMode && filteredRecords.length > 0 && (
           <label className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-border cursor-pointer">
             <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="w-4 h-4 accent-primary shrink-0" />
@@ -309,67 +433,79 @@ export default function IadePage() {
             <Undo2 className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <h3 className="font-semibold text-foreground mb-1">Iade Kaydi Yok</h3>
             <p className="text-sm text-muted-foreground">
-              {brandFilter !== 'all' ? 'Bu markaya ait iade kaydi yok.' : 'Yukaridan urun arayarak veya barkod okutarak iade kaydi ekleyin.'}
+              {brandFilter !== 'all' || listSearch ? 'Bu kriterlere uyan iade kaydi yok.' : 'Yukaridan urun arayarak veya barkod okutarak iade kaydi ekleyin.'}
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredRecords.map((r) => (
-              selectMode ? (
-                <label key={r.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer">
-                  <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} className="w-4 h-4 accent-primary shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{r.product?.name || 'Silinmis urun'}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.product?.brand?.name ? `${r.product.brand.name} - ` : ''}Adet: {r.quantity} - {formatDate(r.created_at)}
-                    </p>
-                    {r.note && <p className="text-xs text-muted-foreground italic truncate">{r.note}</p>}
-                  </div>
-                </label>
-              ) : editingId === r.id ? (
-                <Card key={r.id} className="border-primary/30">
-                  <CardContent className="p-3 space-y-3">
-                    <p className="text-sm font-medium text-foreground truncate">{r.product?.name || 'Silinmis urun'}</p>
-                    <div className="space-y-1"><Label className="text-xs">Adet</Label><Input type="number" min="1" value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} className="h-10" /></div>
-                    <div className="space-y-1"><Label className="text-xs">Not (opsiyonel)</Label><Input placeholder="orn: son kullanma tarihi gecti" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="h-10" /></div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1 h-10" onClick={cancelEdit} disabled={savingEdit}>Iptal</Button>
-                      <Button className="flex-1 h-10" onClick={handleSaveEdit} disabled={savingEdit}>
-                        <Save className="w-4 h-4 mr-1" />{savingEdit ? 'Kaydediliyor...' : 'Kaydet'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card key={r.id}>
-                  <CardContent className="p-3 flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{r.product?.name || 'Silinmis urun'}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {r.product?.brand && <span className="text-xs text-muted-foreground">{r.product.brand.name}</span>}
-                        <Badge variant="outline" className="text-xs">Adet: {r.quantity}</Badge>
-                        <span className="text-xs text-muted-foreground">{formatDate(r.created_at)}</span>
-                      </div>
-                      {(r.product?.stock_code || r.product?.barcode) && (
-                        <p className="text-xs text-muted-foreground mt-1 truncate">
-                          {r.product?.stock_code && <>Stok Kodu: {r.product.stock_code}</>}
-                          {r.product?.stock_code && r.product?.barcode && ' | '}
-                          {r.product?.barcode && <>Barkod: {r.product.barcode}</>}
+          <div className="space-y-4">
+            {dayGroups.map((group) => (
+              <div key={group.label} className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</h2>
+                  {selectMode && (
+                    <button type="button" className="text-xs text-primary font-medium" onClick={() => toggleSelectGroup(group.records)}>
+                      Bu gunu sec
+                    </button>
+                  )}
+                </div>
+                {group.records.map((r) => (
+                  selectMode ? (
+                    <label key={r.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer">
+                      <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} className="w-4 h-4 accent-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{r.product?.name || 'Silinmis urun'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {r.product?.brand?.name ? `${r.product.brand.name} - ` : ''}Adet: {r.quantity} - {formatDate(r.created_at)}
                         </p>
-                      )}
-                      {r.note && <p className="text-xs text-muted-foreground italic mt-1">{r.note}</p>}
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => startEdit(r)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(r.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
+                        {r.note && <p className="text-xs text-muted-foreground italic truncate">{r.note}</p>}
+                      </div>
+                    </label>
+                  ) : editingId === r.id ? (
+                    <Card key={r.id} className="border-primary/30">
+                      <CardContent className="p-3 space-y-3">
+                        <p className="text-sm font-medium text-foreground truncate">{r.product?.name || 'Silinmis urun'}</p>
+                        <div className="space-y-1"><Label className="text-xs">Adet</Label><Input type="number" min="1" value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} className="h-10" /></div>
+                        <div className="space-y-1"><Label className="text-xs">Not (opsiyonel)</Label><Input placeholder="orn: son kullanma tarihi gecti" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="h-10" /></div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" className="flex-1 h-10" onClick={cancelEdit} disabled={savingEdit}>Iptal</Button>
+                          <Button className="flex-1 h-10" onClick={handleSaveEdit} disabled={savingEdit}>
+                            <Save className="w-4 h-4 mr-1" />{savingEdit ? 'Kaydediliyor...' : 'Kaydet'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card key={r.id}>
+                      <CardContent className="p-3 flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{r.product?.name || 'Silinmis urun'}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {r.product?.brand && <span className="text-xs text-muted-foreground">{r.product.brand.name}</span>}
+                            <Badge variant="outline" className="text-xs">Adet: {r.quantity}</Badge>
+                            <span className="text-xs text-muted-foreground">{formatDate(r.created_at)}</span>
+                          </div>
+                          {(r.product?.stock_code || r.product?.barcode) && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              {r.product?.stock_code && <>Stok Kodu: {r.product.stock_code}</>}
+                              {r.product?.stock_code && r.product?.barcode && ' | '}
+                              {r.product?.barcode && <>Barkod: {r.product.barcode}</>}
+                            </p>
+                          )}
+                          {r.note && <p className="text-xs text-muted-foreground italic mt-1">{r.note}</p>}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => startEdit(r)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(r.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -432,5 +568,13 @@ export default function IadePage() {
         confirming={deleting}
       />
     </main>
+  )
+}
+
+export default function IadePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <IadeContent />
+    </Suspense>
   )
 }

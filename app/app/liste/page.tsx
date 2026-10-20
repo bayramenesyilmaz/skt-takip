@@ -414,6 +414,7 @@ function ListeContent() {
                     product={product}
                     onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
                     onDelete={() => setDeleteTarget(product)}
+                    onReturn={(p) => router.push(`/app/iade?productId=${p.id}`)}
                     compact
                   />
                 </Link>
