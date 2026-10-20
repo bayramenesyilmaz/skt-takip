@@ -21,12 +21,12 @@ export function QuickActionsFab() {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-black/10"
+          className="fixed inset-0 z-40 bg-black/10"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
       )}
-      <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-2">
+      <div className="fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2">
         {open && quickLinks.map((item, i) => (
           <Link
             key={item.href}
