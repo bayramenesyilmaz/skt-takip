@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,7 +42,7 @@ export default function SettingsPage() {
   const [updating, setUpdating] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [shareHintOpen, setShareHintOpen] = useState(false)
-  const [exportScopeToReyon, setExportScopeToReyon] = useState(false)
+  const [exportReyonChoice, setExportReyonChoice] = useState('all')
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -81,7 +82,7 @@ export default function SettingsPage() {
     setExporting(true)
     try {
       const repo = getRepository()
-      const data = await repo.exportBackup(exportScopeToReyon && currentReyonId ? currentReyonId : undefined)
+      const data = await repo.exportBackup(exportReyonChoice === 'all' ? undefined : exportReyonChoice)
       const fileName = `skt-takip-yedek-${new Date().toISOString().slice(0, 10)}.json`
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
 
@@ -117,7 +118,7 @@ export default function SettingsPage() {
     setExporting(true)
     try {
       const repo = getRepository()
-      const data = await repo.exportBackup(exportScopeToReyon && currentReyonId ? currentReyonId : undefined)
+      const data = await repo.exportBackup(exportReyonChoice === 'all' ? undefined : exportReyonChoice)
       const brandById = new Map(data.brands.map((b) => [b.id, b]))
       const reyonById = new Map((data.reyons || []).map((r) => [r.id, r]))
 
@@ -365,16 +366,17 @@ export default function SettingsPage() {
           <CardContent className="p-4">
             <h2 className="font-semibold mb-1 text-red-600 text-sm">Veriler</h2>
             <p className="text-xs text-muted-foreground mb-3">Silmeden once yedek almanizi oneririz. Yedek dosyasini daha sonra Import ekranindan geri yukleyebilirsiniz.</p>
-            {currentReyonId && (
-              <label className="flex items-center gap-2 mb-3 text-xs text-muted-foreground cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={exportScopeToReyon}
-                  onChange={(e) => setExportScopeToReyon(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-primary"
-                />
-                Sadece secili reyonu disa aktar
-              </label>
+            {reyons.length > 0 && (
+              <div className="space-y-1 mb-3">
+                <Label className="text-xs text-muted-foreground">Disa aktarim kapsami</Label>
+                <Select value={exportReyonChoice} onValueChange={setExportReyonChoice}>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tum Urunler (Reyonsuz Komple)</SelectItem>
+                    {reyons.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" disabled={exporting} onClick={handleExport}>

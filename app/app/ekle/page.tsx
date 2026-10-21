@@ -12,6 +12,7 @@ import { HowItWorksButton } from '@/components/how-it-works-button'
 import { ProductSearchCard } from '@/components/product-search-card'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { BottomNav } from '@/components/bottom-nav'
+import { useReyon } from '@/lib/context/reyon-context'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Package, Layers, ScanLine, CheckCircle2, FileSpreadsheet } from 'lucide-react'
@@ -25,7 +26,8 @@ function AddProductContent() {
   const prefillBarcode = searchParams.get('barcode') || ''
   const wantsBulk = searchParams.get('tab') === 'bulk'
   const wantsExcel = searchParams.get('tab') === 'excel'
-  const { products, brands, shelfLifeTypes, addProduct, bulkAddProducts, bulkImportCatalog, isLoading } = useAppData()
+  const { products, brands, shelfLifeTypes, reyons, addProduct, bulkAddProducts, bulkImportCatalog, isLoading } = useAppData()
+  const { currentReyonId } = useReyon()
   const [tab, setTab] = useState<'single' | 'bulk' | 'excel'>(wantsExcel ? 'excel' : wantsBulk ? 'bulk' : 'single')
   const [mode, setMode] = useState<Mode>(prefillBarcode || wantsBulk || wantsExcel ? 'form' : 'scan')
   const [barcode, setBarcode] = useState(prefillBarcode)
@@ -159,7 +161,9 @@ function AddProductContent() {
         ) : (
           <ExcelBulkImport
             existingProducts={products}
-            onAdd={async (items) => { await bulkImportCatalog(items); router.push('/app') }}
+            reyons={reyons}
+            defaultReyonId={currentReyonId}
+            onAdd={async (items, reyonId) => { await bulkImportCatalog(items, reyonId); router.push('/app') }}
             onCancel={() => router.push('/app')}
           />
         )}
