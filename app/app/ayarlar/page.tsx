@@ -45,10 +45,21 @@ export default function SettingsPage() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const missingBarcodeCount = useMemo(
-    () => products.filter((p) => !p.barcode || !p.barcode.trim()).length,
-    [products]
-  )
+  const incompleteInfoCount = useMemo(() => {
+    const barcodeCounts = new Map<string, number>()
+    const stockCodeCounts = new Map<string, number>()
+    for (const p of products) {
+      const b = p.barcode?.trim()
+      if (b) barcodeCounts.set(b, (barcodeCounts.get(b) || 0) + 1)
+      const s = p.stock_code?.trim()
+      if (s) stockCodeCounts.set(s, (stockCodeCounts.get(s) || 0) + 1)
+    }
+    return products.filter((p) => {
+      const b = p.barcode?.trim()
+      const s = p.stock_code?.trim()
+      return !b || !s || (b && (barcodeCounts.get(b) || 0) > 1) || (s && (stockCodeCounts.get(s) || 0) > 1)
+    }).length
+  }, [products])
 
   const zeroStockCount = useMemo(
     () => products.filter((p) => (p.total_quantity ?? 0) === 0).length,
@@ -325,9 +336,9 @@ export default function SettingsPage() {
               <Link href="/app/ekle?tab=excel" className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <FileSpreadsheet className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Excel ile Toplu Ekle</span>
               </Link>
-              <Link href="/app/barkodsuz" className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                <span className="flex items-center gap-2"><ScanBarcode className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Barkodsuz Urunler</span></span>
-                {missingBarcodeCount > 0 && <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600">{missingBarcodeCount}</Badge>}
+              <Link href="/app/eksik-bilgi" className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <span className="flex items-center gap-2"><ScanBarcode className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Eksik Bilgili Urunler</span></span>
+                {incompleteInfoCount > 0 && <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600">{incompleteInfoCount}</Badge>}
               </Link>
               <Link href="/app/stok-sifir" className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <span className="flex items-center gap-2"><PackageX className="w-4 h-4 text-muted-foreground" /> <span className="text-sm">Stok Sifir Urunler</span></span>

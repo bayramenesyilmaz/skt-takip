@@ -42,10 +42,21 @@ export default function AppHomePage() {
       .sort((a, b) => a.expiry.daysLeft - b.expiry.daysLeft)
   }, [products])
 
-  const missingBarcodeCount = useMemo(
-    () => products.filter((p) => !p.barcode || !p.barcode.trim()).length,
-    [products]
-  )
+  const incompleteInfoCount = useMemo(() => {
+    const barcodeCounts = new Map<string, number>()
+    const stockCodeCounts = new Map<string, number>()
+    for (const p of products) {
+      const b = p.barcode?.trim()
+      if (b) barcodeCounts.set(b, (barcodeCounts.get(b) || 0) + 1)
+      const s = p.stock_code?.trim()
+      if (s) stockCodeCounts.set(s, (stockCodeCounts.get(s) || 0) + 1)
+    }
+    return products.filter((p) => {
+      const b = p.barcode?.trim()
+      const s = p.stock_code?.trim()
+      return !b || !s || (b && (barcodeCounts.get(b) || 0) > 1) || (s && (stockCodeCounts.get(s) || 0) > 1)
+    }).length
+  }, [products])
 
   const zeroStockCount = useMemo(
     () => products.filter((p) => (p.total_quantity ?? 0) === 0).length,
@@ -106,8 +117,8 @@ export default function AppHomePage() {
           </Link>
         )}
 
-        {missingBarcodeCount > 0 && (
-          <Link href="/app/barkodsuz" className="block">
+        {incompleteInfoCount > 0 && (
+          <Link href="/app/eksik-bilgi" className="block">
             <Card className="p-4 border-amber-500/30 bg-amber-500/5 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -115,8 +126,8 @@ export default function AppHomePage() {
                     <ScanBarcode className="w-5 h-5 text-amber-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{missingBarcodeCount} urunun barkodu eksik</p>
-                    <p className="text-xs text-muted-foreground">Hizlica barkod ekleyerek tamamlayin</p>
+                    <p className="font-medium text-sm">{incompleteInfoCount} urunde eksik bilgi var</p>
+                    <p className="text-xs text-muted-foreground">Barkod, stok kodu veya tekrar eden kayitlari duzeltin</p>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />

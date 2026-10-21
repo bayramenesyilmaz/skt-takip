@@ -8,7 +8,7 @@ import { useBulkBar } from '@/lib/context/bulk-bar-context'
 const quickLinks = [
   { href: '/app/kampanya', label: 'Kampanya Urunleri', icon: ShoppingCart },
   { href: '/app/stok-sifir', label: 'Stok Sifir Urunler', icon: PackageX },
-  { href: '/app/barkodsuz', label: 'Barkodsuz Urunler', icon: ScanBarcode },
+  { href: '/app/eksik-bilgi', label: 'Eksik Bilgili Urunler', icon: ScanBarcode },
   { href: '/app/iade', label: 'Iade Kayitlari', icon: Undo2 },
   { href: '/app/paletler', label: 'Paletler', icon: Layers },
   { href: '/app/reyonlar', label: 'Reyonlar', icon: MapPin },

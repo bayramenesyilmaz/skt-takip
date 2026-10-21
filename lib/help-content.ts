@@ -5,7 +5,7 @@ export type HelpPageKey =
   | 'ekle'
   | 'iade'
   | 'paletler'
-  | 'barkodsuz'
+  | 'eksik-bilgi'
   | 'stok-sifir'
   | 'kampanya'
   | 'reyonlar'
@@ -21,7 +21,7 @@ export const HELP_CONTENT: Record<HelpPageKey, HelpContent> = {
     steps: [
       'Acil Urunler kartinda suresi yaklasan veya gecen urunleri gorursunuz.',
       'Alt ortadaki yuvarlak butona dokunarak barkod okutup hizlica urun ekleyebilir veya guncelleyebilirsiniz.',
-      'Uyari kartlarina (barkodsuz, stok sifir, kampanya) dokunarak ilgili listeye gidersiniz.',
+      'Uyari kartlarina (eksik bilgi, stok sifir, kampanya) dokunarak ilgili listeye gidersiniz.',
     ],
   },
   liste: {
@@ -65,11 +65,12 @@ export const HELP_CONTENT: Record<HelpPageKey, HelpContent> = {
       'Palet detayindan kopyala / paylas ile listeyi yetkiliye iletebilirsiniz.',
     ],
   },
-  barkodsuz: {
-    title: 'Barkodsuz Urunler Nasil Calisir?',
+  'eksik-bilgi': {
+    title: 'Eksik Bilgili Urunler Nasil Calisir?',
     steps: [
-      'Barkodu olmayan urunler burada listelenir.',
-      'Urune barkod ekleyerek bu listeden cikarabilirsiniz.',
+      'Barkodu, stok kodu olmayan, stogu sifir olan veya baska bir urunle ayni barkod/stok koduna sahip urunler burada toplanir.',
+      'Ustteki filtrelerden hangi sorunu gormek istediginizi secebilirsiniz.',
+      'Barkodu eksik urunlere hemen barkod okutup ekleyebilirsiniz; digerleri icin urun detayina gidip duzenleyebilirsiniz.',
     ],
   },
   'stok-sifir': {
