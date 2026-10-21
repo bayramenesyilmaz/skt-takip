@@ -22,6 +22,7 @@ export function buildReturnShareMessage(records: ReturnRecordWithProduct[]): str
     let line = `- ${r.product?.name || 'Silinmis urun'}`
     if (r.product?.brand?.name) line += ` (${r.product.brand.name})`
     line += ` - ${r.quantity} adet`
+    line += `\n  Tarih: ${formatDate(r.created_at)}`
     if (r.product?.stock_code) line += `\n  Stok Kodu: ${r.product.stock_code}`
     if (r.product?.barcode) line += `\n  Barkod: ${r.product.barcode}`
     if (r.note) line += `\n  ${r.note}`
