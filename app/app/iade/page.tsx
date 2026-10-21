@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Undo2, Camera, Search, Plus, X, Trash2, Edit, Save, ListChecks, Tag, Package, Copy, Check, Share2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'
 import type { ProductWithStock, ReturnRecordWithProduct } from '@/lib/types'
 import { HowItWorksButton } from '@/components/how-it-works-button'
+import { useBulkBar } from '@/lib/context/bulk-bar-context'
 import { AdSlot } from '@/components/ad-slot'
 
 function dayLabel(dateStr: string): string {
@@ -50,6 +51,12 @@ function IadeContent() {
   const [listSearch, setListSearch] = useState('')
   const [brandFilter, setBrandFilter] = useState('all')
   const [selectMode, setSelectMode] = useState(false)
+  const { setBulkBarActive } = useBulkBar()
+  useEffect(() => {
+    setBulkBarActive(selectMode)
+    return () => setBulkBarActive(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectMode])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
@@ -278,7 +285,7 @@ function IadeContent() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-32">
+    <main className={`min-h-screen bg-background ${selectMode ? 'pb-56' : 'pb-40'}`}>
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3 mb-3">
@@ -291,11 +298,6 @@ function IadeContent() {
               <p className="text-xs text-muted-foreground">Iadeye gonderilenleri takip edin</p>
             </div>
             <Badge variant="secondary" className="text-xs">{returnRecords.length}</Badge>
-            {selectMode && (
-              <Button variant="default" size="sm" onClick={exitSelectMode}>
-                <X className="w-4 h-4" />
-              </Button>
-            )}
             <HowItWorksButton page="iade" />
           </div>
 
@@ -430,6 +432,20 @@ function IadeContent() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Toplu Sec</p>
               <p className="text-xs text-muted-foreground">Birden fazla kaydi secip silin veya paylasin</p>
+            </div>
+          </button>
+        )}
+
+        {selectMode && (
+          <button
+            type="button"
+            onClick={exitSelectMode}
+            className="w-full flex items-center gap-3 p-3 rounded-lg border border-primary bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+          >
+            <X className="w-4 h-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Toplu Secimi Kapat</p>
+              <p className="text-xs text-muted-foreground">Secim modundan cikip normal listeye don</p>
             </div>
           </button>
         )}

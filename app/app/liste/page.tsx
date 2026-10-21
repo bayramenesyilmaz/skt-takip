@@ -7,6 +7,7 @@ import { useAppData } from '@/hooks/use-app-data'
 import { useListeFilters } from '@/lib/context/liste-filters-context'
 import type { StatusFilter } from '@/lib/context/liste-filters-context'
 import { useReyon } from '@/lib/context/reyon-context'
+import { useBulkBar } from '@/lib/context/bulk-bar-context'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { HowItWorksButton } from '@/components/how-it-works-button'
 import { AdSlot } from '@/components/ad-slot'
@@ -25,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, ListOrdered, Package, Tag, Thermometer, PackageX, ArrowRight, Camera, ListChecks, X, Share2, Copy, Check, MapPin } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 
-const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'critical', 'remove', 'campaign', 'safe']
+const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'remove', 'campaign', 'safe']
 const PAGE_SIZE = 40
 
 function ListeContent() {
@@ -33,6 +34,7 @@ function ListeContent() {
   const searchParams = useSearchParams()
   const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType, bulkAssignReyon } = useAppData()
   const { currentReyonId } = useReyon()
+  const { setBulkBarActive } = useBulkBar()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -46,6 +48,11 @@ function ListeContent() {
   const [showScanner, setShowScanner] = useState(false)
   const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
+  useEffect(() => {
+    setBulkBarActive(selectMode)
+    return () => setBulkBarActive(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectMode])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkCategory, setBulkCategory] = useState<string>('')
   const [bulkReyon, setBulkReyon] = useState<string>('')
@@ -139,7 +146,7 @@ function ListeContent() {
   const visibleProducts = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: preStatusFiltered.length, expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
+    const c: Record<string, number> = { all: preStatusFiltered.length, expired: 0, remove: 0, campaign: 0, safe: 0 }
     for (const p of preStatusFiltered) {
       const status = statusById.get(p.id)
       if (status) c[status.info.status]++
@@ -226,7 +233,6 @@ function ListeContent() {
   const filters: { key: StatusFilter; label: string }[] = [
     { key: 'all', label: 'Tumu' },
     { key: 'expired', label: 'Gecti' },
-    { key: 'critical', label: 'Kritik' },
     { key: 'remove', label: 'Kaldir' },
     { key: 'campaign', label: 'Kampanya' },
     { key: 'safe', label: 'Guvenli' },
@@ -251,7 +257,7 @@ function ListeContent() {
 
   if (shareMode) {
     return (
-      <main className="min-h-screen bg-background pb-24">
+      <main className="min-h-screen bg-background pb-40">
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="max-w-lg mx-auto px-4 py-3">
             <div className="flex items-center gap-3 mb-3">
@@ -321,7 +327,7 @@ function ListeContent() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-32">
+    <main className={`min-h-screen bg-background ${selectMode ? 'pb-56' : 'pb-40'}`}>
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3 mb-3">
@@ -333,11 +339,6 @@ function ListeContent() {
               <p className="text-xs text-muted-foreground">SKT sirasina gore</p>
             </div>
             <Badge variant="secondary" className="text-xs">{reyonScopedProducts.length}</Badge>
-            {selectMode && (
-              <Button variant="default" size="sm" onClick={exitSelectMode}>
-                <X className="w-4 h-4" />
-              </Button>
-            )}
             <HowItWorksButton page="liste" />
           </div>
 
@@ -442,6 +443,20 @@ function ListeContent() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Toplu Sec</p>
               <p className="text-xs text-muted-foreground">Birden fazla urun secip kategori atayin veya paylasin</p>
+            </div>
+          </button>
+        )}
+
+        {selectMode && (
+          <button
+            type="button"
+            onClick={exitSelectMode}
+            className="w-full flex items-center gap-3 p-3 mb-3 rounded-lg border border-primary bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+          >
+            <X className="w-4 h-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Toplu Secimi Kapat</p>
+              <p className="text-xs text-muted-foreground">Secim modundan cikip normal listeye don</p>
             </div>
           </button>
         )}

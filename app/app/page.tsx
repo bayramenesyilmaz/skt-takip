@@ -38,7 +38,7 @@ export default function AppHomePage() {
       .map((p) => ({ product: p, stock: getEarliestStock(p) }))
       .filter((x): x is { product: ProductWithStock; stock: NonNullable<ReturnType<typeof getEarliestStock>> } => !!x.stock)
       .map((x) => ({ ...x, expiry: getExpiryInfo(x.stock.expiry_date, getThresholds(x.product.shelf_life_type)) }))
-      .filter((x) => ['expired', 'critical', 'remove'].includes(x.expiry.status))
+      .filter((x) => ['expired', 'remove'].includes(x.expiry.status))
       .sort((a, b) => a.expiry.daysLeft - b.expiry.daysLeft)
   }, [products])
 
@@ -61,7 +61,7 @@ export default function AppHomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
+    <main className="min-h-screen bg-background pb-40">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3">

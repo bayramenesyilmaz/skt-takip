@@ -1,4 +1,4 @@
-export type ExpiryStatus = 'expired' | 'critical' | 'remove' | 'campaign' | 'safe'
+export type ExpiryStatus = 'expired' | 'remove' | 'campaign' | 'safe'
 
 export interface Brand {
   id: string
@@ -31,7 +31,6 @@ export interface Product {
 export interface ShelfLifeType {
   id: string
   name: string
-  critical_days: number
   remove_days: number
   campaign_days: number
   created_at: string

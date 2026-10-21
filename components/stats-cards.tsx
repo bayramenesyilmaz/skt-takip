@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { AlertTriangle, AlertCircle, CheckCircle, ShoppingCart, Package } from 'lucide-react'
+import { AlertTriangle, CheckCircle, ShoppingCart, Package } from 'lucide-react'
 import type { ProductWithStock } from '@/lib/types'
 import { getExpiryInfo, getThresholds } from '@/lib/expiry'
 
@@ -11,7 +11,7 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ products }: StatsCardsProps) {
-  const stats = { expired: 0, critical: 0, remove: 0, campaign: 0, safe: 0 }
+  const stats = { expired: 0, remove: 0, campaign: 0, safe: 0 }
   for (const p of products) {
     const thresholds = getThresholds(p.shelf_life_type)
     for (const s of p.stock_items || []) {
@@ -23,8 +23,7 @@ export function StatsCards({ products }: StatsCardsProps) {
 
   const cards = [
     { label: 'Suresi Gecmis', value: stats.expired, filter: 'expired', icon: AlertTriangle, bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400', iconBg: 'bg-red-500/20' },
-    { label: 'Kritik (0-3 gun)', value: stats.critical, filter: 'critical', icon: AlertCircle, bg: 'bg-red-500/5', text: 'text-red-600 dark:text-red-400', iconBg: 'bg-red-500/10' },
-    { label: 'Kaldir (4-14 gun)', value: stats.remove, filter: 'remove', icon: Package, bg: 'bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-500/20' },
+    { label: 'Kaldir (1-14 gun)', value: stats.remove, filter: 'remove', icon: Package, bg: 'bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-500/20' },
     { label: 'Kampanya (15-90 gun)', value: stats.campaign, filter: 'campaign', icon: ShoppingCart, bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-500/20' },
     { label: 'Guvenli (90+ gun)', value: stats.safe, filter: 'safe', icon: CheckCircle, bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-500/20' },
   ]

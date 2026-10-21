@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Layers, Layers3, Undo2, ScanBarcode, PackageX, ShoppingCart, MapPin, Zap, X } from 'lucide-react'
+import { useBulkBar } from '@/lib/context/bulk-bar-context'
 
 const quickLinks = [
   { href: '/app/kampanya', label: 'Kampanya Urunleri', icon: ShoppingCart },
@@ -16,6 +17,9 @@ const quickLinks = [
 
 export function QuickActionsFab() {
   const [open, setOpen] = useState(false)
+  const { bulkBarActive } = useBulkBar()
+
+  if (bulkBarActive) return null
 
   return (
     <>

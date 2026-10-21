@@ -16,20 +16,19 @@ import { AdSlot } from '@/components/ad-slot'
 
 interface RowState {
   name: string
-  critical_days: string
   remove_days: string
   campaign_days: string
 }
 
 function toRowState(t: ShelfLifeType): RowState {
-  return { name: t.name, critical_days: String(t.critical_days), remove_days: String(t.remove_days), campaign_days: String(t.campaign_days) }
+  return { name: t.name, remove_days: String(t.remove_days), campaign_days: String(t.campaign_days) }
 }
 
 export default function ShelfLifeTypesPage() {
   const { products, shelfLifeTypes, addShelfLifeType, updateShelfLifeType, deleteShelfLifeType } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [rows, setRows] = useState<Record<string, RowState>>({})
-  const [newRow, setNewRow] = useState<RowState>({ name: '', critical_days: '3', remove_days: '14', campaign_days: '90' })
+  const [newRow, setNewRow] = useState<RowState>({ name: '', remove_days: '14', campaign_days: '90' })
   const [deleteTarget, setDeleteTarget] = useState<ShelfLifeType | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -68,7 +67,6 @@ export default function ShelfLifeTypesPage() {
     try {
       await updateShelfLifeType(id, {
         name: row.name.trim(),
-        critical_days: parseInt(row.critical_days) || 0,
         remove_days: parseInt(row.remove_days) || 0,
         campaign_days: parseInt(row.campaign_days) || 0,
       })
@@ -83,11 +81,10 @@ export default function ShelfLifeTypesPage() {
     try {
       await addShelfLifeType({
         name: newRow.name.trim(),
-        critical_days: parseInt(newRow.critical_days) || 0,
         remove_days: parseInt(newRow.remove_days) || 0,
         campaign_days: parseInt(newRow.campaign_days) || 0,
       })
-      setNewRow({ name: '', critical_days: '3', remove_days: '14', campaign_days: '90' })
+      setNewRow({ name: '', remove_days: '14', campaign_days: '90' })
     } finally {
       setCreating(false)
     }
@@ -109,7 +106,7 @@ export default function ShelfLifeTypesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
+    <main className="min-h-screen bg-background pb-40">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
@@ -119,7 +116,7 @@ export default function ShelfLifeTypesPage() {
             </div>
             <div className="flex-1">
               <h1 className="text-lg font-bold text-foreground">Raf Omru Tipleri</h1>
-              <p className="text-xs text-muted-foreground">Kategoriye gore kritik/kampanya gun esikleri</p>
+              <p className="text-xs text-muted-foreground">Kategoriye gore kaldirma/kampanya gun esikleri</p>
             </div>
             <Badge variant="secondary" className="text-xs">{shelfLifeTypes.length}</Badge>
           </div>
@@ -143,8 +140,7 @@ export default function ShelfLifeTypesPage() {
           <CardContent className="p-3 space-y-3">
             <Label className="text-sm font-medium">Yeni Kategori Ekle</Label>
             <Input placeholder="ornek: +4 Dolap" value={newRow.name} onChange={(e) => setNewRow((r) => ({ ...r, name: e.target.value }))} className="h-10" />
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1"><Label className="text-xs">Kritik (gun)</Label><Input type="number" min="0" value={newRow.critical_days} onChange={(e) => setNewRow((r) => ({ ...r, critical_days: e.target.value }))} className="h-10" /></div>
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1"><Label className="text-xs">Kaldir (gun)</Label><Input type="number" min="0" value={newRow.remove_days} onChange={(e) => setNewRow((r) => ({ ...r, remove_days: e.target.value }))} className="h-10" /></div>
               <div className="space-y-1"><Label className="text-xs">Kampanya (gun)</Label><Input type="number" min="0" value={newRow.campaign_days} onChange={(e) => setNewRow((r) => ({ ...r, campaign_days: e.target.value }))} className="h-10" /></div>
             </div>
@@ -155,7 +151,7 @@ export default function ShelfLifeTypesPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground px-1">
-          Kritik gun: bu gun sayisi ve altinda urun &quot;acil&quot; sayilir. Kaldir gun: bu gune kadar raftan kaldirilmasi onerilir. Kampanya gun: bu gune kadar kampanya onerisi gosterilir. Bu esiklerin ustundeki urunler &quot;guvenli&quot; sayilir.
+          Kaldir gun: bu gune kadar raftan kaldirilmasi onerilir. Kampanya gun: bu gune kadar kampanya onerisi gosterilir. Bu esiklerin ustundeki urunler otomatik olarak &quot;guvenli&quot; sayilir.
         </p>
 
         {shelfLifeTypes.length === 0 ? (
@@ -188,8 +184,7 @@ export default function ShelfLifeTypesPage() {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1"><Label className="text-xs">Kritik (gun)</Label><Input type="number" min="0" value={row.critical_days} onChange={(e) => setRows((prev) => ({ ...prev, [t.id]: { ...row, critical_days: e.target.value } }))} className="h-10" /></div>
+                    <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1"><Label className="text-xs">Kaldir (gun)</Label><Input type="number" min="0" value={row.remove_days} onChange={(e) => setRows((prev) => ({ ...prev, [t.id]: { ...row, remove_days: e.target.value } }))} className="h-10" /></div>
                       <div className="space-y-1"><Label className="text-xs">Kampanya (gun)</Label><Input type="number" min="0" value={row.campaign_days} onChange={(e) => setRows((prev) => ({ ...prev, [t.id]: { ...row, campaign_days: e.target.value } }))} className="h-10" /></div>
                     </div>

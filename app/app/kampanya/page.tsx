@@ -16,6 +16,7 @@ import { ArrowLeft, ShoppingCart, Package, Share2, Copy, Check, X, Search, Tag }
 import type { ProductWithStock } from '@/lib/types'
 import { HowItWorksButton } from '@/components/how-it-works-button'
 import { AdSlot } from '@/components/ad-slot'
+import { useBulkBar } from '@/lib/context/bulk-bar-context'
 
 export default function KampanyaPage() {
   const { products, brands } = useAppData()
@@ -26,8 +27,14 @@ export default function KampanyaPage() {
   const [shareMode, setShareMode] = useState(false)
   const [shareQuantities, setShareQuantities] = useState<Record<string, string>>({})
   const [copied, setCopied] = useState(false)
+  const { setBulkBarActive } = useBulkBar()
 
   useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    setBulkBarActive(selectedIds.size > 0)
+    return () => setBulkBarActive(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds.size])
 
   const allCampaignProducts = useMemo(() => {
     return products
@@ -105,7 +112,7 @@ export default function KampanyaPage() {
 
   if (shareMode) {
     return (
-      <main className="min-h-screen bg-background pb-24">
+      <main className="min-h-screen bg-background pb-40">
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="max-w-lg mx-auto px-4 py-3">
             <div className="flex items-center gap-3 mb-3">
@@ -162,7 +169,7 @@ export default function KampanyaPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
+    <main className={`min-h-screen bg-background ${selectedIds.size > 0 ? 'pb-56' : 'pb-40'}`}>
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
