@@ -57,7 +57,7 @@ export default function ReyonlarPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
+    <main className="min-h-screen bg-background pb-40">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center gap-3 mb-3">

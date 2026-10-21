@@ -1,17 +1,15 @@
 import type { ExpiryInfo, ExpiryStatus, ShelfLifeType } from '@/lib/types'
 
 export interface ExpiryThresholds {
-  criticalDays: number
   removeDays: number
   campaignDays: number
 }
 
-export const DEFAULT_THRESHOLDS: ExpiryThresholds = { criticalDays: 3, removeDays: 14, campaignDays: 90 }
+export const DEFAULT_THRESHOLDS: ExpiryThresholds = { removeDays: 14, campaignDays: 90 }
 
 export function getThresholds(shelfLifeType?: ShelfLifeType): ExpiryThresholds {
   if (!shelfLifeType) return DEFAULT_THRESHOLDS
   return {
-    criticalDays: shelfLifeType.critical_days,
     removeDays: shelfLifeType.remove_days,
     campaignDays: shelfLifeType.campaign_days,
   }
@@ -39,10 +37,6 @@ export function getExpiryInfo(expiryDate: string, thresholds: ExpiryThresholds =
     status = 'expired'
     label = 'Bugün son gün!'
     actionRequired = 'HEMEN RAFTAN KALDIR!'
-  } else if (daysLeft <= thresholds.criticalDays) {
-    status = 'critical'
-    label = `${daysLeft} gün kaldı`
-    actionRequired = 'ACİL: Raftan kaldır!'
   } else if (daysLeft <= thresholds.removeDays) {
     status = 'remove'
     label = `${daysLeft} gün kaldı`
@@ -71,19 +65,12 @@ export const statusConfig: Record<
     badge: 'bg-red-500 text-white',
     label: 'Süresi Geçmiş',
   },
-  critical: {
-    bg: 'bg-red-500/5',
-    text: 'text-red-600 dark:text-red-400',
-    border: 'border-red-500/20',
-    badge: 'bg-red-500/90 text-white',
-    label: 'Kritik (0-3 gün)',
-  },
   remove: {
     bg: 'bg-orange-500/10',
     text: 'text-orange-600 dark:text-orange-400',
     border: 'border-orange-500/30',
     badge: 'bg-orange-500 text-white',
-    label: 'Raftan Kaldır (4-14 gün)',
+    label: 'Raftan Kaldır (1-14 gün)',
   },
   campaign: {
     bg: 'bg-amber-500/10',

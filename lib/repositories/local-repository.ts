@@ -14,9 +14,9 @@ const KEYS = {
 }
 
 const DEFAULT_SHELF_LIFE_TYPES: Omit<ShelfLifeType, 'id' | 'created_at' | 'updated_at'>[] = [
-  { name: 'Normal Raf', critical_days: 3, remove_days: 14, campaign_days: 90 },
-  { name: '+4 Dolap (Soguk)', critical_days: 2, remove_days: 5, campaign_days: 14 },
-  { name: '-18 Dolap (Dondurucu)', critical_days: 14, remove_days: 30, campaign_days: 90 },
+  { name: 'Normal Raf', remove_days: 14, campaign_days: 90 },
+  { name: '+4 Dolap (Soguk)', remove_days: 5, campaign_days: 14 },
+  { name: '-18 Dolap (Dondurucu)', remove_days: 30, campaign_days: 90 },
 ]
 
 function read<T>(key: string): T[] {
@@ -340,7 +340,6 @@ export class LocalRepository implements IRepository {
     const type: ShelfLifeType = {
       id: uid(),
       name: data.name || '',
-      critical_days: data.critical_days ?? 3,
       remove_days: data.remove_days ?? 14,
       campaign_days: data.campaign_days ?? 90,
       created_at: now(),
