@@ -27,10 +27,14 @@ const fieldOptions = [
   { value: 'brand', label: 'Marka' },
 ]
 
+const KEEP_FILE_REYON = '__keep__'
+const NO_REYON = '__none__'
+
 export default function ImportPage() {
-  const { addProduct, addBrand, brands } = useAppData()
+  const { addProduct, addBrand, brands, reyons } = useAppData()
 
   const [step, setStep] = useState<Step>('upload')
+  const [restoreReyonChoice, setRestoreReyonChoice] = useState(KEEP_FILE_REYON)
   const [rawText, setRawText] = useState('')
   const [fileName, setFileName] = useState('')
   const [headers, setHeaders] = useState<string[]>([])
@@ -193,7 +197,8 @@ export default function ImportPage() {
     setImporting(true)
     try {
       const repo = getRepository()
-      const result = await repo.restoreBackup(backupData)
+      const reyonOverride = restoreReyonChoice === KEEP_FILE_REYON ? undefined : restoreReyonChoice === NO_REYON ? null : restoreReyonChoice
+      const result = await repo.restoreBackup(backupData, reyonOverride)
       setRestoreResult(result)
     } finally {
       setImporting(false)
@@ -306,6 +311,21 @@ export default function ImportPage() {
               <Badge variant="secondary">{backupData.brands.length} marka</Badge>
               <Badge variant="secondary">{backupData.pallets?.length || 0} palet</Badge>
             </div>
+
+            {reyons.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Yeni eklenen urunler hangi reyona atansin?</Label>
+                <Select value={restoreReyonChoice} onValueChange={setRestoreReyonChoice}>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={KEEP_FILE_REYON}>Dosyadaki reyon bilgisini koru</SelectItem>
+                    <SelectItem value={NO_REYON}>Reyonsuz ekle</SelectItem>
+                    {reyons.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <Button disabled={importing} onClick={handleRestore}>
               {importing ? 'Geri yukleniyor...' : 'Yedekten Geri Yukle'}
             </Button>

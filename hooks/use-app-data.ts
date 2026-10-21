@@ -71,9 +71,9 @@ export function useAppData() {
     return created
   }, [brands, loadData])
 
-  const bulkImportCatalog = useCallback(async (items: ParsedProduct[]) => {
+  const bulkImportCatalog = useCallback(async (items: ParsedProduct[], reyonIdOverride?: string | null) => {
     const repo = getRepository()
-    const reyonId = getCurrentReyonId()
+    const reyonId = reyonIdOverride !== undefined ? (reyonIdOverride ?? undefined) : getCurrentReyonId()
     const brandNameToId = new Map(brands.map((b) => [b.name.toLowerCase(), b.id]))
     for (const item of items) {
       const key = item.brand?.toLowerCase()

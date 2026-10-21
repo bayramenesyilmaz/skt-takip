@@ -262,7 +262,7 @@ export class LocalRepository implements IRepository {
     }
   }
 
-  async restoreBackup(data: BackupData): Promise<RestoreResult> {
+  async restoreBackup(data: BackupData, reyonOverride?: string | null): Promise<RestoreResult> {
     const result: RestoreResult = { brandsAdded: 0, productsAdded: 0, stockItemsAdded: 0, palletsAdded: 0, palletItemsAdded: 0, shelfLifeTypesAdded: 0, reyonsAdded: 0, returnsAdded: 0 }
 
     const brands = read<Brand>(KEYS.brands)
@@ -292,7 +292,10 @@ export class LocalRepository implements IRepository {
     const stockIds = new Set(stock.map((s) => s.id))
     for (const p of data.products || []) {
       const { stock_items, ...productFields } = p
-      if (!productIds.has(p.id)) { products.push(productFields); productIds.add(p.id); result.productsAdded++ }
+      if (!productIds.has(p.id)) {
+        const finalFields = reyonOverride !== undefined ? { ...productFields, reyon_id: reyonOverride ?? undefined } : productFields
+        products.push(finalFields); productIds.add(p.id); result.productsAdded++
+      }
       for (const s of stock_items || []) {
         if (!stockIds.has(s.id)) { stock.push(s); stockIds.add(s.id); result.stockItemsAdded++ }
       }

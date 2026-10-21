@@ -31,7 +31,7 @@ export interface IRepository {
   getPalletItemsForProduct(productId: string): Promise<(PalletItem & { pallet: Pallet })[]>
 
   exportBackup(reyonId?: string): Promise<BackupData>
-  restoreBackup(data: BackupData): Promise<RestoreResult>
+  restoreBackup(data: BackupData, reyonOverride?: string | null): Promise<RestoreResult>
 
   getShelfLifeTypes(): Promise<ShelfLifeType[]>
   createShelfLifeType(data: Partial<ShelfLifeType>): Promise<ShelfLifeType>
