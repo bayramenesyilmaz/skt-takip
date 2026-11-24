@@ -300,31 +300,6 @@ function IadeContent() {
             <Badge variant="secondary" className="text-xs">{returnRecords.length}</Badge>
             <HowItWorksButton page="iade" />
           </div>
-
-          <div className="flex gap-2 mb-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Kayitlarda ara..."
-                value={listSearch}
-                onChange={(e) => setListSearch(e.target.value)}
-                className="pl-9 h-9 bg-muted/50"
-              />
-            </div>
-          </div>
-
-          <Select value={brandFilter} onValueChange={setBrandFilter}>
-            <SelectTrigger className="h-9 bg-muted/50 w-full">
-              <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tum Markalar</SelectItem>
-              {brands.map((b) => (
-                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </header>
 
@@ -393,6 +368,30 @@ function IadeContent() {
             )}
           </CardContent>
         </Card>
+
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Kayitlarda ara..."
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+              className="pl-9 h-9 bg-muted/50"
+            />
+          </div>
+          <Select value={brandFilter} onValueChange={setBrandFilter}>
+            <SelectTrigger className="h-9 bg-muted/50 w-full">
+              <Tag className="w-3.5 h-3.5 mr-1 shrink-0" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tum Markalar</SelectItem>
+              {brands.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {filteredRecords.length > 0 && (
           <Card>

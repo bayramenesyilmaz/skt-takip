@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useAppData } from '@/hooks/use-app-data'
 import { useListeFilters } from '@/lib/context/liste-filters-context'
 import type { StatusFilter } from '@/lib/context/liste-filters-context'
@@ -14,6 +14,8 @@ import { AdSlot } from '@/components/ad-slot'
 import { getExpiryInfo, getThresholds, formatDate } from '@/lib/expiry'
 import { buildShareMessage } from '@/lib/share'
 import { ProductCard } from '@/components/product-card'
+import { ProductEditDialog } from '@/components/product-edit-dialog'
+import { ProductQuickActionsDialog } from '@/components/product-quick-actions-dialog'
 import { DeleteDialog } from '@/components/delete-dialog'
 import { BottomNav } from '@/components/bottom-nav'
 import { BarcodeScanner } from '@/components/barcode-scanner'
@@ -30,9 +32,8 @@ const VALID_FILTERS: StatusFilter[] = ['all', 'expired', 'remove', 'campaign', '
 const PAGE_SIZE = 40
 
 function ListeContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType, bulkAssignReyon } = useAppData()
+  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType, bulkAssignReyon, updateProduct, addReturnRecord, addStockItem } = useAppData()
   const { currentReyonId } = useReyon()
   const { setBulkBarActive } = useBulkBar()
   const [mounted, setMounted] = useState(false)
@@ -45,6 +46,8 @@ function ListeContent() {
   useEffect(() => { setSearch(debouncedSearch) }, [debouncedSearch])
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
+  const [editTarget, setEditTarget] = useState<ProductWithStock | null>(null)
+  const [quickActionTarget, setQuickActionTarget] = useState<ProductWithStock | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
@@ -507,9 +510,9 @@ function ListeContent() {
                 <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block">
                   <ProductCard
                     product={product}
-                    onEdit={(p) => router.push(`/app/urun?id=${p.id}`)}
+                    onEdit={(p) => setEditTarget(p)}
                     onDelete={() => setDeleteTarget(product)}
-                    onReturn={(p) => router.push(`/app/iade?productId=${p.id}`)}
+                    onReturn={(p) => setQuickActionTarget(p)}
                     compact
                   />
                 </Link>
@@ -590,6 +593,24 @@ function ListeContent() {
         }
         confirmLabel="Stogu Sifirla"
         confirming={zeroing}
+      />
+
+      <ProductEditDialog
+        product={editTarget}
+        open={!!editTarget}
+        onOpenChange={(open) => !open && setEditTarget(null)}
+        brands={brands}
+        shelfLifeTypes={shelfLifeTypes}
+        onSave={updateProduct}
+      />
+
+      <ProductQuickActionsDialog
+        product={quickActionTarget}
+        open={!!quickActionTarget}
+        onOpenChange={(open) => !open && setQuickActionTarget(null)}
+        onAddReturn={addReturnRecord}
+        onZeroStock={zeroProductStock}
+        onAddStock={addStockItem}
       />
     </main>
   )

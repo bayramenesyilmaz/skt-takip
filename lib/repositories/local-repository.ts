@@ -345,6 +345,7 @@ export class LocalRepository implements IRepository {
       name: data.name || '',
       remove_days: data.remove_days ?? 14,
       campaign_days: data.campaign_days ?? 90,
+      high_stock_threshold: data.high_stock_threshold,
       created_at: now(),
       updated_at: now(),
     }

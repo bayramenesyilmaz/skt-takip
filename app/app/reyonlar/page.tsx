@@ -3,6 +3,7 @@
 import { useAppData } from '@/hooks/use-app-data'
 import { useReyon } from '@/lib/context/reyon-context'
 import { BottomNav } from '@/components/bottom-nav'
+import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
 import { HowItWorksButton } from '@/components/how-it-works-button'
 import { AdSlot } from '@/components/ad-slot'
+import type { Reyon } from '@/lib/types'
 
 export default function ReyonlarPage() {
   const { reyons, products, addReyon, deleteReyon } = useAppData()
@@ -21,6 +23,8 @@ export default function ReyonlarPage() {
 
   const [newReyonName, setNewReyonName] = useState('')
   const [search, setSearch] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Reyon | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const productCount = useMemo(() => {
     const m: Record<string, number> = {}
@@ -43,9 +47,17 @@ export default function ReyonlarPage() {
     setNewReyonName('')
   }
 
-  const handleDelete = async (id: string) => {
-    await deleteReyon(id)
-    if (currentReyonId === id) setCurrentReyonId(null)
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const id = deleteTarget.id
+      await deleteReyon(id)
+      if (currentReyonId === id) setCurrentReyonId(null)
+      setDeleteTarget(null)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (!mounted) {
@@ -132,7 +144,7 @@ export default function ReyonlarPage() {
                         <Badge variant="outline" className="text-xs mt-0.5">{productCount[reyon.id] || 0} urun</Badge>
                       </div>
                     </button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleDelete(reyon.id)}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setDeleteTarget(reyon)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </CardContent>
@@ -146,6 +158,21 @@ export default function ReyonlarPage() {
       </div>
 
       <BottomNav />
+
+      <DeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        productName={deleteTarget?.name || ''}
+        title="Reyonu Sil"
+        description={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> reyonu silinecek. Bu reyonu kullanan urunler reyonsuz kalir (silinmezler).
+          </>
+        }
+        confirmLabel="Sil"
+        confirming={deleting}
+      />
     </main>
   )
 }

@@ -33,6 +33,7 @@ export interface ShelfLifeType {
   name: string
   remove_days: number
   campaign_days: number
+  high_stock_threshold?: number
   created_at: string
   updated_at: string
 }
