@@ -18,6 +18,8 @@ interface ListeFiltersState {
   setCategoryFilter: (v: string) => void
   reyonFilter: string
   setReyonFilter: (v: string) => void
+  onlyOffShelf: boolean
+  setOnlyOffShelf: (v: boolean) => void
 }
 
 const ListeFiltersContext = createContext<ListeFiltersState | null>(null)
@@ -33,10 +35,11 @@ export function ListeFiltersProvider({ children }: { children: ReactNode }) {
   const [brandFilter, setBrandFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [reyonFilter, setReyonFilter] = useState(() => defaultReyonFilter())
+  const [onlyOffShelf, setOnlyOffShelf] = useState(false)
 
   return (
     <ListeFiltersContext.Provider
-      value={{ search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter, reyonFilter, setReyonFilter }}
+      value={{ search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter, reyonFilter, setReyonFilter, onlyOffShelf, setOnlyOffShelf }}
     >
       {children}
     </ListeFiltersContext.Provider>
