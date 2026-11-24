@@ -33,7 +33,7 @@ const PAGE_SIZE = 40
 
 function ListeContent() {
   const searchParams = useSearchParams()
-  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType, bulkAssignReyon, updateProduct, addReturnRecord, addStockItem } = useAppData()
+  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType, bulkAssignReyon, updateProduct, addReturnRecord, addStockItem, updateStockItem, deleteStockItem } = useAppData()
   const { currentReyonId } = useReyon()
   const { setBulkBarActive } = useBulkBar()
   const [mounted, setMounted] = useState(false)
@@ -48,6 +48,20 @@ function ListeContent() {
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
   const [editTarget, setEditTarget] = useState<ProductWithStock | null>(null)
   const [quickActionTarget, setQuickActionTarget] = useState<ProductWithStock | null>(null)
+  // Modal'lar acikken bir islem (SKT ekle/sil, rafta var/yok, vb.) products
+  // listesini yeniledikce, modalin gosterdigi urun de guncel kalsin diye
+  // esleyen kaydi tazeliyoruz; yoksa modal eski veriyi gostermeye devam eder.
+  useEffect(() => {
+    if (editTarget) {
+      const fresh = products.find((p) => p.id === editTarget.id)
+      if (fresh && fresh !== editTarget) setEditTarget(fresh)
+    }
+    if (quickActionTarget) {
+      const fresh = products.find((p) => p.id === quickActionTarget.id)
+      if (fresh && fresh !== quickActionTarget) setQuickActionTarget(fresh)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products])
   const [showScanner, setShowScanner] = useState(false)
   const [appliedInitialFilter, setAppliedInitialFilter] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
@@ -619,6 +633,9 @@ function ListeContent() {
         brands={brands}
         shelfLifeTypes={shelfLifeTypes}
         onSave={updateProduct}
+        onAddStock={addStockItem}
+        onUpdateStock={updateStockItem}
+        onDeleteStock={deleteStockItem}
       />
 
       <ProductQuickActionsDialog

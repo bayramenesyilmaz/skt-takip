@@ -23,7 +23,7 @@ import type { ProductWithStock } from '@/lib/types'
 const PAGE_SIZE = 30
 
 export default function AraPage() {
-  const { products, brands, shelfLifeTypes, isLoading, updateProduct, addReturnRecord, addStockItem, zeroProductStock } = useAppData()
+  const { products, brands, shelfLifeTypes, isLoading, updateProduct, addReturnRecord, addStockItem, updateStockItem, deleteStockItem, zeroProductStock } = useAppData()
   const { currentReyonId } = useReyon()
   const [mounted, setMounted] = useState(false)
   const { search: searchQuery, setSearch: setSearchQuery, allReyons, setAllReyons } = useAraFilters()
@@ -36,6 +36,21 @@ export default function AraPage() {
   const [quickActionTarget, setQuickActionTarget] = useState<ProductWithStock | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
   const [zeroing, setZeroing] = useState(false)
+
+  // Modal'lar acikken bir islem (SKT ekle/sil, rafta var/yok, vb.) products
+  // listesini yeniledikce, modalin gosterdigi urun de guncel kalsin diye
+  // esleyen kaydi tazeliyoruz; yoksa modal eski veriyi gostermeye devam eder.
+  useEffect(() => {
+    if (editTarget) {
+      const fresh = products.find((p) => p.id === editTarget.id)
+      if (fresh && fresh !== editTarget) setEditTarget(fresh)
+    }
+    if (quickActionTarget) {
+      const fresh = products.find((p) => p.id === quickActionTarget.id)
+      if (fresh && fresh !== quickActionTarget) setQuickActionTarget(fresh)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products])
 
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { setSearchQuery(debouncedSearch) }, [debouncedSearch])
@@ -210,6 +225,9 @@ export default function AraPage() {
         brands={brands}
         shelfLifeTypes={shelfLifeTypes}
         onSave={updateProduct}
+        onAddStock={addStockItem}
+        onUpdateStock={updateStockItem}
+        onDeleteStock={deleteStockItem}
       />
 
       <ProductQuickActionsDialog
