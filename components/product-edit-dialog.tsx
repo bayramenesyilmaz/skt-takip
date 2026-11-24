@@ -2,7 +2,9 @@
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ProductForm } from '@/components/product-form'
-import type { Product, Brand, ShelfLifeType, ProductWithStock } from '@/lib/types'
+import { StockItemsManager } from '@/components/stock-items-manager'
+import { Card, CardContent } from '@/components/ui/card'
+import type { Product, Brand, ShelfLifeType, ProductWithStock, StockItem } from '@/lib/types'
 
 interface ProductEditDialogProps {
   product: ProductWithStock | null
@@ -11,9 +13,22 @@ interface ProductEditDialogProps {
   brands: Brand[]
   shelfLifeTypes: ShelfLifeType[]
   onSave: (productId: string, updates: Partial<Product>) => Promise<void>
+  onAddStock: (data: { product_id: string; expiry_date: string; quantity: number }) => Promise<unknown>
+  onUpdateStock: (stockId: string, data: Partial<StockItem>) => Promise<unknown>
+  onDeleteStock: (stockId: string) => Promise<unknown>
 }
 
-export function ProductEditDialog({ product, open, onOpenChange, brands, shelfLifeTypes, onSave }: ProductEditDialogProps) {
+export function ProductEditDialog({
+  product,
+  open,
+  onOpenChange,
+  brands,
+  shelfLifeTypes,
+  onSave,
+  onAddStock,
+  onUpdateStock,
+  onDeleteStock,
+}: ProductEditDialogProps) {
   if (!product) return null
 
   const handleSubmit = async (data: Partial<Product> & { expiryDate?: string }) => {
@@ -29,7 +44,7 @@ export function ProductEditDialog({ product, open, onOpenChange, brands, shelfLi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 border-0 bg-transparent shadow-none" showCloseButton={false}>
+      <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-lg" showCloseButton={false}>
         <DialogTitle className="sr-only">Urunu Duzenle</DialogTitle>
         <ProductForm
           initialData={product}
@@ -38,6 +53,18 @@ export function ProductEditDialog({ product, open, onOpenChange, brands, shelfLi
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}
         />
+        <Card className="border-0 shadow-lg mt-3">
+          <CardContent className="p-4">
+            <StockItemsManager
+              productId={product.id}
+              stockItems={product.stock_items || []}
+              shelfLifeType={product.shelf_life_type}
+              onAdd={onAddStock}
+              onUpdate={onUpdateStock}
+              onDelete={onDeleteStock}
+            />
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   )

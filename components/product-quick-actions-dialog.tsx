@@ -6,7 +6,7 @@ import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Undo2, PackageX, CalendarPlus, Plus, MapPin, MapPinOff } from 'lucide-react'
+import { Undo2, PackageX, CalendarPlus, Plus, MapPin, MapPinOff, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/expiry'
 import type { Product, ProductWithStock } from '@/lib/types'
 
@@ -134,7 +134,13 @@ export function ProductQuickActionsDialog({
               </Button>
             </div>
             <Button variant="outline" className={`w-full h-10 ${onShelf ? '' : 'border-amber-500/40 text-amber-700'}`} disabled={togglingShelf} onClick={handleToggleShelf}>
-              {onShelf ? <MapPinOff className="w-4 h-4 mr-1" /> : <MapPin className="w-4 h-4 mr-1" />}
+              {togglingShelf ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : onShelf ? (
+                <MapPinOff className="w-4 h-4 mr-1" />
+              ) : (
+                <MapPin className="w-4 h-4 mr-1" />
+              )}
               {togglingShelf ? 'Isleniyor...' : onShelf ? 'Rafta Yok Olarak Isaretle' : 'Rafa Konuldu Olarak Isaretle'}
             </Button>
 

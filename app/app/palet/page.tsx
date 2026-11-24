@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Package, Trash2, Search, X, Camera, MapPin, MapPinOff } from 'lucide-react'
+import { ArrowLeft, Package, Trash2, Search, X, Camera, MapPin, MapPinOff, Loader2 } from 'lucide-react'
 import type { PalletWithItems, PalletItem, Product, ProductWithStock } from '@/lib/types'
 import { AdSlot } from '@/components/ad-slot'
 import { DeleteDialog } from '@/components/delete-dialog'
@@ -90,9 +90,16 @@ function PalletDetailContent() {
     }
   }
 
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(null)
+
   const handleToggleOnShelf = async (product: Product) => {
-    await updateProduct(product.id, { on_shelf: product.on_shelf === false })
-    await load()
+    setTogglingProductId(product.id)
+    try {
+      await updateProduct(product.id, { on_shelf: product.on_shelf === false })
+      await load()
+    } finally {
+      setTogglingProductId(null)
+    }
   }
 
   const searchResults = searchQuery.trim() && !selectedProduct
@@ -236,13 +243,20 @@ function PalletDetailContent() {
                       <div className="flex items-center gap-1 shrink-0">
                         {item.product && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
-                            className={`h-8 w-8 ${onShelf ? 'text-emerald-600' : 'text-amber-600'}`}
+                            className={`h-8 w-8 transition-colors ${onShelf ? 'text-emerald-600 border-emerald-500/30' : 'text-amber-600 border-amber-500/30'}`}
                             title={onShelf ? 'Rafta Var (degistirmek icin tikla)' : 'Rafta Yok (degistirmek icin tikla)'}
+                            disabled={togglingProductId === item.product.id}
                             onClick={() => handleToggleOnShelf(item.product!)}
                           >
-                            {onShelf ? <MapPin className="w-4 h-4" /> : <MapPinOff className="w-4 h-4" />}
+                            {togglingProductId === item.product.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : onShelf ? (
+                              <MapPin className="w-4 h-4" />
+                            ) : (
+                              <MapPinOff className="w-4 h-4" />
+                            )}
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setRemoveTarget(item)}>
