@@ -55,6 +55,7 @@ export function ProductCard({
               )}
               {distinctExpiryCount > 1 && <Badge variant="outline" className="text-xs px-1.5 py-0">{distinctExpiryCount} SKT</Badge>}
               {!product.barcode && <Badge variant="outline" className="text-xs px-1.5 py-0">Barkod yok</Badge>}
+              {product.on_shelf === false && <Badge variant="destructive" className="text-xs px-1.5 py-0">Rafta Yok</Badge>}
             </div>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
               {product.stock_code && <span className="text-xs text-muted-foreground">Stok Kodu: {product.stock_code}</span>}

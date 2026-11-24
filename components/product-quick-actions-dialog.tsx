@@ -6,9 +6,9 @@ import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Undo2, PackageX, CalendarPlus, Plus } from 'lucide-react'
+import { Undo2, PackageX, CalendarPlus, Plus, MapPin, MapPinOff } from 'lucide-react'
 import { formatDate } from '@/lib/expiry'
-import type { ProductWithStock } from '@/lib/types'
+import type { Product, ProductWithStock } from '@/lib/types'
 
 interface ProductQuickActionsDialogProps {
   product: ProductWithStock | null
@@ -17,6 +17,7 @@ interface ProductQuickActionsDialogProps {
   onAddReturn: (data: { product_id: string; quantity: number; note?: string }) => Promise<unknown>
   onZeroStock: (productId: string) => Promise<void>
   onAddStock: (data: { product_id: string; expiry_date: string; quantity: number }) => Promise<void>
+  onToggleOnShelf: (productId: string, updates: Partial<Product>) => Promise<void>
 }
 
 export function ProductQuickActionsDialog({
@@ -26,6 +27,7 @@ export function ProductQuickActionsDialog({
   onAddReturn,
   onZeroStock,
   onAddStock,
+  onToggleOnShelf,
 }: ProductQuickActionsDialogProps) {
   const [quantity, setQuantity] = useState('1')
   const [note, setNote] = useState('')
@@ -38,6 +40,7 @@ export function ProductQuickActionsDialog({
 
   const [confirmZero, setConfirmZero] = useState(false)
   const [zeroing, setZeroing] = useState(false)
+  const [togglingShelf, setTogglingShelf] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -54,6 +57,16 @@ export function ProductQuickActionsDialog({
   const totalQty = product.total_quantity ?? 0
   const activeStock = (product.stock_items || []).filter((s) => s.quantity > 0)
   const earliest = [...activeStock].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
+  const onShelf = product.on_shelf !== false
+
+  const handleToggleShelf = async () => {
+    setTogglingShelf(true)
+    try {
+      await onToggleOnShelf(product.id, { on_shelf: !onShelf })
+    } finally {
+      setTogglingShelf(false)
+    }
+  }
 
   const handleAddReturn = async () => {
     setSavingReturn(true)
@@ -95,7 +108,7 @@ export function ProductQuickActionsDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Undo2 className="w-4 h-4 text-primary" />{product.name}</DialogTitle>
             <DialogDescription>
-              Stok: {totalQty}{earliest && <> - SKT: {formatDate(earliest.expiry_date)}</>}
+              Stok: {totalQty}{earliest && <> - SKT: {formatDate(earliest.expiry_date)}</>}{!onShelf && <> - Rafta Yok</>}
             </DialogDescription>
           </DialogHeader>
 
@@ -120,6 +133,10 @@ export function ProductQuickActionsDialog({
                 <CalendarPlus className="w-4 h-4 mr-1" />Yeni SKT Gir
               </Button>
             </div>
+            <Button variant="outline" className={`w-full h-10 ${onShelf ? '' : 'border-amber-500/40 text-amber-700'}`} disabled={togglingShelf} onClick={handleToggleShelf}>
+              {onShelf ? <MapPinOff className="w-4 h-4 mr-1" /> : <MapPin className="w-4 h-4 mr-1" />}
+              {togglingShelf ? 'Isleniyor...' : onShelf ? 'Rafta Yok Olarak Isaretle' : 'Rafa Konuldu Olarak Isaretle'}
+            </Button>
 
             {showSktForm && (
               <div className="space-y-2 pt-1">

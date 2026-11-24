@@ -40,7 +40,7 @@ function ListeContent() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const { search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter, reyonFilter, setReyonFilter } = useListeFilters()
+  const { search, setSearch, statusFilter, setStatusFilter, brandFilter, setBrandFilter, categoryFilter, setCategoryFilter, reyonFilter, setReyonFilter, onlyOffShelf, setOnlyOffShelf } = useListeFilters()
   const [searchInput, setSearchInput] = useState(search)
   const debouncedSearch = useDebouncedValue(searchInput, 200)
   useEffect(() => { setSearch(debouncedSearch) }, [debouncedSearch])
@@ -103,7 +103,7 @@ function ListeContent() {
   // henuz uygulanmamis taban liste; hem "filtered" hem de durum rozetlerindeki
   // adetler ("counts") bu tabandan turetiliyor ki rozetler diger filtrelerle
   // birlikte guncel kalsin.
-  const preStatusFiltered = useMemo(() => {
+  const searchScoped = useMemo(() => {
     let result = [...activeProducts]
 
     if (search) {
@@ -128,6 +128,13 @@ function ListeContent() {
     return result
   }, [activeProducts, search, brandFilter, categoryFilter])
 
+  const offShelfCount = useMemo(() => searchScoped.filter((p) => p.on_shelf === false).length, [searchScoped])
+
+  const preStatusFiltered = useMemo(() => {
+    if (!onlyOffShelf) return searchScoped
+    return searchScoped.filter((p) => p.on_shelf === false)
+  }, [searchScoped, onlyOffShelf])
+
   const filtered = useMemo(() => {
     let result = preStatusFiltered
 
@@ -144,7 +151,7 @@ function ListeContent() {
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
-  }, [search, statusFilter, brandFilter, categoryFilter, reyonFilter])
+  }, [search, statusFilter, brandFilter, categoryFilter, reyonFilter, onlyOffShelf])
 
   const visibleProducts = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
 
@@ -434,6 +441,16 @@ function ListeContent() {
               </Badge>
             </button>
           ))}
+          {offShelfCount > 0 && (
+            <button onClick={() => setOnlyOffShelf(!onlyOffShelf)}>
+              <Badge
+                variant={onlyOffShelf ? 'destructive' : 'outline'}
+                className="shrink-0 cursor-pointer text-xs"
+              >
+                Rafta Yok ({offShelfCount})
+              </Badge>
+            </button>
+          )}
         </div>
 
         {!selectMode && filtered.length > 0 && (
@@ -485,7 +502,7 @@ function ListeContent() {
             <Package className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <h3 className="font-semibold text-foreground mb-1">Urun Bulunamadi</h3>
             <p className="text-sm text-muted-foreground">
-              {search || statusFilter !== 'all' || brandFilter !== 'all' || categoryFilter !== 'all' || reyonFilter !== 'all'
+              {search || statusFilter !== 'all' || brandFilter !== 'all' || categoryFilter !== 'all' || reyonFilter !== 'all' || onlyOffShelf
                 ? 'Filtrelere uyan urun yok.'
                 : 'Henuz urun eklenmemis.'}
             </p>
@@ -611,6 +628,7 @@ function ListeContent() {
         onAddReturn={addReturnRecord}
         onZeroStock={zeroProductStock}
         onAddStock={addStockItem}
+        onToggleOnShelf={updateProduct}
       />
     </main>
   )

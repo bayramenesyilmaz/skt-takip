@@ -8,10 +8,11 @@ import { useAppData } from '@/hooks/use-app-data'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Package, ScanLine, Trash2, AlertCircle } from 'lucide-react'
-import type { PalletWithItems, PalletItem, Product } from '@/lib/types'
+import { ArrowLeft, Package, Trash2, Search, X, Camera, MapPin, MapPinOff } from 'lucide-react'
+import type { PalletWithItems, PalletItem, Product, ProductWithStock } from '@/lib/types'
 import { AdSlot } from '@/components/ad-slot'
 import { DeleteDialog } from '@/components/delete-dialog'
 
@@ -19,13 +20,18 @@ function PalletDetailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
-  const { products, addPalletItem, removePalletItem } = useAppData()
+  const { products, addPalletItem, removePalletItem, updateProduct } = useAppData()
   const [pallet, setPallet] = useState<PalletWithItems | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showScanner, setShowScanner] = useState(false)
   const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null)
   const [removeTarget, setRemoveTarget] = useState<(PalletItem & { product?: Product }) | null>(null)
   const [removing, setRemoving] = useState(false)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithStock | null>(null)
+  const [addQuantity, setAddQuantity] = useState('1')
+  const [adding, setAdding] = useState(false)
 
   const load = async () => {
     if (!id) { setIsLoading(false); return }
@@ -65,6 +71,40 @@ function PalletDetailContent() {
     }
   }
 
+  const resetAddForm = () => {
+    setSelectedProduct(null)
+    setSearchQuery('')
+    setAddQuantity('1')
+    setNotFoundBarcode(null)
+  }
+
+  const handleAddSelected = async () => {
+    if (!id || !selectedProduct) return
+    setAdding(true)
+    try {
+      await addPalletItem({ pallet_id: id, product_id: selectedProduct.id, quantity: parseInt(addQuantity) || 1 })
+      await load()
+      resetAddForm()
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleToggleOnShelf = async (product: Product) => {
+    await updateProduct(product.id, { on_shelf: product.on_shelf === false })
+    await load()
+  }
+
+  const searchResults = searchQuery.trim() && !selectedProduct
+    ? products
+        .filter((p) =>
+          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (p.barcode && p.barcode.includes(searchQuery)) ||
+          (p.stock_code && p.stock_code.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+        .slice(0, 8)
+    : []
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -100,21 +140,67 @@ function PalletDetailContent() {
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
-        <Button className="w-full h-11" onClick={() => setShowScanner(true)}>
-          <ScanLine className="w-4 h-4 mr-2" />Barkod Okutup Urun Ekle
-        </Button>
-
-        {notFoundBarcode && (
-          <Card className="border-amber-500/30 bg-amber-500/5">
-            <CardContent className="p-3 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p><span className="font-medium">{notFoundBarcode}</span> barkodlu urun sistemde yok.</p>
-                <Link href={`/app/ekle?barcode=${encodeURIComponent(notFoundBarcode)}`} className="text-primary underline text-xs">Once urunu ekleyin</Link>
+        <Card className="border-primary/30">
+          <CardContent className="p-3 space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Urun adi, stok kodu veya barkod ara..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setSelectedProduct(null); setNotFoundBarcode(null) }}
+                  className="pl-9 h-10"
+                />
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <Button type="button" variant="secondary" className="h-10 px-3" onClick={() => setShowScanner(true)}>
+                <Camera className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {searchResults.length > 0 && (
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {searchResults.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="w-full flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-muted/50 text-left"
+                    onClick={() => { setSelectedProduct(p); setSearchQuery(p.name) }}
+                  >
+                    <Package className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm truncate">{p.name}</p>
+                      {p.brand && <p className="text-xs text-muted-foreground">{p.brand.name}</p>}
+                    </div>
+                    {p.on_shelf === false && <Badge variant="outline" className="text-xs shrink-0">Rafta Yok</Badge>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {notFoundBarcode && (
+              <p className="text-xs text-amber-600">
+                {notFoundBarcode} barkodlu urun sistemde yok.{' '}
+                <Link href={`/app/ekle?barcode=${encodeURIComponent(notFoundBarcode)}`} className="underline">Once urunu ekleyin</Link>
+              </p>
+            )}
+
+            {selectedProduct && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{selectedProduct.name}</p>
+                    {selectedProduct.brand && <p className="text-xs text-muted-foreground">{selectedProduct.brand.name}</p>}
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={resetAddForm}><X className="w-4 h-4" /></Button>
+                </div>
+                <div className="space-y-1"><label className="text-xs text-muted-foreground">Adet</label><Input type="number" min="1" value={addQuantity} onChange={(e) => setAddQuantity(e.target.value)} className="h-10" /></div>
+                <Button className="w-full h-10" disabled={adding} onClick={handleAddSelected}>
+                  {adding ? 'Ekleniyor...' : 'Palete Ekle'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div>
           <h3 className="font-semibold text-sm mb-2">Paletteki Urunler ({pallet.items?.length || 0})</h3>
@@ -123,31 +209,50 @@ function PalletDetailContent() {
               <CardContent className="p-6 text-center">
                 <Package className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Bu palette henuz urun yok</p>
-                <p className="text-xs text-muted-foreground mt-1">Barkod okutarak baslayin</p>
+                <p className="text-xs text-muted-foreground mt-1">Yukaridan urun arayarak veya barkod okutarak baslayin</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-2">
-              {pallet.items.map((item) => (
-                <Card key={item.id}>
-                  <CardContent className="p-3 flex items-center justify-between gap-2">
-                    {item.product ? (
-                      <Link href={`/app/urun?id=${item.product_id}`} className="min-w-0 flex-1 block">
-                        <p className="text-sm font-medium truncate">{item.product.name}</p>
-                        <Badge variant="outline" className="text-xs mt-1">Adet: {item.quantity}</Badge>
-                      </Link>
-                    ) : (
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">Bilinmeyen urun</p>
-                        <Badge variant="outline" className="text-xs mt-1">Adet: {item.quantity}</Badge>
+              {pallet.items.map((item) => {
+                const onShelf = item.product ? item.product.on_shelf !== false : true
+                return (
+                  <Card key={item.id}>
+                    <CardContent className="p-3 flex items-center justify-between gap-2">
+                      {item.product ? (
+                        <Link href={`/app/urun?id=${item.product_id}`} className="min-w-0 flex-1 block">
+                          <p className="text-sm font-medium truncate">{item.product.name}</p>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <Badge variant="outline" className="text-xs">Adet: {item.quantity}</Badge>
+                            {!onShelf && <Badge variant="destructive" className="text-xs">Rafta Yok</Badge>}
+                          </div>
+                        </Link>
+                      ) : (
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">Bilinmeyen urun</p>
+                          <Badge variant="outline" className="text-xs mt-1">Adet: {item.quantity}</Badge>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {item.product && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 ${onShelf ? 'text-emerald-600' : 'text-amber-600'}`}
+                            title={onShelf ? 'Rafta Var (degistirmek icin tikla)' : 'Rafta Yok (degistirmek icin tikla)'}
+                            onClick={() => handleToggleOnShelf(item.product!)}
+                          >
+                            {onShelf ? <MapPin className="w-4 h-4" /> : <MapPinOff className="w-4 h-4" />}
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setRemoveTarget(item)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setRemoveTarget(item)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </div>

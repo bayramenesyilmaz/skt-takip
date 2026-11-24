@@ -24,6 +24,8 @@ export interface Product {
   shelf_life_type_id?: string
   reyon_id?: string
   return_accepts: boolean
+  /** Urun fiziksel olarak rafta mi? Belirtilmemisse (eski kayitlar) rafta sayilir. */
+  on_shelf?: boolean
   created_at: string
   updated_at: string
 }

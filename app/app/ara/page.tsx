@@ -219,6 +219,7 @@ export default function AraPage() {
         onAddReturn={addReturnRecord}
         onZeroStock={zeroProductStock}
         onAddStock={addStockItem}
+        onToggleOnShelf={updateProduct}
       />
 
       <DeleteDialog
