@@ -2,6 +2,7 @@
 
 import { useAppData } from '@/hooks/use-app-data'
 import { BottomNav } from '@/components/bottom-nav'
+import { DeleteDialog } from '@/components/delete-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,6 +11,7 @@ import { ArrowLeft, Plus, Trash2, Tag, RotateCcw, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
 import { AdSlot } from '@/components/ad-slot'
+import type { Brand } from '@/lib/types'
 
 export default function BrandsPage() {
   const { brands, products, addBrand, updateBrand, deleteBrand } = useAppData()
@@ -18,6 +20,8 @@ export default function BrandsPage() {
 
   const [newBrandName, setNewBrandName] = useState('')
   const [search, setSearch] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const productCount = useMemo(() => {
     const m: Record<string, number> = {}
@@ -37,6 +41,17 @@ export default function BrandsPage() {
     if (!newBrandName.trim()) return
     await addBrand({ name: newBrandName.trim(), return_accepts: true })
     setNewBrandName('')
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteBrand(deleteTarget.id)
+      setDeleteTarget(null)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (!mounted) {
@@ -122,7 +137,7 @@ export default function BrandsPage() {
                       <RotateCcw className="w-3 h-3 mr-1" />
                       {brand.return_accepts ? 'Iade Alir' : 'Iade Almaz'}
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => deleteBrand(brand.id)}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(brand)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -136,6 +151,21 @@ export default function BrandsPage() {
       </div>
 
       <BottomNav />
+
+      <DeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        productName={deleteTarget?.name || ''}
+        title="Markayi Sil"
+        description={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> markasi silinecek. Bu markayi kullanan urunler markasiz kalir (silinmezler).
+          </>
+        }
+        confirmLabel="Sil"
+        confirming={deleting}
+      />
     </main>
   )
 }

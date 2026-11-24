@@ -26,6 +26,7 @@ function ProductDetailContent() {
   const [editing, setEditing] = useState(false)
   const [showAddStock, setShowAddStock] = useState(false)
   const [deleteStockTarget, setDeleteStockTarget] = useState<StockItem | null>(null)
+  const [zeroStockTarget, setZeroStockTarget] = useState<StockItem | null>(null)
   const [deleteProductConfirm, setDeleteProductConfirm] = useState(false)
   const [newStock, setNewStock] = useState({ expiry_date: '', quantity: '1' })
   const [editingStockId, setEditingStockId] = useState<string | null>(null)
@@ -66,9 +67,11 @@ function ProductDetailContent() {
     loadData()
   }
 
-  const handleZeroStock = async (stock: StockItem) => {
+  const handleZeroStock = async () => {
+    if (!zeroStockTarget) return
     const repo = getRepository()
-    await repo.updateStockItem(stock.id, { quantity: 0 })
+    await repo.updateStockItem(zeroStockTarget.id, { quantity: 0 })
+    setZeroStockTarget(null)
     loadData()
   }
 
@@ -240,7 +243,7 @@ function ProductDetailContent() {
                             </div>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => startEditStock(stock)} title="Duzenle"><Pencil className="w-4 h-4" /></Button>
-                              {stock.quantity > 0 && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleZeroStock(stock)} title="Stogu sifirla">Sifirla</Button>}
+                              {stock.quantity > 0 && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setZeroStockTarget(stock)} title="Stogu sifirla">Sifirla</Button>}
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteStockTarget(stock)}><Trash2 className="w-4 h-4" /></Button>
                             </div>
                           </div>
@@ -257,6 +260,20 @@ function ProductDetailContent() {
       </div>
 
       <DeleteDialog open={!!deleteStockTarget} onOpenChange={(open) => !open && setDeleteStockTarget(null)} onConfirm={handleDeleteStock} productName={`SKT: ${deleteStockTarget ? formatDate(deleteStockTarget.expiry_date) : ''}`} />
+
+      <DeleteDialog
+        open={!!zeroStockTarget}
+        onOpenChange={(open) => !open && setZeroStockTarget(null)}
+        onConfirm={handleZeroStock}
+        productName={`SKT: ${zeroStockTarget ? formatDate(zeroStockTarget.expiry_date) : ''}`}
+        title="Stogu Sifirla"
+        description={
+          <>
+            Bu stok kaydinin adedi 0&apos;a dusurulecek (SKT: {zeroStockTarget ? formatDate(zeroStockTarget.expiry_date) : ''}).
+          </>
+        }
+        confirmLabel="Stogu Sifirla"
+      />
 
       <DeleteDialog
         open={deleteProductConfirm}

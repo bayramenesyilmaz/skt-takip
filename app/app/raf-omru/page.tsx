@@ -18,17 +18,23 @@ interface RowState {
   name: string
   remove_days: string
   campaign_days: string
+  high_stock_threshold: string
 }
 
 function toRowState(t: ShelfLifeType): RowState {
-  return { name: t.name, remove_days: String(t.remove_days), campaign_days: String(t.campaign_days) }
+  return {
+    name: t.name,
+    remove_days: String(t.remove_days),
+    campaign_days: String(t.campaign_days),
+    high_stock_threshold: t.high_stock_threshold != null ? String(t.high_stock_threshold) : '',
+  }
 }
 
 export default function ShelfLifeTypesPage() {
   const { products, shelfLifeTypes, addShelfLifeType, updateShelfLifeType, deleteShelfLifeType } = useAppData()
   const [mounted, setMounted] = useState(false)
   const [rows, setRows] = useState<Record<string, RowState>>({})
-  const [newRow, setNewRow] = useState<RowState>({ name: '', remove_days: '14', campaign_days: '90' })
+  const [newRow, setNewRow] = useState<RowState>({ name: '', remove_days: '14', campaign_days: '90', high_stock_threshold: '' })
   const [deleteTarget, setDeleteTarget] = useState<ShelfLifeType | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -69,6 +75,7 @@ export default function ShelfLifeTypesPage() {
         name: row.name.trim(),
         remove_days: parseInt(row.remove_days) || 0,
         campaign_days: parseInt(row.campaign_days) || 0,
+        high_stock_threshold: row.high_stock_threshold.trim() ? parseInt(row.high_stock_threshold) : undefined,
       })
     } finally {
       setSaving(null)
@@ -83,8 +90,9 @@ export default function ShelfLifeTypesPage() {
         name: newRow.name.trim(),
         remove_days: parseInt(newRow.remove_days) || 0,
         campaign_days: parseInt(newRow.campaign_days) || 0,
+        high_stock_threshold: newRow.high_stock_threshold.trim() ? parseInt(newRow.high_stock_threshold) : undefined,
       })
-      setNewRow({ name: '', remove_days: '14', campaign_days: '90' })
+      setNewRow({ name: '', remove_days: '14', campaign_days: '90', high_stock_threshold: '' })
     } finally {
       setCreating(false)
     }
@@ -144,6 +152,7 @@ export default function ShelfLifeTypesPage() {
               <div className="space-y-1"><Label className="text-xs">Kaldir (gun)</Label><Input type="number" min="0" value={newRow.remove_days} onChange={(e) => setNewRow((r) => ({ ...r, remove_days: e.target.value }))} className="h-10" /></div>
               <div className="space-y-1"><Label className="text-xs">Kampanya (gun)</Label><Input type="number" min="0" value={newRow.campaign_days} onChange={(e) => setNewRow((r) => ({ ...r, campaign_days: e.target.value }))} className="h-10" /></div>
             </div>
+            <div className="space-y-1"><Label className="text-xs">Yuksek Stok Esigi (adet, opsiyonel)</Label><Input type="number" min="0" placeholder="orn: 100" value={newRow.high_stock_threshold} onChange={(e) => setNewRow((r) => ({ ...r, high_stock_threshold: e.target.value }))} className="h-10" /></div>
             <Button className="w-full h-10" disabled={!newRow.name.trim() || creating} onClick={handleCreate}>
               <Plus className="w-4 h-4 mr-1" />Kategori Ekle
             </Button>
@@ -151,7 +160,7 @@ export default function ShelfLifeTypesPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground px-1">
-          Kaldir gun: bu gune kadar raftan kaldirilmasi onerilir. Kampanya gun: bu gune kadar kampanya onerisi gosterilir. Bu esiklerin ustundeki urunler otomatik olarak &quot;guvenli&quot; sayilir.
+          Kaldir gun: bu gune kadar raftan kaldirilmasi onerilir. Kampanya gun: bu gune kadar kampanya onerisi gosterilir. Bu esiklerin ustundeki urunler otomatik olarak &quot;guvenli&quot; sayilir. Yuksek stok esigi: iade alan bir markanin urunu bu adedin ustunde stokta kaldiginda, SKT yaklasmasa bile Kampanya sayfasinda onerilir.
         </p>
 
         {shelfLifeTypes.length === 0 ? (
@@ -188,6 +197,7 @@ export default function ShelfLifeTypesPage() {
                       <div className="space-y-1"><Label className="text-xs">Kaldir (gun)</Label><Input type="number" min="0" value={row.remove_days} onChange={(e) => setRows((prev) => ({ ...prev, [t.id]: { ...row, remove_days: e.target.value } }))} className="h-10" /></div>
                       <div className="space-y-1"><Label className="text-xs">Kampanya (gun)</Label><Input type="number" min="0" value={row.campaign_days} onChange={(e) => setRows((prev) => ({ ...prev, [t.id]: { ...row, campaign_days: e.target.value } }))} className="h-10" /></div>
                     </div>
+                    <div className="space-y-1"><Label className="text-xs">Yuksek Stok Esigi (adet, opsiyonel)</Label><Input type="number" min="0" placeholder="orn: 100" value={row.high_stock_threshold} onChange={(e) => setRows((prev) => ({ ...prev, [t.id]: { ...row, high_stock_threshold: e.target.value } }))} className="h-10" /></div>
                     <Button size="sm" variant="outline" disabled={saving === t.id} onClick={() => handleSave(t.id)}>
                       <Save className="w-3.5 h-3.5 mr-1" />{saving === t.id ? 'Kaydediliyor...' : 'Kaydet'}
                     </Button>

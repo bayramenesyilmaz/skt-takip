@@ -6,7 +6,10 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { BottomNav } from '@/components/bottom-nav'
 import { BarcodeScanner } from '@/components/barcode-scanner'
-import { ProductSearchCard } from '@/components/product-search-card'
+import { ProductCard } from '@/components/product-card'
+import { ProductEditDialog } from '@/components/product-edit-dialog'
+import { ProductQuickActionsDialog } from '@/components/product-quick-actions-dialog'
+import { DeleteDialog } from '@/components/delete-dialog'
 import { useAppData } from '@/hooks/use-app-data'
 import { useAraFilters } from '@/lib/context/ara-filters-context'
 import { useReyon } from '@/lib/context/reyon-context'
@@ -15,11 +18,12 @@ import { getRepository } from '@/lib/repositories/repository.factory'
 import { HowItWorksButton } from '@/components/how-it-works-button'
 import { AdSlot } from '@/components/ad-slot'
 import { Search, Camera, Package, MapPin } from 'lucide-react'
+import type { ProductWithStock } from '@/lib/types'
 
 const PAGE_SIZE = 30
 
 export default function AraPage() {
-  const { products, isLoading } = useAppData()
+  const { products, brands, shelfLifeTypes, isLoading, updateProduct, addReturnRecord, addStockItem, zeroProductStock } = useAppData()
   const { currentReyonId } = useReyon()
   const [mounted, setMounted] = useState(false)
   const { search: searchQuery, setSearch: setSearchQuery, allReyons, setAllReyons } = useAraFilters()
@@ -28,6 +32,10 @@ export default function AraPage() {
   const [showScanner, setShowScanner] = useState(false)
   const [palletMap, setPalletMap] = useState<Record<string, { name: string; quantity: number }[]>>({})
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [editTarget, setEditTarget] = useState<ProductWithStock | null>(null)
+  const [quickActionTarget, setQuickActionTarget] = useState<ProductWithStock | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ProductWithStock | null>(null)
+  const [zeroing, setZeroing] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { setSearchQuery(debouncedSearch) }, [debouncedSearch])
@@ -75,6 +83,17 @@ export default function AraPage() {
     setSearchInput(barcode)
     setSearchQuery(barcode)
     setShowScanner(false)
+  }
+
+  const handleZeroStock = async () => {
+    if (!deleteTarget) return
+    setZeroing(true)
+    try {
+      await zeroProductStock(deleteTarget.id)
+      setDeleteTarget(null)
+    } finally {
+      setZeroing(false)
+    }
   }
 
   if (!mounted || isLoading) {
@@ -158,7 +177,14 @@ export default function AraPage() {
             <AdSlot id="ara-top" />
             {visibleResults.map(({ product }) => (
               <Link key={product.id} href={`/app/urun?id=${product.id}`} className="block hover:opacity-90 transition-opacity">
-                <ProductSearchCard product={product} palletInfo={palletMap[product.id]} />
+                <ProductCard
+                  product={product}
+                  onEdit={(p) => setEditTarget(p)}
+                  onReturn={(p) => setQuickActionTarget(p)}
+                  onDelete={() => setDeleteTarget(product)}
+                  showStockBreakdown
+                  palletInfo={palletMap[product.id]}
+                />
               </Link>
             ))}
             {results.length > visibleResults.length && (
@@ -176,6 +202,39 @@ export default function AraPage() {
       </div>
 
       <BottomNav />
+
+      <ProductEditDialog
+        product={editTarget}
+        open={!!editTarget}
+        onOpenChange={(open) => !open && setEditTarget(null)}
+        brands={brands}
+        shelfLifeTypes={shelfLifeTypes}
+        onSave={updateProduct}
+      />
+
+      <ProductQuickActionsDialog
+        product={quickActionTarget}
+        open={!!quickActionTarget}
+        onOpenChange={(open) => !open && setQuickActionTarget(null)}
+        onAddReturn={addReturnRecord}
+        onZeroStock={zeroProductStock}
+        onAddStock={addStockItem}
+      />
+
+      <DeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleZeroStock}
+        productName={deleteTarget?.name || ''}
+        title="Stogu Sifirla"
+        description={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> urununun stogu sifirlanacak ve &quot;Stok Sifir&quot; listesine tasinacak. Oradan kalici olarak silebilir ya da yeni SKT girerek geri getirebilirsiniz.
+          </>
+        }
+        confirmLabel="Stogu Sifirla"
+        confirming={zeroing}
+      />
     </main>
   )
 }

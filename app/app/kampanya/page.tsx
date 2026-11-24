@@ -44,9 +44,14 @@ export default function KampanyaPage() {
         if (active.length === 0) return null
         const earliest = [...active].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0]
         const info = getExpiryInfo(earliest.expiry_date, getThresholds(p.shelf_life_type))
-        return info.status === 'campaign' ? { product: p, date: earliest.expiry_date, daysLeft: info.daysLeft } : null
+        if (info.status === 'campaign') return { product: p, date: earliest.expiry_date, daysLeft: info.daysLeft, reason: 'expiry' as const }
+        const threshold = p.shelf_life_type?.high_stock_threshold
+        if (p.brand?.return_accepts === true && threshold && (p.total_quantity ?? 0) >= threshold) {
+          return { product: p, date: earliest.expiry_date, daysLeft: info.daysLeft, reason: 'stock' as const }
+        }
+        return null
       })
-      .filter((x): x is { product: ProductWithStock; date: string; daysLeft: number } => x !== null)
+      .filter((x): x is { product: ProductWithStock; date: string; daysLeft: number; reason: 'expiry' | 'stock' } => x !== null)
       .sort((a, b) => a.daysLeft - b.daysLeft)
   }, [products])
 
@@ -241,7 +246,7 @@ export default function KampanyaPage() {
             </label>
 
             <div className="space-y-2">
-              {campaignProducts.map(({ product: p, date, daysLeft }) => (
+              {campaignProducts.map(({ product: p, date, daysLeft, reason }) => (
                 <label key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer">
                   <input
                     type="checkbox"
@@ -252,10 +257,14 @@ export default function KampanyaPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {p.brand?.name ? `${p.brand.name} - ` : ''}SKT: {formatDate(date)}
+                      {p.brand?.name ? `${p.brand.name} - ` : ''}SKT: {formatDate(date)}{reason === 'stock' && ` - Stok: ${p.total_quantity ?? 0}`}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs shrink-0">{daysLeft} gun</Badge>
+                  {reason === 'stock' ? (
+                    <Badge variant="outline" className="text-xs shrink-0">Yuksek Stok</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs shrink-0">{daysLeft} gun</Badge>
+                  )}
                 </label>
               ))}
             </div>

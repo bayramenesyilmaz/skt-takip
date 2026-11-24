@@ -9,7 +9,7 @@ import { ProductForm } from '@/components/product-form'
 import { BulkProductAdd } from '@/components/bulk-product-add'
 import { ExcelBulkImport } from '@/components/excel-bulk-import'
 import { HowItWorksButton } from '@/components/how-it-works-button'
-import { ProductSearchCard } from '@/components/product-search-card'
+import { ProductCard } from '@/components/product-card'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { BottomNav } from '@/components/bottom-nav'
 import { useReyon } from '@/lib/context/reyon-context'
@@ -94,7 +94,7 @@ function AddProductContent() {
             </div>
           </Card>
 
-          <ProductSearchCard product={existingProduct} palletInfo={palletInfo} />
+          <ProductCard product={existingProduct} showStockBreakdown palletInfo={palletInfo} canDelete={false} />
 
           <div className="flex gap-2">
             <Link href={`/app/urun?id=${existingProduct.id}`} className="flex-1">
