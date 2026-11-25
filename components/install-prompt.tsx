@@ -15,6 +15,18 @@ export function InstallPrompt() {
       navigator.serviceWorker.register('/sw.js')
         .then((reg) => console.log('[SW] Registered:', reg.scope))
         .catch((err) => console.log('[SW] Failed:', err))
+
+      // If a session was left open across a deploy, the browser can swap in a
+      // new service worker (new cache, new chunk hashes) while this tab is
+      // still running the old app shell. Reload once so it picks up the fresh
+      // version instead of silently running stale code (can present as the
+      // app getting stuck on a loading screen).
+      let reloadedForUpdate = false
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloadedForUpdate) return
+        reloadedForUpdate = true
+        window.location.reload()
+      })
     }
 
     // Ask the browser not to evict this origin's storage under pressure

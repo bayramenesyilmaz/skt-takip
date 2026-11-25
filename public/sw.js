@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skt-takip-v3';
+const CACHE_NAME = 'skt-takip-v4';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icon-192.png',
@@ -61,15 +61,17 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-          }
-          return networkResponse;
-        })
-        .catch(() => undefined);
+      // No catch here: resolving to `undefined` on failure produces an invalid
+      // Response, which silently breaks the resource that requested it (e.g. a
+      // JS chunk) instead of surfacing a real, retryable network error. Letting
+      // the rejection propagate gives the browser/app its normal failure path.
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return networkResponse;
+      });
     })
   );
 });
