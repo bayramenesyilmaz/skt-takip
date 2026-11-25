@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getRepository } from '@/lib/repositories/repository.factory'
 import { CURRENT_REYON_KEY } from '@/lib/context/reyon-context'
-import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletWithItems, ShelfLifeType, Reyon, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
+import { computeFefoDeduction } from '@/lib/stock-utils'
+import type { Product, Brand, StockItem, ProductWithStock, ParsedProduct, Pallet, PalletItem, PalletWithItems, ShelfLifeType, Reyon, ReturnRecord, ReturnRecordWithProduct } from '@/lib/types'
 
 function getCurrentReyonId(): string | undefined {
   if (typeof window === 'undefined') return undefined
@@ -148,6 +149,17 @@ export function useAppData() {
     await loadData()
   }, [loadData])
 
+  const deductStock = useCallback(async (productId: string, amount: number, preferredExpiryDate?: string) => {
+    if (amount <= 0) return
+    const repo = getRepository()
+    const product = products.find((p) => p.id === productId)
+    const updates = computeFefoDeduction(product?.stock_items || [], amount, preferredExpiryDate)
+    for (const u of updates) {
+      await repo.updateStockItem(u.stockId, { quantity: u.newQuantity })
+    }
+    await loadData()
+  }, [products, loadData])
+
   const addPallet = useCallback(async (data: Partial<Pallet>) => {
     const repo = getRepository()
     const created = await repo.createPallet(data)
@@ -161,11 +173,17 @@ export function useAppData() {
     await loadData()
   }, [loadData])
 
-  const addPalletItem = useCallback(async (data: { pallet_id: string; product_id: string; quantity?: number }) => {
+  const addPalletItem = useCallback(async (data: { pallet_id: string; product_id: string; quantity?: number; expiry_date?: string }) => {
     const repo = getRepository()
     const item = await repo.addPalletItem(data)
     await loadData()
     return item
+  }, [loadData])
+
+  const updatePalletItem = useCallback(async (itemId: string, data: Partial<PalletItem>) => {
+    const repo = getRepository()
+    await repo.updatePalletItem(itemId, data)
+    await loadData()
   }, [loadData])
 
   const removePalletItem = useCallback(async (itemId: string) => {
@@ -261,10 +279,10 @@ export function useAppData() {
     reyons,
     returnRecords,
     isLoading,
-    addProduct, bulkAddProducts, bulkImportCatalog, updateProduct, deleteProduct, zeroProductStock,
+    addProduct, bulkAddProducts, bulkImportCatalog, updateProduct, deleteProduct, zeroProductStock, deductStock,
     addBrand, updateBrand, deleteBrand,
     addStockItem, updateStockItem, deleteStockItem,
-    addPallet, deletePallet, addPalletItem, removePalletItem,
+    addPallet, deletePallet, addPalletItem, updatePalletItem, removePalletItem,
     addShelfLifeType, updateShelfLifeType, deleteShelfLifeType, bulkAssignShelfLifeType,
     addReyon, updateReyon, deleteReyon, bulkAssignReyon,
     addReturnRecord, updateReturnRecord, deleteReturnRecord, bulkDeleteReturnRecords,

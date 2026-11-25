@@ -191,16 +191,16 @@ export class LocalRepository implements IRepository {
     write(KEYS.palletItems, read<PalletItem>(KEYS.palletItems).filter((i) => i.pallet_id !== palletId))
   }
 
-  async addPalletItem(data: { pallet_id: string; product_id: string; quantity?: number }): Promise<PalletItem> {
+  async addPalletItem(data: { pallet_id: string; product_id: string; quantity?: number; expiry_date?: string }): Promise<PalletItem> {
     const items = read<PalletItem>(KEYS.palletItems)
-    const existing = items.find((i) => i.pallet_id === data.pallet_id && i.product_id === data.product_id)
+    const existing = items.find((i) => i.pallet_id === data.pallet_id && i.product_id === data.product_id && i.expiry_date === data.expiry_date)
     if (existing) {
       existing.quantity += data.quantity ?? 1
       existing.updated_at = now()
       write(KEYS.palletItems, items)
       return existing
     }
-    const item: PalletItem = { id: uid(), pallet_id: data.pallet_id, product_id: data.product_id, quantity: data.quantity ?? 1, created_at: now(), updated_at: now() }
+    const item: PalletItem = { id: uid(), pallet_id: data.pallet_id, product_id: data.product_id, quantity: data.quantity ?? 1, expiry_date: data.expiry_date, created_at: now(), updated_at: now() }
     items.push(item); write(KEYS.palletItems, items); return item
   }
 

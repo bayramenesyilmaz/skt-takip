@@ -25,7 +25,7 @@ export interface IRepository {
   createPallet(data: Partial<Pallet>): Promise<Pallet>
   updatePallet(palletId: string, data: Partial<Pallet>): Promise<void>
   deletePallet(palletId: string): Promise<void>
-  addPalletItem(data: { pallet_id: string; product_id: string; quantity?: number }): Promise<PalletItem>
+  addPalletItem(data: { pallet_id: string; product_id: string; quantity?: number; expiry_date?: string }): Promise<PalletItem>
   updatePalletItem(itemId: string, data: Partial<PalletItem>): Promise<void>
   removePalletItem(itemId: string): Promise<void>
   getPalletItemsForProduct(productId: string): Promise<(PalletItem & { pallet: Pallet })[]>
