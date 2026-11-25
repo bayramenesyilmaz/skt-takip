@@ -23,7 +23,7 @@ import type { ProductWithStock } from '@/lib/types'
 const PAGE_SIZE = 30
 
 export default function AraPage() {
-  const { products, brands, shelfLifeTypes, isLoading, updateProduct, addReturnRecord, addStockItem, updateStockItem, deleteStockItem, zeroProductStock } = useAppData()
+  const { products, brands, shelfLifeTypes, isLoading, updateProduct, addReturnRecord, addStockItem, updateStockItem, deleteStockItem, zeroProductStock, deductStock } = useAppData()
   const { currentReyonId } = useReyon()
   const [mounted, setMounted] = useState(false)
   const { search: searchQuery, setSearch: setSearchQuery, allReyons, setAllReyons } = useAraFilters()
@@ -235,7 +235,7 @@ export default function AraPage() {
         open={!!quickActionTarget}
         onOpenChange={(open) => !open && setQuickActionTarget(null)}
         onAddReturn={addReturnRecord}
-        onZeroStock={zeroProductStock}
+        onDeductStock={deductStock}
         onAddStock={addStockItem}
         onToggleOnShelf={updateProduct}
       />

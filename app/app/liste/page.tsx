@@ -33,7 +33,7 @@ const PAGE_SIZE = 40
 
 function ListeContent() {
   const searchParams = useSearchParams()
-  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, bulkAssignShelfLifeType, bulkAssignReyon, updateProduct, addReturnRecord, addStockItem, updateStockItem, deleteStockItem } = useAppData()
+  const { products, brands, shelfLifeTypes, reyons, zeroProductStock, deductStock, bulkAssignShelfLifeType, bulkAssignReyon, updateProduct, addReturnRecord, addStockItem, updateStockItem, deleteStockItem } = useAppData()
   const { currentReyonId } = useReyon()
   const { setBulkBarActive } = useBulkBar()
   const [mounted, setMounted] = useState(false)
@@ -643,7 +643,7 @@ function ListeContent() {
         open={!!quickActionTarget}
         onOpenChange={(open) => !open && setQuickActionTarget(null)}
         onAddReturn={addReturnRecord}
-        onZeroStock={zeroProductStock}
+        onDeductStock={deductStock}
         onAddStock={addStockItem}
         onToggleOnShelf={updateProduct}
       />

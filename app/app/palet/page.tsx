@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getRepository } from '@/lib/repositories/repository.factory'
 import { useAppData } from '@/hooks/use-app-data'
+import { formatDate } from '@/lib/expiry'
 import { BarcodeScanner } from '@/components/barcode-scanner'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
@@ -15,12 +16,13 @@ import { ArrowLeft, Package, Trash2, Search, X, Camera, MapPin, MapPinOff, Loade
 import type { PalletWithItems, PalletItem, Product, ProductWithStock } from '@/lib/types'
 import { AdSlot } from '@/components/ad-slot'
 import { DeleteDialog } from '@/components/delete-dialog'
+import { PalletItemEditDialog } from '@/components/pallet-item-edit-dialog'
 
 function PalletDetailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
-  const { products, addPalletItem, removePalletItem, updateProduct } = useAppData()
+  const { products, addPalletItem, updatePalletItem, removePalletItem, updateProduct, deductStock } = useAppData()
   const [pallet, setPallet] = useState<PalletWithItems | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showScanner, setShowScanner] = useState(false)
@@ -30,8 +32,11 @@ function PalletDetailContent() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<ProductWithStock | null>(null)
+  const [selectedExpiryDate, setSelectedExpiryDate] = useState<string | null>(null)
   const [addQuantity, setAddQuantity] = useState('1')
   const [adding, setAdding] = useState(false)
+  const [itemSearch, setItemSearch] = useState('')
+  const [editItemTarget, setEditItemTarget] = useState<(PalletItem & { product?: Product }) | null>(null)
 
   const load = async () => {
     if (!id) { setIsLoading(false); return }
@@ -46,17 +51,16 @@ function PalletDetailContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const handleScan = async (barcode: string) => {
+  const handleScan = (barcode: string) => {
     setShowScanner(false)
-    if (!id) return
     const match = products.find((p) => p.barcode && p.barcode === barcode)
     if (!match) {
       setNotFoundBarcode(barcode)
       return
     }
     setNotFoundBarcode(null)
-    await addPalletItem({ pallet_id: id, product_id: match.id, quantity: 1 })
-    await load()
+    setSelectedProduct(match)
+    setSearchQuery(match.name)
   }
 
   const handleRemoveItem = async () => {
@@ -73,16 +77,23 @@ function PalletDetailContent() {
 
   const resetAddForm = () => {
     setSelectedProduct(null)
+    setSelectedExpiryDate(null)
     setSearchQuery('')
     setAddQuantity('1')
     setNotFoundBarcode(null)
   }
 
+  const selectedProductBatches = (selectedProduct?.stock_items || [])
+    .filter((s) => s.quantity > 0)
+    .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
+
   const handleAddSelected = async () => {
     if (!id || !selectedProduct) return
+    if (selectedProductBatches.length > 1 && !selectedExpiryDate) return
     setAdding(true)
     try {
-      await addPalletItem({ pallet_id: id, product_id: selectedProduct.id, quantity: parseInt(addQuantity) || 1 })
+      const expiryDate = selectedProductBatches.length === 1 ? selectedProductBatches[0].expiry_date : (selectedExpiryDate || undefined)
+      await addPalletItem({ pallet_id: id, product_id: selectedProduct.id, quantity: parseInt(addQuantity) || 1, expiry_date: expiryDate })
       await load()
       resetAddForm()
     } finally {
@@ -111,6 +122,14 @@ function PalletDetailContent() {
         )
         .slice(0, 8)
     : []
+
+  const filteredItems = (pallet?.items || []).filter((item) => {
+    if (!itemSearch.trim()) return true
+    const q = itemSearch.toLowerCase()
+    return (item.product?.name || 'bilinmeyen urun').toLowerCase().includes(q) ||
+      (item.product?.stock_code && item.product.stock_code.toLowerCase().includes(q)) ||
+      (item.product?.barcode && item.product.barcode.includes(q))
+  })
 
   if (isLoading) {
     return (
@@ -200,8 +219,30 @@ function PalletDetailContent() {
                   </div>
                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={resetAddForm}><X className="w-4 h-4" /></Button>
                 </div>
+
+                {selectedProductBatches.length > 1 && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Hangi SKT&apos;den ekleniyor? *</label>
+                    <div className="space-y-1.5">
+                      {selectedProductBatches.map((s) => (
+                        <label key={s.id} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer ${selectedExpiryDate === s.expiry_date ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                          <input
+                            type="radio"
+                            name="pallet-skt"
+                            checked={selectedExpiryDate === s.expiry_date}
+                            onChange={() => setSelectedExpiryDate(s.expiry_date)}
+                            className="w-4 h-4 accent-primary shrink-0"
+                          />
+                          <span className="text-sm flex-1">SKT: {formatDate(s.expiry_date)}</span>
+                          <Badge variant="outline" className="text-xs shrink-0">Stokta: {s.quantity}</Badge>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1"><label className="text-xs text-muted-foreground">Adet</label><Input type="number" min="1" value={addQuantity} onChange={(e) => setAddQuantity(e.target.value)} className="h-10" /></div>
-                <Button className="w-full h-10" disabled={adding} onClick={handleAddSelected}>
+                <Button className="w-full h-10" disabled={adding || (selectedProductBatches.length > 1 && !selectedExpiryDate)} onClick={handleAddSelected}>
                   {adding ? 'Ekleniyor...' : 'Palete Ekle'}
                 </Button>
               </div>
@@ -210,7 +251,22 @@ function PalletDetailContent() {
         </Card>
 
         <div>
-          <h3 className="font-semibold text-sm mb-2">Paletteki Urunler ({pallet.items?.length || 0})</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-sm">Paletteki Urunler ({filteredItems.length}{itemSearch.trim() ? `/${pallet.items?.length || 0}` : ''})</h3>
+          </div>
+
+          {pallet.items && pallet.items.length > 0 && (
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Paletteki urunlerde ara..."
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                className="pl-9 h-9 bg-muted/50"
+              />
+            </div>
+          )}
+
           {(!pallet.items || pallet.items.length === 0) ? (
             <Card className="border-dashed">
               <CardContent className="p-6 text-center">
@@ -219,21 +275,27 @@ function PalletDetailContent() {
                 <p className="text-xs text-muted-foreground mt-1">Yukaridan urun arayarak veya barkod okutarak baslayin</p>
               </CardContent>
             </Card>
+          ) : filteredItems.length === 0 ? (
+            <div className="text-center py-8">
+              <Search className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Aramanla eslesen urun yok</p>
+            </div>
           ) : (
             <div className="space-y-2">
-              {pallet.items.map((item) => {
+              {filteredItems.map((item) => {
                 const onShelf = item.product ? item.product.on_shelf !== false : true
                 return (
                   <Card key={item.id}>
                     <CardContent className="p-3 flex items-center justify-between gap-2">
                       {item.product ? (
-                        <Link href={`/app/urun?id=${item.product_id}`} className="min-w-0 flex-1 block">
+                        <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEditItemTarget(item)}>
                           <p className="text-sm font-medium truncate">{item.product.name}</p>
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                             <Badge variant="outline" className="text-xs">Adet: {item.quantity}</Badge>
+                            {item.expiry_date && <Badge variant="outline" className="text-xs">SKT: {formatDate(item.expiry_date)}</Badge>}
                             {!onShelf && <Badge variant="destructive" className="text-xs">Rafta Yok</Badge>}
                           </div>
-                        </Link>
+                        </button>
                       ) : (
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">Bilinmeyen urun</p>
@@ -284,6 +346,15 @@ function PalletDetailContent() {
         title="Urunu Paletten Cikar"
         confirmLabel="Cikar"
         confirming={removing}
+      />
+
+      <PalletItemEditDialog
+        item={editItemTarget}
+        product={editItemTarget ? products.find((p) => p.id === editItemTarget.product_id) : undefined}
+        open={!!editItemTarget}
+        onOpenChange={(open) => !open && setEditItemTarget(null)}
+        onSave={async (itemId, newQty) => { await updatePalletItem(itemId, { quantity: newQty }); await load() }}
+        onDeductStock={deductStock}
       />
     </main>
   )

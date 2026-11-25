@@ -86,6 +86,8 @@ export interface PalletItem {
   pallet_id: string
   product_id: string
   quantity: number
+  /** Urunun birden fazla SKT'si varsa, bu kalemin hangi SKT'den eklendigi (opsiyonel). */
+  expiry_date?: string
   created_at: string
   updated_at: string
 }
